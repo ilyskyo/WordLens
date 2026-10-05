@@ -54,6 +54,7 @@ import com.ilyskyo.wordlens.ui.lookback.EntryDetailScreen
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailState
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
 import com.ilyskyo.wordlens.ui.lookback.TimelineSelection
+import com.ilyskyo.wordlens.ui.lookback.VoiceMemoActions
 import com.ilyskyo.wordlens.ui.nav.HomeTab
 import com.ilyskyo.wordlens.ui.nav.HomeViewModel
 import com.ilyskyo.wordlens.ui.nav.LocalPageVisibilityScope
@@ -416,6 +417,15 @@ private fun DetailScene(home: HomeViewModel, onBack: () -> Unit) {
             onBack()
         },
         onSaveEditing = home::onSaveEditing,
+        voice = VoiceMemoActions(
+            onStartTake = home::onStartTake,
+            onStopTake = home::onStopTake,
+            onCommitTake = home::onCommitTake,
+            onDiscardTake = home::onDiscardTake,
+            onHandOffTake = home::onTakeHandedOff,
+            onDetachAudio = home::onDetachAudio,
+            onPlaybackProblem = home::onAudioPlaybackFailed,
+        ),
         modifier = Modifier.fillMaxSize(),
     )
 }

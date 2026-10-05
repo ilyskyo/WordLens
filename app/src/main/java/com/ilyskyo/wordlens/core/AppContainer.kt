@@ -65,6 +65,20 @@ class AppContainer(context: Context) {
     /** 日记条目的照片。与 photoDir 分开：Entry.photoPath 以这里为根，删除时好级联。 */
     val entryPhotoDir: File = File(appContext.filesDir, "entries").apply { mkdirs() }
 
+    /**
+     * 语音日记附件（`Entry.audioPath` 的根）。
+     *
+     * 与照片分开一个目录而不是塞进 `entries/`，是为了让「哪个目录里是人声」这件事在磁盘上
+     * 一眼可辨：清扫未引用的录音、以及核对备份边界，都只需要看这一个目录。
+     *
+     * 备份边界不用新写一行规则：`data_extraction_rules.xml` 与 `backup_rules.xml` 都是
+     * `<include>` **白名单**（只有 deck.json 与 diary.json），一旦写了 include，Android 就只
+     * 备份列出的路径，其余一律不外传——所以 `filesDir/audio` 按构造就不上云。人声比照片更
+     * 敏感（语气、背景里有人在说话），而默认云备份不是端到端加密的（说明书 §8.4/§8.7）。
+     * 面对面换机是端到端加密的、且发生在用户主动换机那一刻，那一条 `<device-transfer>` 带全部。
+     */
+    val audioDir: File = File(appContext.filesDir, "audio").apply { mkdirs() }
+
     private val deckDocument = JsonDocument(
         file = File(appContext.filesDir, "deck.json"),
         fallback = { DeckDocument() },
@@ -87,7 +101,7 @@ class AppContainer(context: Context) {
         schemaOf = DiaryDocument::schemaVersion,
     )
 
-    val diary = DiaryRepository(diaryDocument, entryPhotoDir, applicationScope)
+    val diary = DiaryRepository(diaryDocument, entryPhotoDir, audioDir, applicationScope)
 
     val lexicon = LexiconRepository(appContext, applicationScope)
 

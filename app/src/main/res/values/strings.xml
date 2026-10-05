@@ -230,4 +230,36 @@
     <string name="calendar_next">下一月</string>
     <string name="calendar_filtered">只显示 %1$s</string>
     <string name="calendar_empty_filtered">%1$s 的记录已经空了</string>
+
+    <!-- 语音日记附件。四语都要齐，且每种说法都回答「接下来能做什么」，不停在「失败了」。 -->
+    <string name="audio_row_title">一句当时的声音</string>
+    <string name="audio_record">录一段</string>
+    <string name="audio_recording_label">正在录</string>
+    <string name="audio_stop">停下</string>
+    <string name="audio_discard">丢弃</string>
+    <string name="audio_take_sealing">正在收尾…</string>
+    <string name="audio_staged_label">录好了，还没收下</string>
+    <string name="audio_commit">收下</string>
+    <string name="audio_re_record">重录</string>
+    <string name="audio_delete">删除录音</string>
+    <string name="audio_file_missing">这段声音不在这台设备上</string>
+    <string name="audio_play_desc">播放，%1$s</string>
+    <string name="audio_pause_desc">暂停</string>
+    <string name="audio_seek_desc">播放进度，拖到想听的位置</string>
+    <string name="audio_permission_rationale">要用麦克风，只为录下你说的这一句</string>
+    <string name="audio_permission_permanently_denied">麦克风权限已经被永久拒绝，要到设置里打开才能录</string>
+    <string name="audio_open_settings">去设置</string>
+    <string name="audio_delete_confirm_title">删掉这段声音？</string>
+    <string name="audio_delete_confirm_body">只删声音，照片和词都留着。删掉之后录不回来。</string>
+    <string name="audio_replace_confirm_title">会换掉原来那段</string>
+    <string name="audio_replace_confirm_body">新的那段会写在同一个位置上，旧的先没掉。</string>
+    <string name="notice_audio_limit">录到 90 秒，自己停了</string>
+    <string name="notice_audio_handed_off">那段声音停在原地，等你回来决定收还是丢</string>
+    <string name="notice_audio_too_short">太短了，没有录下内容</string>
+    <string name="notice_audio_discarded">那段声音已经丢掉</string>
+    <string name="notice_audio_superseded">另一条上还没收下的那段已经丢掉</string>
+    <string name="notice_mic_busy">麦克风正被通话或别的应用占着，等它空下来再录</string>
+    <string name="notice_audio_failed">这次没录上，写了一半的文件已经清掉</string>
+    <string name="notice_audio_take_pending">还有一段没处理完的声音，先收下或丢弃它</string>
+    <string name="notice_audio_playback_failed">这段声音放不出来，可能是文件坏了</string>
 </resources>

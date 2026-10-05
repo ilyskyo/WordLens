@@ -217,4 +217,35 @@
     <string name="calendar_next">Next month</string>
     <string name="calendar_filtered">Showing only %1$s</string>
     <string name="calendar_empty_filtered">Nothing left from %1$s</string>
+
+    <string name="audio_row_title">A voice from that moment</string>
+    <string name="audio_record">Record a clip</string>
+    <string name="audio_recording_label">Recording</string>
+    <string name="audio_stop">Stop</string>
+    <string name="audio_discard">Discard</string>
+    <string name="audio_take_sealing">Writing the file…</string>
+    <string name="audio_staged_label">Recorded, not kept yet</string>
+    <string name="audio_commit">Keep</string>
+    <string name="audio_re_record">Re-record</string>
+    <string name="audio_delete">Delete recording</string>
+    <string name="audio_file_missing">This recording is not on this device</string>
+    <string name="audio_play_desc">Play, %1$s</string>
+    <string name="audio_pause_desc">Pause</string>
+    <string name="audio_seek_desc">Playback position, drag to the part you want</string>
+    <string name="audio_permission_rationale">The microphone is used only to record this one line</string>
+    <string name="audio_permission_permanently_denied">Microphone access was denied for good. Turn it on in Settings to record.</string>
+    <string name="audio_open_settings">Open Settings</string>
+    <string name="audio_delete_confirm_title">Delete this recording?</string>
+    <string name="audio_delete_confirm_body">Only the voice goes. The photo and the words stay, and this cannot be undone.</string>
+    <string name="audio_replace_confirm_title">This replaces the old clip</string>
+    <string name="audio_replace_confirm_body">The new clip is written at the same place, so the old one is removed first.</string>
+    <string name="notice_audio_limit">It stopped on its own at the 90-second limit</string>
+    <string name="notice_audio_handed_off">The clip is waiting where it was — keep it or discard it</string>
+    <string name="notice_audio_too_short">Too short to hold anything</string>
+    <string name="notice_audio_discarded">That clip was discarded</string>
+    <string name="notice_audio_superseded">The clip you had not kept on another entry was discarded</string>
+    <string name="notice_mic_busy">A call or another app holds the microphone. Try again once it is free.</string>
+    <string name="notice_audio_failed">Nothing was recorded this time; the half-written file was removed</string>
+    <string name="notice_audio_take_pending">One clip is still undecided — keep it or discard it first</string>
+    <string name="notice_audio_playback_failed">This recording cannot be played; the file may be damaged</string>
 </resources>

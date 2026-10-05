@@ -3,6 +3,7 @@
 
 package com.ilyskyo.wordlens.data.repository
 
+import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.data.model.FsrsState
 import com.ilyskyo.wordlens.data.model.ReviewLog
 import com.ilyskyo.wordlens.data.model.StudyDirection
@@ -281,7 +282,14 @@ class DeckRepository(
             for (incoming in imported.cards) {
                 val existing = byId[incoming.id]
                 if (existing == null) {
-                    byId[incoming.id] = incoming
+                    // 新进来的那一张盖上 IMPORTED。`EntrySource` 说的是「这张卡在这个设备上
+                    // 是怎么来的」，而文件里自称的 source 说的是别人设备上发生的事：一份外来的
+                    // deck.json 可以声称任何一张词卡是 ON_DEVICE 认出来的，而我们无从核对。
+                    // 计划里「导入之后 IMPORTED 不再是死值」这条要的就是这件事——它一直没被
+                    // 写下来，所以牌组里「别人给的」和「我自己拍的」长得一模一样。
+                    // 只盖新进的：已存在那一张走 mergeCard，那条路以**我的**身份为底，
+                    // source 不会被外来的文件改写。
+                    byId[incoming.id] = incoming.copy(source = EntrySource.IMPORTED)
                     added++
                 } else {
                     byId[incoming.id] = mergeCard(existing, incoming)
@@ -310,9 +318,28 @@ class DeckRepository(
                 else -> a
             }
         }
-        return theirs.copy(
-            glosses = mine.glosses + theirs.glosses,
-            exampleGlosses = mine.exampleGlosses + theirs.exampleGlosses,
+        // 以**我的那一张**为底，只把缺的补上。
+        //
+        // 这里原来是 `theirs.copy(...)`：一份外来的 deck.json 于是可以把自己机器上认出来的卡
+        // 改成「贴纸来自这张照片」（origin/stickerPath/originalPhotoPath 全换成它的），
+        // 可以把自己的 headword 换掉，并且因为它那份没写 `mastered`，默认 false 就把用户
+        // 「别再给我看它」的归档**悄悄取消**了。注释承诺的是「复习进度绝不退步」，
+        // 而实际被覆盖的是这张卡的**全部身份**——进度只是其中最小的一块。
+        //
+        // 顺带同一处的 map 合并也是反的：`a + b` 是 b 按语言键赢，也就是外来的释义盖掉
+        // 用户自己改过的那一条。应该是我的赢，缺的语言才从外来的补。
+        return mine.copy(
+            ipa = mine.ipa ?: theirs.ipa,
+            emoji = mine.emoji ?: theirs.emoji,
+            example = mine.example ?: theirs.example,
+            category = mine.category ?: theirs.category,
+            sceneId = mine.sceneId ?: theirs.sceneId,
+            sceneLabel = mine.sceneLabel ?: theirs.sceneLabel,
+            sceneEmoji = mine.sceneEmoji ?: theirs.sceneEmoji,
+            stickerPath = mine.stickerPath ?: theirs.stickerPath,
+            originalPhotoPath = mine.originalPhotoPath ?: theirs.originalPhotoPath,
+            glosses = theirs.glosses + mine.glosses,
+            exampleGlosses = theirs.exampleGlosses + mine.exampleGlosses,
             tags = (mine.tags + theirs.tags).distinct(),
             states = mergedStates,
             createdAt = minOf(mine.createdAt, theirs.createdAt),

@@ -3,6 +3,7 @@
 
 package com.ilyskyo.wordlens.data.repository
 
+import com.ilyskyo.wordlens.core.voice.VoiceMemo
 import com.ilyskyo.wordlens.data.model.CardOrigin
 import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntryObject
@@ -17,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -53,8 +55,16 @@ class DiaryRepositoryTest {
             scope = scope,
         ),
         photoDir = folder.root,
+        audioDir = audioRoot(),
         scope = scope,
     )
+
+    /** `filesDir/audio` 的同构位置。单独一个目录正是「哪个人声目录该被扫」能一眼核对的理由。 */
+    private fun audioRoot(): File = File(folder.root, "audio").apply { mkdirs() }
+
+    /** 那段声音真的落在磁盘上，名字由条目 id 算出来——与录音机写的是同一个位置。 */
+    private fun audioOnDisk(id: String): File =
+        File(audioRoot(), VoiceMemo.fileName(id)).apply { writeText("m4a-bytes") }
 
     /** 一条「已经躺在私有目录里」的记录：照片与贴纸文件都真的建出来。 */
     private fun importedEntry(id: String): Entry {
@@ -122,7 +132,7 @@ class DiaryRepositoryTest {
             serializer = DiaryDocument.serializer(),
             scope = scope,
         )
-        val repo = DiaryRepository(doc, folder.root, scope)
+        val repo = DiaryRepository(doc, folder.root, audioRoot(), scope)
 
         repo.deleteEntry("e2")
 
@@ -153,5 +163,102 @@ class DiaryRepositoryTest {
     fun `a card without imagery is not recorded as a sticker`() {
         val typed = WordCard(id = "c1", headword = "miso", language = "en")
         assertEquals(CardOrigin.TEXT, typed.origin)
+    }
+
+    // ── 语音附件 ────────────────────────────────────────────────────────────
+
+    /**
+     * 「收下」不搬文件：录的时候它就长在最终名字上，这一步只是让日记开始引用它。
+     *
+     * 少一次跨目录移动，就少一次「移完了但文档没写成」的中间状态——那正是本仓库在
+     * 删除路径上刻意避开的那一种。
+     */
+    @Test
+    fun `keeping a take points the entry at the file where it already lies`() = runBlocking {
+        val repo = diaryRepo(importedEntry("e4"))
+        val onDisk = audioOnDisk("e4")
+
+        assertTrue(repo.attachAudio("e4", 12_345L))
+
+        val entry = repo.document.value.entries.first()
+        assertEquals(VoiceMemo.fileName("e4"), entry.audioPath)
+        assertEquals(12_345L, entry.audioDurationMs)
+        assertTrue("收下这一步不该把文件搬走或删掉", onDisk.isFile)
+    }
+
+    @Test
+    fun `keeping a take on a deleted entry fails instead of lying`() = runBlocking {
+        val repo = diaryRepo(importedEntry("e5"))
+
+        assertFalse(repo.attachAudio("gone", 4_000L))
+    }
+
+    /**
+     * 「删除录音」必须连文件一起走。
+     *
+     * 只清字段是最容易写错的一种假装：界面上那条声音没了，磁盘上还剩一段说得出用户家事的
+     * 人声，而没有任何地方再引用它——它因此也再没有任何代码会去删它。
+     */
+    @Test
+    fun `deleting a recording clears the field and the file`() = runBlocking {
+        val repo = diaryRepo(importedEntry("e6"))
+        // 真实顺序：录音机先把文件写到那个位置上，收下只是让日记引用它。
+        val onDisk = audioOnDisk("e6")
+        assertTrue(repo.attachAudio("e6", 8_000L))
+        assertTrue("收下这一步不该动文件", onDisk.isFile)
+
+        assertTrue(repo.detachAudio("e6"))
+
+        assertNull(repo.document.value.entries.first().audioPath)
+        assertEquals(0L, repo.document.value.entries.first().audioDurationMs)
+        assertFalse("字段清了而文件还在：那是一段没人引用的声音", onDisk.exists())
+    }
+
+    /** 删条目要连带把那一段拿走，**包括用户还没决定收不收下的那种**（条目一没，它就永远没人引用）。 */
+    @Test
+    fun `deleting an entry takes even an unkept recording`() = runBlocking {
+        val repo = diaryRepo(importedEntry("e7"))
+        val onDisk = audioOnDisk("e7")
+
+        repo.deleteEntry("e7")
+
+        assertFalse(onDisk.exists())
+    }
+
+    @Test
+    fun `discarding a take never touches a recording the entry keeps`() = runBlocking {
+        val repo = diaryRepo(importedEntry("e8"), importedEntry("e9"))
+        val kept = audioOnDisk("e8")
+        assertTrue(repo.attachAudio("e8", 6_000L))
+
+        repo.discardTake("e8")
+
+        assertTrue("条目正引用着它，那它是内容，不是残留", kept.isFile)
+
+        // 反过来：没被引用的那一段就该真的没掉。
+        val orphan = audioOnDisk("e9")
+        repo.discardTake("e9")
+        assertFalse(orphan.exists())
+    }
+
+    /**
+     * 启动那一扫只碰没有条目引用的文件。
+     *
+     * 这条断言之所以值得单独写一遍：这个函数是本项目里唯一一段**会批量删用户数据**的逻辑，
+     * 而它判断「没人引用」用的就是文档里那一份条目。条目还没读回来时它对每一段声音都成立，
+     * 于是一次排序错误的启动扫会把用户所有录音清光，且没有任何报错。
+     * 排序本身挂在 `loadAsync` 里面（见那里的注释），这里守的是它的前提。
+     */
+    @Test
+    fun `the sweep leaves referenced recordings alone`() = runBlocking {
+        val entry = importedEntry("e10").copy(audioPath = VoiceMemo.fileName("e10"), audioDurationMs = 9_000L)
+        val repo = diaryRepo(entry)
+        val kept = audioOnDisk("e10")
+        val orphan = audioOnDisk("e11")
+
+        assertEquals(1, repo.sweepUnreferencedAudio())
+
+        assertTrue(kept.isFile)
+        assertFalse(orphan.exists())
     }
 }

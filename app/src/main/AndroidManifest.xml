@@ -9,12 +9,21 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- The voice attachment is per-entry and only ever requested at the moment the user presses
+         record. Nothing is captured in the background and nothing leaves the device: the .m4a
+         lives in filesDir/audio and is excluded from cloud backup by the whitelist rules. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <uses-feature
         android:name="android.hardware.camera.any"
         android:required="false" />
     <uses-feature
         android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+    <!-- Same reasoning as the camera: a device without a microphone loses one optional way to
+         record a word, not the diary. -->
+    <uses-feature
+        android:name="android.hardware.microphone"
         android:required="false" />
 
     <!-- Android 11+ package visibility: without this TextToSpeech sees zero engines. -->

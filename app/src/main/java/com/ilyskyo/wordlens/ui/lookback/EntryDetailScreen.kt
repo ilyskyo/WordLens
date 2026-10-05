@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.ilyskyo.wordlens.data.model.EntryMood
+import com.ilyskyo.wordlens.core.voice.PendingTake
 import com.ilyskyo.wordlens.ui.components.OptionChip
+import java.io.File
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -109,6 +111,19 @@ data class EntryDetailState(
     val moodLabel: String? = null,
     val eventDraft: String = "",
     val eventCount: Int = 0,
+    /**
+     * 现场那一段还没收下的录音，null 表示没有。它属于 ViewModel 而不属于日记文档：
+     * 一段用户还没决定收不收下的声音不该写进 diary.json，但必须活得比这一页的界面长。
+     */
+    val take: PendingTake? = null,
+    /**
+     * 这条日记引用着的那段声音，**且磁盘上确有其文件**。
+     *
+     * 两者必须分开判：`diary.json` 会单独上云而人声不会（说明书 §8.7），换机之后完全可能读到
+     * `audioPath` 而没有那个文件。这时候界面要说「这段声音不在这台设备上」，而不是画一条
+     * 按下去没有反应的播放条。
+     */
+    val audioFile: File? = null,
 )
 
 /**
@@ -126,6 +141,7 @@ fun EntryDetailScreen(
     onSaveEvent: () -> Unit,
     onDelete: () -> Unit = {},
     onSaveEditing: (title: String, summary: String, mood: EntryMood?) -> Unit = { _, _, _ -> },
+    voice: VoiceMemoActions = VoiceMemoActions(),
     modifier: Modifier = Modifier,
 ) {
     var sheetOpen by remember { mutableStateOf(false) }
@@ -230,11 +246,15 @@ fun EntryDetailScreen(
                     ) + fadeIn(tween(HEADLINE_MS)),
                     exit = fadeOut(tween(EXIT_MS)),
                 ) {
-                    EventComposer(
-                        draft = state.eventDraft,
-                        onDraftChange = onDraftChange,
-                        onSave = onSaveEvent,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(Space.md)) {
+                        // 声音排在「补一句」之前：它是这条记录**当时**的一部分，而事件是后来补的。
+                        VoiceMemoSection(state = state, actions = voice)
+                        EventComposer(
+                            draft = state.eventDraft,
+                            onDraftChange = onDraftChange,
+                            onSave = onSaveEvent,
+                        )
+                    }
                 }
             }
 

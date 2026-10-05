@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
  * ## 为什么不直接用 Material Symbols
  *
  * `androidx.compose.material:material-icons-extended` 里装着两千多个图标，
- * 即使 R8 裁剪后仍要给 APK 加上可观的 dex 体积——而本应用全站只用到 7 个图标。
+ * 即使 R8 裁剪后仍要给 APK 加上可观的 dex 体积——而本应用全站只用到十来个图标。
  * 所以这里用 Compose 的 `ImageVector` DSL 手写几个基础几何形，既省体积，
  * 也让图标的圆角粗细与本项目「温暖手账」的调性一致（比 Material 默认的 2dp 略粗一点）。
  *
@@ -379,5 +379,93 @@ object WordLensIcons {
         }.build()
     }
 
+    /**
+     * 麦克风：振膜胶囊 + 一道托着它的弧 + 一截支架。
+     *
+     * 用描边而不是填实，与 [Gallery] 同一个理由：这枚图标出现在照片上（时间轴卡片左下角），
+     * 填实的色块会压过照片本身，而它要说的只是「这一条还带了一段声音」。
+     */
+    val Mic: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Mic",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            // 振膜：竖着的圆角胶囊，宽 6、高 12
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(9f, 6f)
+                arcToRelative(3f, 3f, 0f, false, true, 6f, 0f)
+                verticalLineTo(11f)
+                arcToRelative(3f, 3f, 0f, false, true, -6f, 0f)
+                close()
+            }
+            // 托着振膜的那道弧
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+            ) {
+                moveTo(5.5f, 11.5f)
+                arcToRelative(6.5f, 6.5f, 0f, false, false, 13f, 0f)
+            }
+            // 支架与底座
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+            ) {
+                moveTo(12f, 18f)
+                verticalLineTo(21f)
+                moveTo(8.5f, 21f)
+                horizontalLineTo(15.5f)
+            }
+        }.build()
+    }
+
+    /** 播放：一枚实心三角。这一枚必须填实——描边的三角形在 48dp 的圆钮里读不出方向。 */
+    val Play: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Play",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(8f, 5.4f)
+                lineTo(18.4f, 12f)
+                lineTo(8f, 18.6f)
+                close()
+            }
+        }.build()
+    }
+
+    /** 暂停：两道圆头竖条。与 Play 同一套视觉重量（实心），换图标时不会跳一下。 */
+    val Pause: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Pause",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 3f,
+                strokeLineCap = StrokeCap.Round,
+            ) {
+                moveTo(9f, 6f)
+                verticalLineTo(18f)
+                moveTo(15f, 6f)
+                verticalLineTo(18f)
+            }
+        }.build()
+    }
 
 }

@@ -213,4 +213,35 @@
     <string name="calendar_next">다음 달</string>
     <string name="calendar_filtered">%1$s만 보여드려요</string>
     <string name="calendar_empty_filtered">%1$s의 기록이 이미 없어요</string>
+
+    <string name="audio_row_title">그때의 목소리</string>
+    <string name="audio_record">한 마디 녹음</string>
+    <string name="audio_recording_label">녹음 중</string>
+    <string name="audio_stop">멈춤</string>
+    <string name="audio_discard">버리기</string>
+    <string name="audio_take_sealing">파일 마무리 중…</string>
+    <string name="audio_staged_label">녹음됐지만 아직 저장하지 않음</string>
+    <string name="audio_commit">저장</string>
+    <string name="audio_re_record">다시 녹음</string>
+    <string name="audio_delete">녹음 삭제</string>
+    <string name="audio_file_missing">이 소리는 이 기기에 없어요</string>
+    <string name="audio_play_desc">재생, %1$s</string>
+    <string name="audio_pause_desc">일시정지</string>
+    <string name="audio_seek_desc">재생 위치, 듣고 싶은 곳으로 끌어당기기</string>
+    <string name="audio_permission_rationale">마이크는 이 한 마디를 녹음하는 데만 쓰여요</string>
+    <string name="audio_permission_permanently_denied">마이크 권한이 영구히 거부됐어요. 설정에서 허용해야 녹음할 수 있어요</string>
+    <string name="audio_open_settings">설정으로 이동</string>
+    <string name="audio_delete_confirm_title">이 소리를 삭제할까요?</string>
+    <string name="audio_delete_confirm_body">소리만 없어지고 사진과 단어는 그대로 남아요. 되돌릴 수 없어요.</string>
+    <string name="audio_replace_confirm_title">이전의 녹음을 덮어써요</string>
+    <string name="audio_replace_confirm_body">새 녹음은 같은 자리에 저장되고, 이전 녹음은 먼저 지워져요.</string>
+    <string name="notice_audio_limit">90초에 도달해서 스스로 멈췄어요</string>
+    <string name="notice_audio_handed_off">녹은 부분은 그 자리에 그대로 뒴어요. 저장할지 버릴지 정해 주세요</string>
+    <string name="notice_audio_too_short">너무 짧아서 담은 게 없어요</string>
+    <string name="notice_audio_discarded">그 소리를 버렸어요</string>
+    <string name="notice_audio_superseded">다른 기록에서 저장하지 않았던 소리를 버렸어요</string>
+    <string name="notice_mic_busy">통화나 다른 앱이 마이크를 쓰고 있어요. 끝나고 다시 시도해 주세요</string>
+    <string name="notice_audio_failed">녹음되지 않았어요. 중간에 멈춘 파일은 지웠습니다</string>
+    <string name="notice_audio_take_pending">아직 정하지 않은 소리가 있어요. 먼저 저장하거나 버려 주세요</string>
+    <string name="notice_audio_playback_failed">이 소리는 재생할 수 없어요. 파일이 상한 것 같아요</string>
 </resources>

@@ -213,4 +213,35 @@
     <string name="calendar_next">翌月</string>
     <string name="calendar_filtered">%1$s だけを表示</string>
     <string name="calendar_empty_filtered">%1$s の記録はもうありません</string>
+
+    <string name="audio_row_title">そのときの声</string>
+    <string name="audio_record">ひとこと録る</string>
+    <string name="audio_recording_label">録信中</string>
+    <string name="audio_stop">やめる</string>
+    <string name="audio_discard">すてる</string>
+    <string name="audio_take_sealing">ファイルをまとめています…</string>
+    <string name="audio_staged_label">録れたけど、まだ保存していません</string>
+    <string name="audio_commit">保存する</string>
+    <string name="audio_re_record">録り直す</string>
+    <string name="audio_delete">音声を削除</string>
+    <string name="audio_file_missing">この音声はこの端末にありません</string>
+    <string name="audio_play_desc">再生、%1$s</string>
+    <string name="audio_pause_desc">一時停止</string>
+    <string name="audio_seek_desc">再生位置、聞きたいところまでドラッグ</string>
+    <string name="audio_permission_rationale">マイクは、このひとことを録るためだけに使います</string>
+    <string name="audio_permission_permanently_denied">マイクの権限が永久に拒否されています。設定で許可しないと録れません</string>
+    <string name="audio_open_settings">設定を開く</string>
+    <string name="audio_delete_confirm_title">この音声を削除しますか？</string>
+    <string name="audio_delete_confirm_body">消えるのは声だけで、写真と単語は残ります。戻せません。</string>
+    <string name="audio_replace_confirm_title">以前の音声の上書きになります</string>
+    <string name="audio_replace_confirm_body">新しい音声は同じ場所に保存され、古いほうは先に削除されます。</string>
+    <string name="notice_audio_limit">90 秒に達したので、自分で止めました</string>
+    <string name="notice_audio_handed_off">録れた分はその場に置いておきました。保存するか棄てるか決めてください</string>
+    <string name="notice_audio_too_short">短すぎて、何も録れていません</string>
+    <string name="notice_audio_discarded">その音声は棄てました</string>
+    <string name="notice_audio_superseded">別の記録で保存していなかった音声を棄てました</string>
+    <string name="notice_mic_busy">通話か別のアプリがマイクを使っています。空いてからもう一度</string>
+    <string name="notice_audio_failed">録れなかったので、書きかけのファイルは消しました</string>
+    <string name="notice_audio_take_pending">保存するか決まっていない音声があります。先に保存か棄てを選んでください</string>
+    <string name="notice_audio_playback_failed">この音声は再生できません。ファイルが壊れているようです</string>
 </resources>

@@ -11,6 +11,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.core.AppContainer
+import com.ilyskyo.wordlens.core.voice.PendingTake
+import com.ilyskyo.wordlens.core.voice.TakeEvent
+import com.ilyskyo.wordlens.core.voice.TakeFile
+import com.ilyskyo.wordlens.core.voice.TakeNotice
+import com.ilyskyo.wordlens.core.voice.TakePhase
+import com.ilyskyo.wordlens.core.voice.TakeStart
+import com.ilyskyo.wordlens.core.voice.VoiceMemo
+import com.ilyskyo.wordlens.core.voice.VoiceRecorder
 import com.ilyskyo.wordlens.data.model.EntryObject
 import com.ilyskyo.wordlens.data.model.EntryMood
 import com.ilyskyo.wordlens.data.model.EventCard
@@ -56,6 +64,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 
@@ -175,9 +184,18 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
      *
      * 贴纸副本的取舍：`entries/` 下那份随条目一起删；`stickers/` 下同名那份只有在没有词卡
      * 引用它时才删——词卡可能活得比这条日记久。
+     *
+     * 语音那份由 `diary.deleteEntry` 连带删掉，不在这里做：名字按条目 id 定死，
+     * 所以「被收下的那段」与「还没收下的那段」在磁盘上是同一个路径，一个分支就够。
      */
     fun onDeleteEntries(ids: Set<String>) {
         if (ids.isEmpty()) return
+        // 现场那一段如果正长在要删的条目上，先放掉麦克风并忘掉它。文件不在这里删：
+        // deleteEntry 删的就是同一个名字（按条目 id 定死），两处删同一个文件等于承认「删除有两条通路」。
+        _take.value?.takeIf { it.entryId in ids }?.let {
+            releaseRecorder()
+            _take.value = null
+        }
         viewModelScope.launch {
             ids.forEach { id ->
                 container.diary.deleteEntry(id).forEach { name ->
@@ -218,13 +236,41 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     /** 详情页「补一句」的草稿放在 VM 里，转屏不会丢。 */
     private val eventDraft = MutableStateFlow("")
 
+    /**
+     * 现场那一段录音，null 表示没有那一段。
+     *
+     * 它是**会话状态而不是数据**：一段还没被收下的声音不属于任何一条日记，也不该进 diary.json，
+     * 但它必须活得比这一页的界面长——转屏会拆掉组合，而用户不该因为手机转了一下就丢掉刚录的十秒。
+     * 所以放在 VM 里，而不是 `remember` 里。
+     */
+    private val _take = MutableStateFlow<PendingTake?>(null)
+
+    /**
+     * 拿着麦克风的那台录音机。
+     *
+     * 交还麦克风的四个时机都在这个类里，少一个都会留下「界面已经没了而麦克风还拿着」的状态：
+     * 用户按停、退到后台、离开这一条、VM 被清掉。每一条都走 [releaseRecorder]，不各自 release。
+     */
+    private var recorder: VoiceRecorder? = null
+
+    /**
+     * 详情页在看哪一条、草稿是什么、现场有没有那一段——三样合成一路再进 combine。
+     *
+     * 不是为了好看：`combine` 的强类型入参到五个为止，而这段的输入正好六个。把它们折成一个
+     * 「界面焦点」反而更贴近事实——这三样说的是同一件事：用户此刻对着哪一条在做什么。
+     */
+    private val detailFocus = combine(selectedEntryId, eventDraft, _take) { id, draft, take ->
+        DetailFocus(id, draft, take)
+    }
+
+    private data class DetailFocus(val entryId: String?, val draft: String, val take: PendingTake?)
+
     val detail: StateFlow<EntryDetailState?> = combine(
         container.diary.document,
         container.lexicon.index,
         settingsFlow,
-        selectedEntryId,
-        eventDraft,
-    ) { diary, lexicon, settings, id, draft -> buildDetail(diary, lexicon, settings, id, draft) }
+        detailFocus,
+    ) { diary, lexicon, settings, focus -> buildDetail(diary, lexicon, settings, focus) }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -446,6 +492,10 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun onCloseEntry() {
+        // 离开这一条 = 现场那段交还给用户稍后决定：麦克风必须当场松手，文件留着。
+        // 放在这里而不是界面的 onDispose 里，是因为转屏也会拆掉组合而 VM 不死——在 onDispose
+        // 里停的话，「转一下手机就把正在录的声音停了」，而那件事用户完全没做过。
+        sealTake(TakeEvent.HAND_OFF)
         selectedEntryId.value = null
     }
 
@@ -478,6 +528,200 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             )
             eventDraft.value = ""
         }
+    }
+
+    // ── 语音日记附件 ──────────────────────────────────────────────────
+
+    /**
+     * 按下「录一段」。界面已经按 [VoiceMemo.actionFor] 的结论确认过可以动手（权限到手，
+     * 要覆盖旧的那一段也已经确认过），这里仍然重问三道边界：现场有没有别的一段、条目还在不在、
+     * 旧的录音是不是得先没掉。
+     *
+     * 最后那道尤其要紧：MediaRecorder 对着一个已经存在的路径是**截断重写**，所以「旧的先删掉」
+     * 必须发生在开录之前——而让它合法的只有界面上那一次确认。这也是 [TakeAction.REPLACE] 在
+     * [VoiceMemo.actionFor] 里排在权限之后的原因：先问权限，问不到就什么都还没动过。
+     */
+    fun onStartTake(entryId: String) {
+        val pending = _take.value
+        when {
+            // 另一条上那段没收下的声音不能占着位置一直等：这一按把它顶掉。不静默处理——
+            // 那是一段用户说过、但还没决定要不要留下的话。
+            pending != null && pending.entryId != entryId -> clearTake(TakeEvent.SUPERSEDED)
+
+            // 同一条上还挂着一段没收下的：先处理那一段再录第二段。这种情况界面上画的是那一段的
+            // 控件而不是录音键，走到这里已经是异常，所以说一句而不是默默顶掉自己。
+            pending != null -> showNotice(container.appContext.getString(R.string.notice_audio_take_pending))
+        }
+        if (_take.value != null) return
+        val file = File(container.audioDir, VoiceMemo.fileName(entryId))
+        viewModelScope.launch {
+            val entry = container.diary.document.value.entries.firstOrNull { it.id == entryId }
+                ?: return@launch
+            if (entry.audioPath != null) container.diary.detachAudio(entryId)
+            val handle = VoiceRecorder(container.appContext, file) { source, event ->
+                onRecorderEvent(source, event)
+            }
+            // 先登记再开录：录音机在 start 里就能异步报回一个错误，而那条消息是排到主线程队列上的，
+            // 可能比我们这里赋值更早到。没登记的话它会被当成「迟到的事件」丢掉，结果界面上留着一段
+            // 永远在录、而录音机已经死了的状态。
+            recorder = handle
+            // 在 IO 上开录：prepare() 要碰文件系统，而 VOICE_RECOGNITION 那条链在部分机型上要
+            // 建立一次音频通路——那几十毫秒足够让主线程在按下去那一刻掉一帧。
+            val outcome = withContext(Dispatchers.IO) { handle.start() }
+            if (outcome != TakeStart.OK) {
+                releaseRecorder()
+                reportTake(if (outcome == TakeStart.IN_USE) TakeNotice.IN_USE else TakeNotice.FAILED)
+                return@launch
+            }
+            _take.value = PendingTake(entryId, TakePhase.RECORDING, handle.startedAtElapsed)
+        }
+    }
+
+    /** 用户按「停下」：当场松手，把那一段留在磁盘上等他决定。 */
+    fun onStopTake() {
+        sealTake(TakeEvent.STOPPED)
+    }
+
+    /**
+     * 退到后台或离开这一条。
+     *
+     * 与按停走同一条路，只是必须说一句：不说的话，那颗秒表是无声无息停下来的，
+     * 用户读到的是「界面坏了」，而不是「录音被打断了」。
+     */
+    fun onTakeHandedOff() {
+        sealTake(TakeEvent.HAND_OFF)
+    }
+
+    /**
+     * 结束一次录制：交还麦克风，然后把那一段留在磁盘上等用户决定。
+     *
+     * 顺序是**先改状态、后收尾**，这两个动作之间差几十毫秒，而谁先谁后决定了这段时间里界面上
+     * 是什么。先把阶段推到 STAGED（时长还是 null），录音键就被那一段的控件换掉，而收下与丢弃
+     * 在时长未知时都是灰的——于是没有人能对着一个还没写完的文件做动作。反过来先阻塞收尾，
+     * 界面会继续显示「正在录」几十毫秒，而麦克风其实早就还回去了。
+     */
+    private fun sealTake(event: TakeEvent) {
+        val take = _take.value ?: return
+        val next = VoiceMemo.transition(take.phase, event) ?: return
+        val handle = recorder
+        recorder = null
+        _take.value = take.copy(phase = next.phase, stagedMs = null)
+        next.notice?.let { reportTake(it) }
+        if (handle == null) return
+        viewModelScope.launch {
+            val ms = withContext(Dispatchers.IO) { handle.finish() }
+            // 「那半截不可信」不问阶段：这是收尾这一步对文件的事实判断，而阶段机管的是麦克风的
+            // 归属。所以这里不走 transition，直接按废段处理——那一段从来没被谁同意留下过。
+            if (ms < 0L || !VoiceMemo.isKeepable(ms)) {
+                if (_take.value?.entryId == take.entryId) _take.value = null
+                container.diary.discardTake(take.entryId)
+                reportTake(if (ms < 0L) TakeNotice.FAILED else TakeNotice.TOO_SHORT)
+                return@launch
+            }
+            // 只在「这还是那一段」的时候把时长填进去。期间用户可能已经把它丢掉、或者去录了
+            // 别的一条；把状态盖回去会让一段已经被删掉的声音在界面上凭空复活。
+            _take.value = _take.value
+                ?.takeIf { it.entryId == take.entryId && it.stagedMs == null }
+                ?.copy(stagedMs = ms)
+        }
+    }
+
+    /** 用户收下那一段：让这条日记开始引用它。文件不搬家——它本来就长在最终名字上。 */
+    fun onCommitTake(entryId: String) {
+        val take = _take.value ?: return
+        if (take.entryId != entryId) return
+        // 还在收尾时不给收下：这时候连它有多长都不知道，而时长是播放条的一部分。
+        val ms = take.stagedMs ?: return
+        if (VoiceMemo.transition(take.phase, TakeEvent.COMMITTED) == null) return
+        _take.value = null
+        viewModelScope.launch {
+            if (!container.diary.attachAudio(entryId, ms)) {
+                // 条目不在了（在别处被删掉）。那一段声音也就没人引用，跟着清掉而不是留着，
+                // 并且把这句话说出来——界面上刚刚什么都没变，是最容易被读成「没点上」的一种失败。
+                container.diary.discardTake(entryId)
+                reportTake(TakeNotice.FAILED)
+            }
+        }
+    }
+
+    /** 用户丢弃那一段。 */
+    fun onDiscardTake() {
+        clearTake(TakeEvent.DISCARDED)
+    }
+
+    /** 「删除录音」：字段与文件一起走。界面上那句话已经确认过一次了。 */
+    fun onDetachAudio(entryId: String) {
+        viewModelScope.launch { container.diary.detachAudio(entryId) }
+    }
+
+    /** 放不出声音必须说出来。这是这个功能里最像「坏了」的一种表现。 */
+    fun onAudioPlaybackFailed() {
+        showNotice(container.appContext.getString(R.string.notice_audio_playback_failed))
+    }
+
+    /**
+     * 现场那一段不再有人接手：麦克风当场还回去，文件交给仓库删。
+     *
+     * 删文件不在这里做而要走 `diary.discardTake`，是因为「没被引用」这件事只有持有条目的那一方
+     * 说得准——`audioPath` 正指着它的那一份是内容，不是残留。
+     */
+    private fun clearTake(event: TakeEvent) {
+        val take = _take.value ?: return
+        val next = VoiceMemo.transition(take.phase, event) ?: return
+        if (take.phase == TakePhase.RECORDING) releaseRecorder()
+        _take.value = null
+        if (next.file == TakeFile.DELETE) {
+            viewModelScope.launch { container.diary.discardTake(take.entryId) }
+        }
+        next.notice?.let { reportTake(it) }
+    }
+
+    /**
+     * 录音机报回来的事。
+     *
+     * **只受理现在还拿着的那一台**报回来的：一台已经收手或被丢下的录音机，消息仍可能排在 Looper
+     * 队列里晚一步送到（框架的监听器按 Looper 投递，release 不撤回已经排好的那条），
+     * 而那时候磁盘上那一段可能已经完整可读了——跟着它去删文件，就是丢掉用户录好的一段声音。
+     */
+    private fun onRecorderEvent(source: VoiceRecorder, event: TakeEvent) {
+        if (source !== recorder) return
+        if (event == TakeEvent.LIMIT) sealTake(event) else clearTake(event)
+    }
+
+    /** 只交还麦克风，不决定文件的去留——那是调用方的事。 */
+    private fun releaseRecorder() {
+        val handle = recorder
+        recorder = null
+        handle?.abandon()
+    }
+
+    /**
+     * 把判定的那一句翻成资源 id。
+     *
+     * 两种「录不成」分开说：一种用户可以自己做点什么（把通话挂掉），一种只是机器出了事。
+     * 合成一句「录音失败」等于两种都没告诉用户接下来该怎么办。
+     */
+    private fun reportTake(notice: TakeNotice) {
+        val resId = when (notice) {
+            TakeNotice.LIMIT -> R.string.notice_audio_limit
+            TakeNotice.HANDED_OFF -> R.string.notice_audio_handed_off
+            TakeNotice.TOO_SHORT -> R.string.notice_audio_too_short
+            TakeNotice.DISCARDED -> R.string.notice_audio_discarded
+            TakeNotice.SUPERSEDED -> R.string.notice_audio_superseded
+            TakeNotice.IN_USE -> R.string.notice_mic_busy
+            TakeNotice.FAILED -> R.string.notice_audio_failed
+        }
+        showNotice(container.appContext.getString(resId))
+    }
+
+    /**
+     * VM 被清掉意味着不会再有人回到这一页收那一段，所以这里**不**走「停完留下等决定」：
+     * 认真 stop() 得到的是一份谁也不引用的完整文件，而那正是这个功能要避开的东西。
+     * 直接丢下（麦克风当场归还），那份没写完的交给下次启动的清扫删掉。
+     */
+    override fun onCleared() {
+        releaseRecorder()
+        _take.value = null
     }
 
     // ── 构建 ────────────────────────────────────────────────────────────────
@@ -641,18 +885,25 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
      * `EntryObject` 的框归一化在**传感器坐标系**里，而界面上显示的是按 EXIF 转正后的位图，
      * 所以中间必须过一次 `imageBoxFromSensorNorm`。这一步不能省：省略之后竖持拍的照片里，
      * 词会压在错的位置上——而这正是「场景式」与普通日记的分界线，错了就等于没有。
+     *
+     * 语音那两样是「条目引用着」与「磁盘上确有其文件」分开的：`diary.json` 会单独上云，
+     * 声音不会（§8.7），所以换机之后完全可能读到 audioPath 而没有那个文件。这时候界面上要说的
+     * 是「这段声音不在这台设备上」，而不是画一条按下去没有反应的播放条。
      */
     private fun buildDetail(
         diary: DiaryDocument,
         lexicon: LexiconIndex,
         settings: AppSettings,
-        entryId: String?,
-        draft: String,
+        focus: DetailFocus,
     ): EntryDetailState? {
-        val entry = entryId?.let { id -> diary.entries.firstOrNull { it.id == id } } ?: return null
+        val entry = focus.entryId?.let { id -> diary.entries.firstOrNull { it.id == id } } ?: return null
         val file = File(container.entryPhotoDir, entry.photoPath)
         val decoded = decodedDetailPhoto(file)
         val degrees = decoded?.exifDegrees ?: 0
+        val audio = entry.audioPath?.let { name ->
+            // 只问一次 exists：这一条是 combine 里的分支，别的都不做，播不动的时候播放器自己会说。
+            File(container.audioDir, name).takeIf { it.isFile }
+        }
         return EntryDetailState(
             entry = entry,
             photo = decoded?.bitmap,
@@ -673,8 +924,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 },
             ambience = entry.ambience,
             moodLabel = entry.mood?.let { container.appContext.getString(it.labelRes) },
-            eventDraft = draft,
+            eventDraft = focus.draft,
             eventCount = diary.events.count { it.entryId == entry.id },
+            // 现场那一段只属于它那一条：在别条的详情页上它不该露出来（也录不进这一条）。
+            take = focus.take?.takeIf { it.entryId == entry.id },
+            audioFile = audio,
         )
     }
 

@@ -4,10 +4,15 @@
 package com.ilyskyo.wordlens.ui.theme
 
 import android.content.Context
+import android.database.ContentObserver
+import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -57,6 +62,16 @@ enum class Haptic {
  *
  * 时长与强度照预置效果之间的相对关系排（tick 最短最轻、thud 最长最重），这样
  * **降级之后几档触觉的轻重顺序仍然成立**——用户至少不会觉得「忘了」比「好」更响。
+ *
+ * ## 为什么每一档之前要先问系统的「触摸时振动」
+ *
+ * 这一族效果全部直接调用 [Vibrator]，而没有走 `View.performHapticFeedback`——走 View 的话
+ * 只有四个粗粒度常量，拿不到原语组合，也就拿不到上面那套轻重顺序。代价是框架替调用方
+ * 核对的那个全局开关（设置 → 声音 → 触摸时振动，`Settings.System.HAPTIC_FEEDBACK_ENABLED`）
+ * 也不再自动生效了：不自己问，用户已经在全局关掉振动之后，本 App 的每一个按钮仍会各震一下。
+ * 那不是「手感更用心」，那是不听话。读法与 `ui/theme/ReduceMotion.kt` 一致：读一次挂在
+ * ContentObserver 上，不在每次按下时现问——设置读取要走 SettingsProvider 一次跨进程调用，
+ * 而这一条发生在按下的那一帧里。
  */
 object Haptics {
 
@@ -65,6 +80,14 @@ object Haptics {
 
     @Volatile
     private var resolved = false
+
+    /** 系统的「触摸时振动」。读不到就按开着处理：缺省不该把用户本来有的手感拿走。 */
+    @Volatile
+    private var touchVibrationOn = true
+
+    /** 强引用：观察器只被 resolver 弱持有，不留字段的话它会被回收，开关从此不再跟。 */
+    @Volatile
+    private var observer: ContentObserver? = null
 
     /** 幂等：只有第一次真的去拿振动器。Application 与 [rememberHaptic] 各调一次都安全。 */
     fun init(context: Context) {
@@ -80,13 +103,39 @@ object Haptics {
             v?.takeIf { it.hasVibrator() }
         }.getOrNull()
         resolved = true
+        watchTouchVibration(app)
     }
 
     fun fire(kind: Haptic) {
         if (!resolved) return
+        if (!touchVibrationOn) return
         val vibrator = vibrator ?: return
         runCatching { vibrator.vibrate(effectFor(kind)) }
     }
+
+    private fun watchTouchVibration(app: Context) {
+        touchVibrationOn = readTouchVibration(app)
+        val uri = Settings.System.getUriFor(Settings.System.HAPTIC_FEEDBACK_ENABLED) ?: return
+        val listener = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChanging: Boolean, uri: Uri?) {
+                touchVibrationOn = readTouchVibration(app)
+            }
+        }
+        // 注册不成功（各家 ROM 对这个 key 的实现不一致）只影响一件事：中途改设置要等下次进 App
+        // 才生效。字段已经用真值初始化过，所以不会出现「一开机就没有手感」那种更糟的长相。
+        if (runCatching { app.contentResolver.registerContentObserver(uri, false, listener) }.isSuccess) {
+            observer = listener
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun readTouchVibration(app: Context): Boolean = runCatching {
+        Settings.System.getInt(
+            app.contentResolver,
+            Settings.System.HAPTIC_FEEDBACK_ENABLED,
+            1,
+        )
+    }.getOrDefault(1) == 1
 
     private fun effectFor(kind: Haptic): VibrationEffect = when (kind) {
         // Tick 与 Heavy 有预置效果，优先用：它们由厂商调过，比我们能猜的时长更接近本机手感。
