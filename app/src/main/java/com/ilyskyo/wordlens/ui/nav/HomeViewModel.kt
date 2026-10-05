@@ -548,8 +548,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     /**
      * 按下「录一段」。界面已经按 [VoiceMemo.actionFor] 的结论确认过可以动手（权限到手，
-     * 要覆盖旧的那一段也已经确认过），这里仍然重问三道边界：现场有没有别的一段、条目还在不在、
-     * 旧的录音是不是得先没掉。
+     * 要覆盖旧的那一段也已经确认过），这里仍然重问四道边界：现场有没有别的一段、条目还在不在、
+     * 旧的录音是不是得先没掉、以及**开录成功那一刻用户还在不在这一条上**（最后那道只能在
+     * `start()` 回来之后问，见下面那段注释）。
      *
      * 最后那道尤其要紧：MediaRecorder 对着一个已经存在的路径是**截断重写**，所以「旧的先删掉」
      * 必须发生在开录之前——而让它合法的只有界面上那一次确认。这也是 [TakeAction.REPLACE] 在
@@ -585,6 +586,15 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             if (outcome != TakeStart.OK) {
                 releaseRecorder()
                 reportTake(if (outcome == TakeStart.IN_USE) TakeNotice.IN_USE else TakeNotice.FAILED)
+                return@launch
+            }
+            if (selectedEntryId.value != entryId) {
+                // 那几十毫秒里用户已经离开了这一条。离开那一步（sealTake/HAND_OFF）当时找不到
+                // 「那一段」可封——`_take` 还没登记——所以没有任何界面会来按停下，而这一头已经把
+                // 麦克风拿住了：不拦的话它会一直录到 90 秒上限，期间磁盘上在写一段没人看住的人声，
+                // 而这正是 HAND_OFF 那条路要防的事。当场还回去，半截的文件交给仓库删。
+                releaseRecorder()
+                container.diary.discardTake(entryId)
                 return@launch
             }
             _take.value = PendingTake(entryId, TakePhase.RECORDING, handle.startedAtElapsed)
