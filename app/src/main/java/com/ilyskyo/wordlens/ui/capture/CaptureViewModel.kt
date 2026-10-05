@@ -89,7 +89,17 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
          * （检测器不在、照片里没认出东西）。它必须在关闭之后由主页那层的提示通道说出来——
          * 取景页自己的 NoticeHost 随场景一起拆掉，在那里开口等于什么都没讲。
          */
-        data class Saved(val entryId: String, val savedCard: Boolean, val notice: String? = null) : Event
+        data class Saved(
+            val entryId: String,
+            val savedCard: Boolean,
+            /**
+             * 这条记录的日期键，来自 `Entry.dayKey`——不要在这里再算一遍，两处算法不一样
+             * 就会出现「筛得到、却分不进任何一组」。主页需要它来决定要不要放开日历筛选：
+             * 筛着上周三时存进一张今天的照片，新记录不在结果里，界面上就是「存了，但什么都没发生」。
+             */
+            val dayKey: String,
+            val notice: String? = null,
+        ) : Event
         data class Failed(val message: String) : Event
 
         /**
@@ -411,7 +421,7 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
                     // 场景路径：判帧结果已经在 Live 里，流水线不解码，直接落库并关闭。
                     container.photoPipeline.commit(output)
                     _ui.update { it.copy(analysing = false) }
-                    _event.value = Event.Saved(entryId, savedCard = false)
+                    _event.value = Event.Saved(entryId, savedCard = false, dayKey = output.entry.dayKey)
                 } else {
                     stageObjectShot(output, selected)
                 }
@@ -511,7 +521,12 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
                     return@launch
                 }
                 container.photoPipeline.commit(output)
-                _event.value = Event.Saved(entryId, savedCard = output.card != null, notice = importNotice(output))
+                _event.value = Event.Saved(
+                    entryId,
+                    savedCard = output.card != null,
+                    dayKey = output.entry.dayKey,
+                    notice = importNotice(output),
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "gallery import failed", e)
                 // 半途而废的文件不能留下：一条没人引用的照片比一次失败的导入更难发现。
@@ -550,7 +565,7 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             container.photoPipeline.commit(s)
             staged = null
-            _event.value = Event.Saved(s.entry.id, savedCard = s.card != null)
+            _event.value = Event.Saved(s.entry.id, savedCard = s.card != null, dayKey = s.entry.dayKey)
         }
     }
 

@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -57,7 +58,7 @@ import com.ilyskyo.wordlens.ui.remember.RememberUiState
 @Composable
 fun WordLensApp(
     modifier: Modifier = Modifier,
-    requestedTab: HomeTab = HomeTab.LOOKBACK,
+    tabRequest: TabRequest = TabRequest(),
     /** 时间轴的滚动状态由宿主外提：详情页是 AnimatedContent 的另一个场景，本场景会被拆掉。 */
     lookbackListState: LazyListState = rememberLazyListState(),
     lookbackState: LookbackUiState = LookbackUiState(),
@@ -82,7 +83,12 @@ fun WordLensApp(
     notice: String? = null,
     onDismissNotice: () -> Unit = {},
 ) {
-    var tab by remember { mutableStateOf(HomeTab.LOOKBACK) }
+    // 转屏不该把人从「记住」甩回「回看」：页签是 UI 状态，活在该活的地方就够了，
+    // 而 enum 本身可序列化，不需要额外的 Saver。
+    var tab by rememberSaveable { mutableStateOf(HomeTab.LOOKBACK) }
+
+    // 小组件/通知的请求：带序号，所以同样的请求连着来两次会真的执行两次。
+    LaunchedEffect(tabRequest) { tabRequest.tab?.let { tab = it } }
 
     /*
      * 往下滚就把底部动作收起来，往上滚就回来。
@@ -110,7 +116,6 @@ fun WordLensApp(
 
     // 外部要求换页（小组件点击）时跟随一次。key 是请求值而不是 tab，所以用户自己点页签
     // 不会被这条效果拽回去。
-    LaunchedEffect(requestedTab) { tab = requestedTab }
 
     // 目前只有主页面，没有二级路由；一旦加了详情页，这里改成跟随导航栈深度。
     val atTopLevel = true

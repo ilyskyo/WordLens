@@ -31,12 +31,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -59,6 +58,8 @@ import com.ilyskyo.wordlens.ui.nav.HomeViewModel
 import com.ilyskyo.wordlens.ui.nav.LocalPageVisibilityScope
 import com.ilyskyo.wordlens.ui.nav.LocalSharedTransitionScope
 import com.ilyskyo.wordlens.ui.nav.Page
+import com.ilyskyo.wordlens.ui.nav.PageStack
+import com.ilyskyo.wordlens.ui.nav.TabRequest
 import com.ilyskyo.wordlens.ui.nav.WordLensApp
 import com.ilyskyo.wordlens.ui.nav.depth
 import com.ilyskyo.wordlens.ui.remember.RememberUiState
@@ -76,8 +77,14 @@ class MainActivity : ComponentActivity() {
      *
      * 冷启动读 `onCreate` 的 intent，热启动由 `onNewIntent` 更新——两条路径都要接，否则
      * 「点完一张卡回到桌面再点小组件」会停在原来那一页。
+     *
+     * 它是**一次请求**而不是一个状态：请求里带序号，所以同一条路径连着点两次会是真的两次
+     * 请求。原来存的是 `HomeTab` 本身，而第二次点小组件时那个值并没有变（已经是 REMEMBER），
+     * 于是没有任何东西重算，界面一动不动——用户学到的结论是「这个小组件只有第一次有用」。
      */
-    private val requestedTab = mutableStateOf(HomeTab.LOOKBACK)
+    private val tabRequest = mutableStateOf(TabRequest())
+
+    private var tabSequence = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -90,22 +97,26 @@ class MainActivity : ComponentActivity() {
             // 比色系本身好不好看更值得在意。
             val palette by container.ratingPalette.collectAsStateWithLifecycle()
             WordLensTheme(ratingScheme = palette.hues()) {
-                WordLensRoot(container, requestedTab)
+                WordLensRoot(container, tabRequest)
             }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         applyIntent(intent)
     }
 
     private fun applyIntent(intent: Intent) {
-        requestedTab.value = if (intent.getBooleanExtra(EXTRA_OPEN_REMEMBER, false)) {
-            HomeTab.REMEMBER
-        } else {
-            HomeTab.LOOKBACK
-        }
+        // 没有这个 extra 时**不发请求**：转屏会重建 Activity 并重新走一遍 onCreate 与
+        // onNewIntent，若那时也发一条「去复习」，用户现在停在哪一页就被夺走，
+        // rememberSaveable 把页签保住的力气全白费。
+        if (!intent.getBooleanExtra(EXTRA_OPEN_REMEMBER, false)) return
+        // 吃一次就抹掉：extra 跟着 intent 活，而 intent 比这次点击活得久。
+        intent.removeExtra(EXTRA_OPEN_REMEMBER)
+        tabSequence += 1
+        tabRequest.value = TabRequest(HomeTab.REMEMBER, tabSequence)
     }
 
     companion object {
@@ -124,8 +135,10 @@ class MainActivity : ComponentActivity() {
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<HomeTab>) {
-    val stack = remember { mutableStateListOf<Page>(Page.Home) }
+private fun WordLensRoot(container: AppContainer, tabRequest: MutableState<TabRequest>) {
+    // 转屏不许弄丢「你在哪一页」。栈编码成字符串存进 savedState，理由写在 PageStack 的注释里；
+    // 这里用不可变的 List 而不是 SnapshotStateList，是因为后者接不进 rememberSaveable 的 Saver。
+    var stack by rememberSaveable(stateSaver = PageStack.saver) { mutableStateOf(PageStack.initial) }
     val top = stack.lastOrNull() ?: Page.Home
     val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val lookback by home.lookback.collectAsStateWithLifecycle()
@@ -137,6 +150,13 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
     // 状态留在 LookbackScreen 内部的话，返回时列表会跳回顶部——用户刚看的那条瞬间消失了。
     val lookbackListState = rememberLazyListState()
 
+    // 进程被杀再回来：savedState 里的 Detail 恢复了，而 ViewModel 是全新的，selectedEntryId 是空的。
+    // 不补这一步，用户看到的是自己离开时那一页的壳子，里面什么都没有。
+    LaunchedEffect(top) {
+        val detail = top as? Page.Detail ?: return@LaunchedEffect
+        home.ensureEntryShown(detail.entryId)
+    }
+
     applyLightStatusBar(darkSurface = top == Page.Capture)
 
     // 返回键的优先级：先退出多选，再弹页面栈。多选是一种「模式」而不是一个页面，
@@ -145,7 +165,7 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
         if (selectedIds.isNotEmpty() && top is Page.Home) {
             home.onClearSelection()
         } else {
-            pop(stack, home)
+            stack = pop(stack, home)
         }
     }
 
@@ -163,7 +183,7 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
                             home = home,
                             lookback = lookback,
                             rememberState = rememberState,
-                            requestedTab = requestedTab.value,
+                            tabRequest = tabRequest.value,
                             lookbackListState = lookbackListState,
                             selectedIds = selectedIds,
                             onLongPressEntry = home::onLongPressEntry,
@@ -175,32 +195,33 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
                             // 没有可去的过去时，VM 会把「日记还太空」这条提示放进 notice：
                             // 页签震了一下却什么都没发生，读起来像 bug。
                             onRandomWalk = {
-                                home.onRandomWalk()?.let { openEntry(stack, home, it) }
+                                home.onRandomWalk()?.let { stack = openEntry(stack, home, it) }
                             },
-                            onCapture = { stack.add(Page.Capture) },
-                            onSearch = { stack.add(Page.Search) },
+                            onCapture = { stack = PageStack.push(stack, Page.Capture) },
+                            onSearch = { stack = PageStack.push(stack, Page.Search) },
                             onOpenEntry = { id -> openEntry(stack, home, id) },
                         )
 
-                        is Page.Detail -> DetailScene(home = home, onBack = { pop(stack, home) })
+                        is Page.Detail -> DetailScene(home = home, onBack = { stack = pop(stack, home) })
 
                         Page.Capture -> CaptureHost(
                             container = container,
-                            onDismiss = { pop(stack, home) },
-                            onOpenSettings = { stack.add(Page.Settings) },
+                            onDismiss = { stack = pop(stack, home) },
+                            onOpenSettings = { stack = PageStack.push(stack, Page.Settings) },
                             // 导入完成之后取景页就没了，那句「这次少了一部分」必须说在主页这层。
                             onReportNotice = home::showNotice,
+                            onEntrySaved = home::revealSavedEntry,
                         )
 
                         Page.Search -> SearchHost(
                             container = container,
-                            onClose = { pop(stack, home) },
+                            onClose = { stack = pop(stack, home) },
                             onOpenEntry = { id -> openEntry(stack, home, id) },
                         )
 
                         Page.Settings -> SettingsHost(
                             container = container,
-                            onClose = { pop(stack, home) },
+                            onClose = { stack = pop(stack, home) },
                         )
                     }
                 }
@@ -209,14 +230,16 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
     }
 }
 
-private fun openEntry(stack: SnapshotStateList<Page>, home: HomeViewModel, id: String) {
+private fun openEntry(stack: List<Page>, home: HomeViewModel, id: String): List<Page> {
     home.onOpenEntry(id)
-    stack.add(Page.Detail(id))
+    return PageStack.push(stack, Page.Detail(id))
 }
 
-private fun pop(stack: SnapshotStateList<Page>, home: HomeViewModel) {
+private fun pop(stack: List<Page>, home: HomeViewModel): List<Page> {
+    // 离开详情页要顺手把 VM 里那份装载好的详情放掉：它带着一次 1440px 的解码，
+    // 留着就是「翻过一条很长的日记之后内存下不来」。
     if (stack.lastOrNull() is Page.Detail) home.onCloseEntry()
-    if (stack.size > 1) stack.removeAt(stack.lastIndex)
+    return PageStack.pop(stack)
 }
 
 /**
@@ -257,7 +280,7 @@ private fun HomeScene(
     home: HomeViewModel,
     lookback: LookbackUiState,
     rememberState: RememberUiState,
-    requestedTab: HomeTab,
+    tabRequest: TabRequest,
     lookbackListState: LazyListState,
     selectedIds: Set<String>,
     onLongPressEntry: (String) -> Unit,
@@ -273,7 +296,7 @@ private fun HomeScene(
 ) {
     WordLensApp(
         modifier = Modifier.fillMaxSize(),
-        requestedTab = requestedTab,
+        tabRequest = tabRequest,
         lookbackListState = lookbackListState,
         notice = notice,
         onDismissNotice = onDismissNotice,
@@ -362,6 +385,8 @@ private fun CaptureHost(
     onDismiss: () -> Unit,
     onOpenSettings: () -> Unit,
     onReportNotice: (String) -> Unit,
+    /** 存好了一条记录之后交给主页它的日期键：主页据此决定要不要放开日历筛选。 */
+    onEntrySaved: (String) -> Unit,
 ) {
     val vm: CaptureViewModel = viewModel(factory = captureViewModelFactory(container))
     val state by vm.ui.collectAsStateWithLifecycle()
@@ -386,6 +411,10 @@ private fun CaptureHost(
                 // 先投递再关页：这条提示要说给「关掉取景页之后的那个界面」，
                 // 顺序反过来它就会随场景一起被拆掉。
                 e.notice?.let(onReportNotice)
+                // 放开日历筛选放在最后：两个提示共用一个槽位，后写的赢。
+                // 「你现在看的已经不是全部了」是这一对里更该被说出口的一句——它是 App
+                // 动了用户自己设的条件，而少抠了一张贴纸说的是照片的内容。
+                onEntrySaved(e.dayKey)
                 onDismiss()
             }
 

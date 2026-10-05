@@ -212,6 +212,7 @@
     <!-- 日历筛选 -->
     <string name="calendar_title">Pick a date</string>
     <string name="calendar_clear">Show all</string>
+    <string name="notice_filter_cleared">Date filter cleared — this entry belongs to %1$s</string>
     <string name="calendar_prev">Previous month</string>
     <string name="calendar_next">Next month</string>
     <string name="calendar_filtered">Showing only %1$s</string>

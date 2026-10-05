@@ -52,6 +52,19 @@ enum class HomeTab(val route: String, @StringRes val labelRes: Int, val icon: Im
 }
 
 /**
+ * 一次「跳到某个页签」的**请求**，不是页签本身。
+ *
+ * [sequence] 存在只有一个理由：让连着两次同样的请求成为两次请求。存 `HomeTab` 的话，
+ * 第二次点小组件时状态没有变化（已经是 REMEMBER），没有任何东西会重算，于是界面一动不动，
+ * 而用户学到的结论是「这个小组件只有第一次管用」。带序号的对象每次都不同，
+ * `LaunchedEffect(request)` 因此一定重跑。
+ *
+ * null 表示「这次谁也没请求」——转屏重新走一遍 intent 时必须走这一支，
+ * 否则用户停在哪一页会被夺走。
+ */
+data class TabRequest(val tab: HomeTab? = null, val sequence: Int = 0)
+
+/**
  * 顶部页签：一颗悬浮的分段胶囊，选中背景是一块在两段之间滑动的胶囊。
  *
  * ## 为什么不是通栏

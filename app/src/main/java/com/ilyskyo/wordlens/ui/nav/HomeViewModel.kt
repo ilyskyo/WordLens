@@ -35,6 +35,7 @@ import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
 import com.ilyskyo.wordlens.ui.lookback.DayGroup
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailState
 import com.ilyskyo.wordlens.ui.lookback.ObjectPlace
+import com.ilyskyo.wordlens.ui.lookback.dayKeyLabel
 import com.ilyskyo.wordlens.ui.lookback.dayLabel
 import com.ilyskyo.wordlens.ui.lookback.formatDay
 import com.ilyskyo.wordlens.ui.remember.RememberCard
@@ -241,11 +242,31 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     fun onReveal() {
         if (session.value.revealed) return
         revealedAt = System.currentTimeMillis()
+        // 翻开一次就等于「这是用户要重新回答的一张卡」，重复评级的闸门随之放开：
+        // 评级按钮只有翻面之后才可按（enabled = revealed），所以任何一次合法的第二评，
+        // 中间必然经过一次新的 reveal。用它当释放点，不用往队列上挂额外的收集器。
+        gradedKey = null
         session.update { it.copy(revealed = true) }
     }
 
+    /**
+     * 已经受理、但还没从队列里消失的那一张。
+     *
+     * `gradeLock` 只保证两次写不交错，不保证同一张卡不被评两次：连点两下按钮时，两次
+     * `remember.value.current` 读到的都是同一张（流的更新要等磁盘写完之后才回来），于是
+     * 同一个词被 FSRS 连着推进两次、done 多算一次、复习日志里多一条凭空的记录，而界面上
+     * 只少了一张卡——没人会看出中间多跑了一次调度。
+     */
+    private var gradedKey: String? = null
+
     fun onGrade(rating: Fsrs.Rating) {
         val item = remember.value.current?.item ?: return
+        val key = when (item) {
+            is ReviewItem.Word -> "w:" + item.card.id
+            is ReviewItem.Event -> "e:" + item.card.id
+        }
+        if (key == gradedKey) return
+        gradedKey = key
         val now = System.currentTimeMillis()
         val elapsed = if (revealedAt > 0) now - revealedAt else 0L
         viewModelScope.launch {
@@ -310,6 +331,26 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
      */
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
+
+    /**
+     * 刚存下的记录必须当场看得见。
+     *
+     * 时间轴正筛着某一天时存进一条新记录：新记录属于「今天」，不在筛选结果里，于是取景页
+     * 关掉、列表一模一样——界面既没说「存下了」，也没说「你现在筛着别的日子」。
+     * 这个坑是日历筛选自带的（快门也会踩），相册导入只是让它更容易碰到：导入的照片
+     * 本来就常常是别的日子的。
+     *
+     * 放开筛选必须同时说一句：不通知就改动用户自己设的条件，是另一种静默。
+     */
+    fun revealSavedEntry(dayKey: String) {
+        val filter = _dayFilter.value ?: return
+        if (filter == dayKey) return
+        _dayFilter.value = null
+        _notice.value = container.appContext.getString(
+            R.string.notice_filter_cleared,
+            dayKeyLabel(dayKey, container.appContext),
+        )
+    }
 
     /** 月历点某一天 = 只看那一天；再点一次已选中的那天（或「显示全部」）取消。 */
     fun onPickDay(dayKey: String?) {
@@ -386,6 +427,17 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val missing = lang in container.speaker.unsupportedLanguages.value
         val resId = if (missing) R.string.notice_tts_unsupported else R.string.notice_tts_silent
         _notice.value = container.appContext.getString(resId, lang.nativeName)
+    }
+
+    /**
+     * 进程被杀再回来时，详情页那一格还欠着装载。
+     *
+     * 页面栈跨进程死亡能恢复，ViewModel 不能——恢复出来的栈里有一条
+     * `Detail(entryId)`，而 `selectedEntryId` 是空的，于是用户看到自己离开时那一页的空壳。
+     * 只在真的对不上时才重开：同一条重复装载会白解一次 1440px 的图。
+     */
+    fun ensureEntryShown(id: String) {
+        if (selectedEntryId.value != id) onOpenEntry(id)
     }
 
     fun onOpenEntry(id: String) {

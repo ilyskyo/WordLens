@@ -4,6 +4,7 @@
 package com.ilyskyo.wordlens.core
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.data.model.LexiconEntry
@@ -133,9 +134,14 @@ class AppContainer(context: Context) {
      *
      * `@Synchronized` 是必须的：这个方法在分析线程（Default）与主线程上都会被读，
      * 而 [RetryGate] 自己刻意不加锁。
+     *
+     * 默认时钟是 `elapsedRealtime()` 而不是墙钟——`RetryGate` 的文件注释论证过这件事：
+     * 用户改系统时间或 NTP 校时不该把冷却窗口提前打开（那会立刻再载一次 4.5MB 模型），
+     * 前进一跳再退回来甚至可能触发两次。这里原来传的是 `System.currentTimeMillis()`，
+     * 恰好把那条论证反着写了。
      */
     @Synchronized
-    fun detectorOrNull(nowMs: Long = System.currentTimeMillis()): EfficientDetector? {
+    fun detectorOrNull(nowMs: Long = SystemClock.elapsedRealtime()): EfficientDetector? {
         detectorInstance?.let { return it }
         if (!detectorGate.allow(nowMs)) return null
         val created = runCatching { EfficientDetector.create(appContext) }.getOrNull()

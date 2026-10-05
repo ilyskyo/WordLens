@@ -11,6 +11,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 
@@ -27,6 +28,77 @@ sealed interface Page {
     data object Capture : Page
     data object Search : Page
     data object Settings : Page
+}
+
+/**
+ * 页面栈的存取与存盘编码。
+ *
+ * ## 为什么要编码成字符串
+ *
+ * manifest 没有声明 `configChanges`，所以转屏必然重建 MainActivity。栈原先是
+ * `remember { mutableStateListOf(Page.Home) }`——转一次屏，用户从详情页、设置页、取景页
+ * 都会被扔回时间轴。这个项目里「转屏不许弄丢你正看着的东西」已经写进了好几处实现
+ * （日期筛选提到 ViewModel、草稿用 rememberSaveable、列表滚动状态外提），
+ * 页签与这条栈是那个标准上最后剩下的洞。
+ *
+ * 交给 ViewModel 也行，但「现在在哪一页」是界面状态而不是数据状态；而 Bundle 里塞
+ * Serializable 的密封对象会在类被改名/移动时于**恢复时**才炸。这条栈只有五个固定名字
+ * 加一个 id，字符串编码比任何框架机制都更便宜、也更能扛重构：认不出来的条目直接丢掉，
+ * 整条栈因此不会消失。
+ *
+ * ## 进程被杀之后
+ *
+ * rememberSaveable 活得太久（跨进程死亡也恢复），而 ViewModel 不会。所以恢复出来的
+ * `Detail(id)` 背后可能没有任何东西在装载——那一面由 `HomeViewModel.ensureEntryShown` 补，
+ * 不是把栈退回主页：用户离开又回来，看到的应该还是他离开时那一页。
+ */
+object PageStack {
+
+    val initial: List<Page> = listOf(Page.Home)
+
+    fun push(stack: List<Page>, page: Page): List<Page> = stack + page
+
+    /** 栈底不许弹空：弹到空栈意味着返回键会吃掉用户，而不是离开这一页。 */
+    fun pop(stack: List<Page>): List<Page> = if (stack.size > 1) stack.dropLast(1) else stack
+
+    fun encode(stack: List<Page>): List<String> = stack.map { page ->
+        when (page) {
+            Page.Home -> TAG_HOME
+            Page.Capture -> TAG_CAPTURE
+            Page.Search -> TAG_SEARCH
+            Page.Settings -> TAG_SETTINGS
+            is Page.Detail -> TAG_DETAIL + page.entryId
+        }
+    }
+
+    fun decode(stored: List<String>): List<Page> {
+        val out = stored.mapNotNull { raw ->
+            when {
+                raw == TAG_HOME -> Page.Home
+                raw == TAG_CAPTURE -> Page.Capture
+                raw == TAG_SEARCH -> Page.Search
+                raw == TAG_SETTINGS -> Page.Settings
+                raw.startsWith(TAG_DETAIL) && raw.length > TAG_DETAIL.length ->
+                    Page.Detail(raw.substring(TAG_DETAIL.length))
+                // 旧版本写下的、这一版认不出来的名字：丢掉它，但不要让整条栈一起没了。
+                else -> null
+            }
+        }
+        return out.ifEmpty { initial }
+    }
+
+    val saver: Saver<List<Page>, List<String>> = Saver(
+        // 写成函数引用过不了编译：Saver 的 save 是 `SaverScope.(T) -> S?`，
+        // 带接收者的 lambda 不是一个普通函数类型。
+        save = { stack -> encode(stack) },
+        restore = { stored -> decode(stored) },
+    )
+
+    private const val TAG_HOME = "home"
+    private const val TAG_CAPTURE = "capture"
+    private const val TAG_SEARCH = "search"
+    private const val TAG_SETTINGS = "settings"
+    private const val TAG_DETAIL = "detail:"
 }
 
 /**

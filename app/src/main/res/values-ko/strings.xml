@@ -208,6 +208,7 @@
     <!-- 日历筛选 -->
     <string name="calendar_title">날짜 고르기</string>
     <string name="calendar_clear">전체 보기</string>
+    <string name="notice_filter_cleared">날짜 필터를 해제했어요. 방금 저장한 것은 %1$s의 기록이에요</string>
     <string name="calendar_prev">이전 달</string>
     <string name="calendar_next">다음 달</string>
     <string name="calendar_filtered">%1$s만 보여드려요</string>

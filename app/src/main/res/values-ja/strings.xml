@@ -208,6 +208,7 @@
     <!-- 日历筛选 -->
     <string name="calendar_title">日を選ぶ</string>
     <string name="calendar_clear">すべて表示</string>
+    <string name="notice_filter_cleared">日付の絞り込みを外しました。この記録は %1$s のものです</string>
     <string name="calendar_prev">前月</string>
     <string name="calendar_next">翌月</string>
     <string name="calendar_filtered">%1$s だけを表示</string>
