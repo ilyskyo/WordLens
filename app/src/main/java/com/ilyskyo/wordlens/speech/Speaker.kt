@@ -75,6 +75,23 @@ class Speaker(context: Context) {
                                 onDone?.invoke()
                             }
                         }
+
+                        /**
+                         * 被打断的那次发音走的是这里，不是 onDone 也不是 onError。
+                         *
+                         * 系统的 `UtteranceProgressListener` 里 `onError(String)` 这类旧回调
+                         * 会被新的 `onError(String, int)` 默认转调，所以只覆盖旧的够用；
+                         * 但 `onStop(String, boolean)` 的默认实现是**空的**，不转发给任何人。
+                         * 于是电话进来、别的 App 抢走音频焦点、系统把这条 utterance 停掉的时候，
+                         * 三个回调一个都不会到——UI 上那颗「正在发音」就一直亮着。
+                         * 对用户来说那是「App 卡住了」，不是「语音被打断了」。
+                         */
+                        override fun onStop(id: String?, interrupted: Boolean) {
+                            if (id == currentUtterance) {
+                                currentUtterance = null
+                                onDone?.invoke()
+                            }
+                        }
                     })
                     refreshEngines()
                 }
@@ -85,6 +102,15 @@ class Speaker(context: Context) {
         }
     }
 
+    /**
+     * 当前这一次发音的 id。
+     *
+     * `@Volatile` 不是装饰：写在主线程（speak / stop），读在 TTS 的回调线程上。
+     * 没有可见性保证时，回调线程可能一直读到旧值，于是 id 对不上、`onDone` 不回调，
+     * 界面上那颗「正在发音」的按钮从此停在原地——大多数时候看不出来，因为 JIT 与缓存
+     * 恰好站在你这边。
+     */
+    @Volatile
     private var currentUtterance: String? = null
 
     /**
