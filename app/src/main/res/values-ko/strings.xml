@@ -197,4 +197,11 @@
     <string name="detail_edit_field_title">제목</string>
     <string name="detail_edit_field_summary">그날 무슨 일이 있었나요</string>
     <string name="detail_edit_field_mood">그때의 기분 (한 번 더 누르면 해제)</string>
+    <!-- 日历筛选 -->
+    <string name="calendar_title">날짜 고르기</string>
+    <string name="calendar_clear">전체 보기</string>
+    <string name="calendar_prev">이전 달</string>
+    <string name="calendar_next">다음 달</string>
+    <string name="calendar_filtered">%1$s만 보여드려요</string>
+    <string name="calendar_empty_filtered">%1$s의 기록이 이미 없어요</string>
 </resources>

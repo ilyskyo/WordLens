@@ -201,4 +201,11 @@
     <string name="detail_edit_field_title">Title</string>
     <string name="detail_edit_field_summary">What happened that day</string>
     <string name="detail_edit_field_mood">How it felt (tap again to clear)</string>
+    <!-- 日历筛选 -->
+    <string name="calendar_title">Pick a date</string>
+    <string name="calendar_clear">Show all</string>
+    <string name="calendar_prev">Previous month</string>
+    <string name="calendar_next">Next month</string>
+    <string name="calendar_filtered">Showing only %1$s</string>
+    <string name="calendar_empty_filtered">Nothing left from %1$s</string>
 </resources>

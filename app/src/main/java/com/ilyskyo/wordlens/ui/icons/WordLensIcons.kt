@@ -5,6 +5,8 @@ package com.ilyskyo.wordlens.ui.icons
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
@@ -196,10 +198,10 @@ object WordLensIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            path(stroke = SolidColor(Color.Black), strokeLineWidth = 2.2f, strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round) {
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 2.2f, strokeLineCap = StrokeCap.Round) {
                 moveTo(6f, 6f); lineTo(18f, 18f)
             }
-            path(stroke = SolidColor(Color.Black), strokeLineWidth = 2.2f, strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round) {
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 2.2f, strokeLineCap = StrokeCap.Round) {
                 moveTo(18f, 6f); lineTo(6f, 18f)
             }
         }.build()
@@ -247,4 +249,81 @@ object WordLensIcons {
             }
         }.build()
     }
+
+    /** 日历：方框 + 两道挂环 + 一行日期点。用线段画而不是矩形图元，
+     *  因为 vector 的 path{} 收到的是 PathBuilder，没有 addRect/addCircle。 */
+    val Calendar: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Calendar",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 2f) {
+                moveTo(3.5f, 5.5f); horizontalLineTo(20.5f); verticalLineTo(20.5f)
+                horizontalLineTo(3.5f); close()
+            }
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round) {
+                moveTo(8f, 3f); verticalLineTo(7f)
+                moveTo(16f, 3f); verticalLineTo(7f)
+                moveTo(3.5f, 10.5f); horizontalLineTo(20.5f)
+            }
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(7f, 13.5f); horizontalLineTo(9f); verticalLineTo(15.5f)
+                horizontalLineTo(7f); close()
+                moveTo(11f, 13.5f); horizontalLineTo(13f); verticalLineTo(15.5f)
+                horizontalLineTo(11f); close()
+                moveTo(15f, 13.5f); horizontalLineTo(17f); verticalLineTo(15.5f)
+                horizontalLineTo(15f); close()
+            }
+        }.build()
+    }
+
+    /** 向左的尖括号：月历翻上一月。 */
+    val ChevronLeft: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "ChevronLeft",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 2.2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(14.5f, 5.5f)
+                lineTo(8f, 12f)
+                lineTo(14.5f, 18.5f)
+            }
+        }.build()
+    }
+
+    /** 向右的尖括号：月历翻下一月。与左边那条只差 x 对称，仍然各写一遍——
+     *  把路径抽成「解析字符串」的把戏省不下什么，只会让图标变成要读懂才敢改的东西。 */
+    val ChevronRight: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "ChevronRight",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 2.2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(9.5f, 5.5f)
+                lineTo(16f, 12f)
+                lineTo(9.5f, 18.5f)
+            }
+        }.build()
+    }
+
+
 }

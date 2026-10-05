@@ -101,11 +101,15 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     // ── 回看 ────────────────────────────────────────────────────────────────
 
+    /** 日历选中的那一天。null = 不筛。放在 VM 里，转屏与去详情页再回来都不会丢。 */
+    private val _dayFilter = MutableStateFlow<String?>(null)
+
     val lookback: StateFlow<LookbackUiState> = combine(
         container.diary.document,
         container.lexicon.index,
         settingsFlow,
-    ) { diary, lexicon, settings -> buildLookback(diary, lexicon, settings) }
+        _dayFilter,
+    ) { diary, lexicon, settings, dayFilter -> buildLookback(diary, lexicon, settings, dayFilter) }
         // 照片解码是这批流里唯一的重活，放到 Default 上，别占主线程。
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LookbackUiState())
@@ -306,6 +310,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
      */
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
+
+    /** 月历点某一天 = 只看那一天；再点一次已选中的那天（或「显示全部」）取消。 */
+    fun onPickDay(dayKey: String?) {
+        _dayFilter.update { if (dayKey == it) null else dayKey }
+    }
 
     fun acknowledgeNotice() {
         _notice.value = null
@@ -526,9 +535,15 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         diary: DiaryDocument,
         lexicon: LexiconIndex,
         settings: AppSettings,
+        dayFilter: String?,
     ): LookbackUiState {
         val today = LocalDate.now().toString()
-        val shown = diary.entries.sortedByDescending { it.takenAt }.take(TIMELINE_LIMIT)
+        val allDays = diary.entries.map { it.dayKey }.toSet()
+        // 先筛再解码：筛到某一天之后没必要把另外几十张的位图都解一遍。
+        val shown = diary.entries
+            .filter { dayFilter == null || it.dayKey == dayFilter }
+            .sortedByDescending { it.takenAt }
+            .take(TIMELINE_LIMIT)
         val cards = shown.map { entry ->
             EntryCard(
                 entry = entry,
@@ -542,20 +557,20 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             )
         }
         // 输入已经按时间倒序，groupBy 保序，所以分组天与组内卡片都是「新的在上」。
+        // 分组键直接用条目自己的 dayKey：日历筛选用的也是这个键，两处各算一遍的话，
+        // 跨零点或跨夏令时的时候会出现「筛得到、却分不进任何一组」的空列表。
         val groups = cards
-            .groupBy { dayKeyOf(it.entry.takenAt) }
+            .groupBy { it.entry.dayKey }
             .map { (day, groupCards) ->
                 DayGroup(day, dayLabel(groupCards.first().entry.takenAt, container.appContext), groupCards)
             }
         return LookbackUiState(
             groups = groups,
             todayCount = diary.entries.count { it.dayKey == today },
+            selectedDay = dayFilter,
+            daysWithEntries = allDays,
         )
     }
-
-    /** 分组键用 ISO 日期。标签会随语言变，键不会。 */
-    private fun dayKeyOf(epochMillis: Long): String =
-        java.time.Instant.ofEpochMilli(epochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
 
     /**
      * 组装详情页：把存进日记的四角坐标重新长回这张照片上。

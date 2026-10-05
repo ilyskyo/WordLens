@@ -214,4 +214,11 @@
     <string name="detail_edit_field_title">标题</string>
     <string name="detail_edit_field_summary">那一天发生了什么</string>
     <string name="detail_edit_field_mood">当时的感受（再点一次取消）</string>
+    <!-- 日历筛选 -->
+    <string name="calendar_title">选择日期</string>
+    <string name="calendar_clear">显示全部</string>
+    <string name="calendar_prev">上一月</string>
+    <string name="calendar_next">下一月</string>
+    <string name="calendar_filtered">只显示 %1$s</string>
+    <string name="calendar_empty_filtered">%1$s 的记录已经空了</string>
 </resources>

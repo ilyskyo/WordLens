@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,11 +24,13 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,10 +43,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,6 +60,8 @@ import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntryMood
 import com.ilyskyo.wordlens.ui.components.EmptyState
+import com.ilyskyo.wordlens.ui.components.OutlinedAction
+import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
 import com.ilyskyo.wordlens.ui.theme.Scale
@@ -62,17 +69,24 @@ import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 import com.ilyskyo.wordlens.ui.theme.pressable
 import com.ilyskyo.wordlens.ui.theme.softShadow
-import com.ilyskyo.wordlens.ui.theme.stickerCorner
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.time.format.TextStyle
+import java.util.Locale
 
 /** 回看页状态。 */
 data class LookbackUiState(
     /** 按天倒序分组。组内也是倒序，所以最新一条永远在屏幕最上方。 */
     val groups: List<DayGroup> = emptyList(),
     val todayCount: Int = 0,
+    /** 日历筛选中的那一天；null 表示显示全部。 */
+    val selectedDay: String? = null,
+    /** 有记录的日期集合，喂给月历画小红点。**不受筛选影响**，否则选完一天之后月历就只剩一个点。 */
+    val daysWithEntries: Set<String> = emptySet(),
 )
 
 /**
@@ -151,71 +165,285 @@ fun LookbackScreen(
     selection: TimelineSelection = TimelineSelection(),
     onOpenEntry: (String) -> Unit = {},
     onSpeak: (EntryCard) -> Unit = {},
+    /** 月历点选某一天；传 null 取消筛选。 */
+    onPickDay: (String?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    var calendarOpen by remember { mutableStateOf(false) }
+
     if (state.groups.isEmpty()) {
         Box(
             modifier = modifier
                 .fillMaxSize()
                 .padding(topInset),
         ) {
-            EmptyState(
-                emoji = "\uD83D\uDCF7",
-                title = stringResource(R.string.lookback_empty_title),
-                body = stringResource(R.string.lookback_empty_body),
-                modifier = Modifier.align(Alignment.Center),
-            )
+            if (state.selectedDay != null) {
+                // 筛到某一天、而那一天的记录又被删光时，必须还能出来：
+                // 空状态里没有「显示全部」就等于把人锁在一个看不见的筛选里。
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Space.md),
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.calendar_empty_filtered,
+                            dayKeyLabel(state.selectedDay, LocalContext.current),
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    OutlinedAction(
+                        text = stringResource(R.string.calendar_clear),
+                        onClick = { onPickDay(null) },
+                        modifier = Modifier.width(220.dp),
+                    )
+                }
+            } else {
+                EmptyState(
+                    emoji = "\uD83D\uDCF7",
+                    title = stringResource(R.string.lookback_empty_title),
+                    body = stringResource(R.string.lookback_empty_body),
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
         }
         return
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = Space.md,
-            end = Space.md,
-            // 静止时问候语不能被悬浮页签压住；滚动起来照片从页签下方穿过仍是想要的效果。
-            top = topInset.calculateTopPadding() + Space.sm,
-            bottom = bottomInset.calculateBottomPadding() + Space.xl,
-        ),
-        verticalArrangement = Arrangement.spacedBy(Space.md),
-    ) {
-        item(key = "header") {
-            // 多选时顶栏整个换掉：问候语在批量操作的语境里没有意义，而「已选几项」必须
-            // 一眼看得到——不可逆的动作，上下文不能藏在别处。
-            if (selection.active) {
-                SelectionBar(
-                    count = selection.selection.size,
-                    onSelectAll = selection.onSelectAll,
-                    onClear = selection.onClear,
-                    onDelete = selection.onDelete,
-                    modifier = Modifier.padding(bottom = Space.sm),
-                )
-            } else {
-                Greeting(todayCount = state.todayCount, modifier = Modifier.padding(bottom = Space.sm))
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = Space.md,
+                end = Space.md,
+                // 静止时问候语不能被悬浮页签压住；滚动起来照片从页签下方穿过仍是想要的效果。
+                top = topInset.calculateTopPadding() + Space.sm,
+                bottom = bottomInset.calculateBottomPadding() + Space.xl,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Space.md),
+        ) {
+            item(key = "header") {
+                // 多选时顶栏整个换掉：问候语在批量操作的语境里没有意义，而「已选几项」必须
+                // 一眼看得到——不可逆的动作，上下文不能藏在别处。
+                if (selection.active) {
+                    SelectionBar(
+                        count = selection.selection.size,
+                        onSelectAll = selection.onSelectAll,
+                        onClear = selection.onClear,
+                        onDelete = selection.onDelete,
+                        modifier = Modifier.padding(bottom = Space.sm),
+                    )
+                } else {
+                    Column(modifier = Modifier.padding(bottom = Space.sm)) {
+                        Greeting(
+                            todayCount = state.todayCount,
+                            onOpenCalendar = { calendarOpen = true },
+                        )
+                        state.selectedDay?.let { day ->
+                            // 筛着的时候必须一直看得见「我在看那一天」，
+                            // 否则列表少了内容会被读成「照片丢了」。
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.calendar_filtered,
+                                        dayKeyLabel(day, LocalContext.current),
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                TextButton(onClick = { onPickDay(null) }) {
+                                    Text(stringResource(R.string.calendar_clear))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            state.groups.forEach { group ->
+                // 分组头压在当天第一张卡上方：翻时间轴时「哪天」比「几点」更重要。
+                item(key = "day-${group.day}") {
+                    DayHeader(group.label)
+                }
+                items(group.cards, key = { it.entry.id }) { card ->
+                    TimelineRow(
+                        card = card,
+                        selected = card.entry.id in selection.selection,
+                        onOpen = {
+                            // 多选模式下单击的含义是勾选，不是打开——两套语义不能同时生效。
+                            if (selection.active) selection.onLongPress(card.entry.id) else onOpenEntry(card.entry.id)
+                        },
+                        onLongPress = { selection.onLongPress(card.entry.id) },
+                        onSpeak = { onSpeak(card) },
+                    )
+                }
             }
         }
-        state.groups.forEach { group ->
-            // 分组头压在当天第一张卡上方：翻时间轴时「哪天」比「几点」更重要。
-            item(key = "day-${group.day}") {
-                DayHeader(group.label)
-            }
-            items(group.cards, key = { it.entry.id }) { card ->
-                TimelineRow(
-                    card = card,
-                    selected = card.entry.id in selection.selection,
-                    onOpen = {
-                        // 多选模式下单击的含义是勾选，不是打开——两套语义不能同时生效。
-                        if (selection.active) selection.onLongPress(card.entry.id) else onOpenEntry(card.entry.id)
-                    },
-                    onLongPress = { selection.onLongPress(card.entry.id) },
-                    onSpeak = { onSpeak(card) },
+
+        if (calendarOpen) {
+            MonthSheet(
+                daysWithEntries = state.daysWithEntries,
+                selectedDay = state.selectedDay,
+                onPick = { day ->
+                    onPickDay(day)
+                    calendarOpen = false
+                },
+                onDismiss = { calendarOpen = false },
+            )
+        }
+    }
+}
+
+/**
+ * 月历筛选：只看某一天。
+ *
+ * 有记录的格子可点，没记录的格子仍可看见但点不动——筛到一个空的日子里，
+ * 用户看到的只是「什么都没变」，而时间轴其实已经被换成空的了。
+ *
+ * 格子算术全在 MonthGrid（纯函数、有 JVM 测试）里：月初不是周一起始时前面补几格、
+ * 闰年二月几天、周起点跟着谁的地区设置走。这些错只在特定的月份才暴露，而一个月只来一次。
+ */
+@Composable
+private fun MonthSheet(
+    daysWithEntries: Set<String>,
+    selectedDay: String?,
+    onPick: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val today = LocalDate.now()
+    var month by remember { mutableStateOf(YearMonth.from(today)) }
+    val firstDay = remember { MonthGrid.defaultFirstDayOfWeek() }
+    val weekdays = remember(firstDay) { MonthGrid.weekdayNames(firstDay) }
+    val weeks = remember(month, daysWithEntries, firstDay) {
+        MonthGrid.weeks(MonthGrid.days(month, daysWithEntries, firstDay))
+    }
+    // 完整日期给读屏念：只念一个「5」没人知道这是哪天。formatter 在组合作用域里取，
+    // 理由同月份名——换语言时进程不死，文件级常量会停在旧 locale 上。
+    val fullDate = remember {
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault())
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.padding(horizontal = Space.lg, vertical = Space.sm),
+            verticalArrangement = Arrangement.spacedBy(Space.sm),
+        ) {
+            Text(
+                text = stringResource(R.string.calendar_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { month = month.minusMonths(1) }) {
+                    Icon(
+                        imageVector = WordLensIcons.ChevronLeft,
+                        contentDescription = stringResource(R.string.calendar_prev),
+                    )
+                }
+                // 月份名交给 DateTimeFormatter：pattern 里的 MMMM/yyyy 由 locale 决定展开成
+                // 「October 2026」还是「2026年10月」，比维护四套月份字符串可靠。
+                // formatter 必须在组合作用域里造：换语言时进程不死，放到文件级 val 就会
+                // 永远停在旧 locale 上。
+                Text(
+                    text = remember(month) { monthTitle(month) },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                IconButton(onClick = { month = month.plusMonths(1) }) {
+                    Icon(
+                        imageVector = WordLensIcons.ChevronRight,
+                        contentDescription = stringResource(R.string.calendar_next),
+                    )
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                weekdays.forEach { name ->
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            weeks.forEach { week ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    week.forEach { cell ->
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            if (cell != null) {
+                                val isSelected = cell.dayKey == selectedDay
+                                Surface(
+                                    onClick = { if (cell.hasEntries) onPick(cell.dayKey) },
+                                    enabled = cell.hasEntries,
+                                    shape = CircleShape,
+                                    color = when {
+                                        isSelected -> MaterialTheme.colorScheme.primary
+                                        cell.hasEntries -> MaterialTheme.colorScheme.primaryContainer
+                                        else -> Color.Transparent
+                                    },
+                                    contentColor = when {
+                                        isSelected -> MaterialTheme.colorScheme.onPrimary
+                                        else -> MaterialTheme.colorScheme.onSurface
+                                    },
+                                    modifier = Modifier
+                                        .size(DAY_CELL)
+                                        .semantics {
+                                            contentDescription =
+                                                fullDate.format(LocalDate.parse(cell.dayKey))
+                                            this.selected = isSelected
+                                        },
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                    ) {
+                                        Text(
+                                            text = cell.dayOfMonth.toString(),
+                                            style = MaterialTheme.typography.labelLarge,
+                                        )
+                                        // 用点而不是整格底色：那天有没有记录是次要信息，
+                                        // 但它必须在不进那一天的情况下就看得见。
+                                        if (cell.hasEntries && !isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(DAY_DOT)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.primary),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (selectedDay != null) {
+                TextButton(onClick = { onPick(null) }) {
+                    Text(stringResource(R.string.calendar_clear))
+                }
             }
         }
     }
 }
+
+/**
+ * 月份的本地化全称。
+ *
+ * 交给 CLDR 而不是自己排「X 年 X 月 / X Month YYYY」：中日韩的年月写法与欧美的顺序不同，
+ * 而这一条差异用 locale 展开就能覆盖，四套字符串反而是会写错的那一个。
+ */
+private fun monthTitle(month: YearMonth): String =
+    DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()).format(month.atDay(1))
+
+private val DAY_CELL = 44.dp
+private val DAY_DOT = 5.dp
 
 /**
  * 多选顶栏：数量、全选、取消、删除。
@@ -298,7 +526,11 @@ private fun DayHeader(label: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Greeting(todayCount: Int, modifier: Modifier = Modifier) {
+private fun Greeting(
+    todayCount: Int,
+    onOpenCalendar: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -317,6 +549,15 @@ private fun Greeting(todayCount: Int, modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        // 日历按钮挨着问候语放在右上角：它是「换个看法」而不是一个新的目的地，
+        // 放到别处会让人以为要点进去找一个叫日历的页面。
+        IconButton(onClick = onOpenCalendar) {
+            Icon(
+                imageVector = WordLensIcons.Calendar,
+                contentDescription = stringResource(R.string.calendar_title),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -446,7 +687,7 @@ private fun EntryTimelineCard(
                 // 日期标签压在照片左上角：白字 + 轻微压暗，保证在浅色照片上也读得清。
                 Surface(
                     shape = CircleShape,
-                    color = androidx.compose.ui.graphics.Color(0x66000000),
+                    color = Color(0x66000000),
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(Space.sm),
@@ -454,7 +695,7 @@ private fun EntryTimelineCard(
                     Text(
                         text = formatDay(entry.takenAt, LocalContext.current),
                         style = MaterialTheme.typography.labelSmall,
-                        color = androidx.compose.ui.graphics.Color.White,
+                        color = Color.White,
                         modifier = Modifier.padding(horizontal = Space.sm, vertical = Space.xs),
                     )
                 }
@@ -634,6 +875,18 @@ internal fun formatDay(epochMillis: Long, context: Context): String {
     } else {
         context.getString(R.string.date_with_year, month, date.dayOfMonth, date.year)
     }
+}
+
+/**
+ * 把日历的分组键（ISO 日期）念成人话。
+ *
+ * 筛选条上直接写 `2026-10-05` 是最省事的做法，也是最糟的：用户在自己的日记里看到一串
+ * 数据库格式。这里绕回 [formatDay]，让它和卡片上的日期标签完全同源——两处各排一次格式，
+ * 早晚会出现「卡片写 10月5日、筛选条写 2026-10-05」这种自相矛盾的画面。
+ */
+internal fun dayKeyLabel(dayKey: String, context: Context): String {
+    val startOfDay = LocalDate.parse(dayKey).atStartOfDay(ZONE)
+    return formatDay(startOfDay.toInstant().toEpochMilli(), context)
 }
 
 /**
