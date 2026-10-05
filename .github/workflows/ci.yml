@@ -28,8 +28,18 @@ jobs:
         run: ./gradlew --no-daemon testDebugUnitTest
 
       # lintVitalRelease 是发布前的硬门槛：备份规则写错、缺翻译、泄漏的权限都会在这里红。
+      # AGP 会把 lintVitalRelease 挂在 assembleRelease 上一起跑，所以这里只有一条命令。
       - name: Release build (R8 + lint)
         run: ./gradlew --no-daemon assembleRelease
+
+      # 数据可发现性冒烟：落盘格式依赖枚举名、生成的 $$serializer 与反射入口，而这些只有 R8
+      # 之后才见得到（见 app/proguard-rules.pro 的注释）。它是一道契约闸：要求这些名字由规则
+      # 钉住，而不是碰巧没被动到——JVM 单测跑的是没混淆的 class，UI 测试跑的是 debug 包，都抓不到。
+      # 放在 APK size report 与 upload 之前：格式契约断了就不该把包传上去给人下载。
+      # 脚本只用标准库，ubuntu runner 自带的 python3 就够，不需要额外装东西；
+      # 它也不调 gradlew，所以不涉及可执行位（checkout 从 git 索引里带 100755，上面几步照旧）。
+      - name: Release data-discoverability smoke (mapping.txt + dex)
+        run: python3 tools/release_smoke.py
 
       - name: APK size report
         run: |

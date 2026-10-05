@@ -297,10 +297,12 @@ app/src/main/java/com/ilyskyo/wordlens/
 ├── MainActivity.kt                   两页 + 取景页宿主（CaptureHost）
 ├── WordLensApplication.kt            建 AppContainer
 ├── core/AppContainer.kt              手写 DI
+├── core/RetryGate.kt                 带冷却窗口的重试门：把「lazy 缓存一次失败」换成「等一会儿再试」
 ├── data/
-│   ├── model/      Entry · EventCard · WordCard · Lexicon · Scene · FsrsState
+│   ├── model/      Entry · EventCard · WordCard · Lexicon · Scene · FsrsState · RatingPalette
 │   ├── repository/ Deck · Diary · Lexicon · Settings
 │   └── store/      JsonDocument（原子写 + 损坏留证）
+│                  DiskOps            读/写/改名/复制的接缝：让「文件读得到但改名失败」这类组合可测
 ├── srs/Fsrs.kt                       FSRS-6
 ├── speech/Speaker.kt
 ├── vision/
@@ -308,28 +310,42 @@ app/src/main/java/com/ilyskyo/wordlens/
 │   ├── VisionRepository              引擎调度 + 背压
 │   ├── MlKitOnDeviceEngine · CloudVisionEngine
 │   ├── MagicTouchSegmenter · SubjectSegmenter · MlKitSubjectSegmenter
+│   ├── CutoutGeometry.kt             前景框：原图像素尺度 → 贴纸位图尺度并夹紧（修「贴纸一直是空的且不报错」）
+│   ├── AlphaMatte.kt                 低分辨率 mask → 贴纸 alpha，双线性放大（die-cut 白描边不留台阶）
 │   └── camera/
 │       ├── CameraFocusMath.kt         纯几何（19 测试）
 │       ├── OverlayGeometry.kt         框 → 屏幕坐标（15 测试）
 │       ├── CameraFocusController.kt   逐帧下发裁切
+│       ├── DecodeSizing.kt            inSampleSize + 精确缩放的两步算术（纯函数；滚动时 OOM 的成因在这里）
 │       ├── PhotoDecoder.kt            解码即按 EXIF 转正
 │       └── YuvFrames.kt               YUV_420_888 → ARGB（11 测试）
 ├── widget/DueWidgetProvider.kt
 └── ui/
     ├── theme/     Color · Type · Shape · Theme
+    │              Motion               五档弹簧与全部动效规格，屏幕里不许出现第二个数字
+    │              Haptics              触觉分级：调用点说语义（Haptic），不说 API 常量
+    │              ContinuousCornerShape 超椭圆采样几何，纯 Kotlin 因此可在 JVM 测试里钉住
+    │              SoftShadow           多层柔和阴影（接触 / 半影 / 铺开三段），替代单层硬边 elevation
+    │              Indication           NoIndication：全局零波纹的空指示器，主题里一处生效
+    │              Pressable            pressable / pressFeedback：按压反馈的唯一入口
     ├── icons/     WordLensIcons（7 个手绘）
-    ├── components/ Common
-    ├── nav/       HomeTabBar · HomeViewModel · WordLensApp
+    ├── common/    ByteLruCache         按字节上限的位图 LRU；淘汰只丢引用，绝不 recycle()
+    ├── components/ Common · PillSwitch（胶囊分段切换：选中背景是一块在段间滑动的胶囊）
+    │              OptionChip（选择胶囊：复用 M3 FilterChip 的语义，只把按压手感接上 pressFeedback）
+    ├── nav/       HomeTabBar · HomeViewModel · WordLensApp · Page（单 Activity 的页面栈）
     ├── lookback/  时间轴 · 条目详情（词长回原图 + 补一句）
     ├── search/    搜索 / 添加（SearchScreen · SearchViewModel）
-    ├── remember/  复习
+    ├── remember/  复习（RememberScreen · IntervalFormat）
     └── capture/   CaptureScreen · CaptureCamera · CaptureViewModel · ViewfinderOverlay
 ```
 
-**两条架构约束**：
+**四条架构约束**：
 
 1. **纯逻辑不 import `android.graphics`。** `unitTests.isReturnDefaultValues = true` 会让 `android.graphics` 返回 0/空值，而 `RectF.equals` 不比内容——曾经因此 13/15 个测试失败，而且报错完全指不到真正的原因。`CameraFocusMath` 和 `OverlayGeometry` 因此各自定义 `NormBox` / `SensorCrop`。
 2. **依赖方向 model ← vision。** `OverlayLayer` 放在 `data.model` 而不是视觉包里，因为它是**要持久化进日记文件**的语义。
+3. **位图缓存淘汰绝不 `recycle()`。** 缓存里放的是 Compose **正在绘制**的位图：组合线程可能刚把它取出来交给 `Image` / `DrawBitmap`。此时 recycle 会让另一根线程在 native 层踩到已释放的像素，表现是随机 SIGSEGV 或「Canvas: trying to use a recycled bitmap」——比 OOM 难查一个量级。ARGB_8888 的像素在 native 堆上、由 GC 连着 `Bitmap` 的 finalizer 管理，丢掉引用就回收，这一层不需要也不允许任何显式释放。`ByteLruCache` 全类找不到一个 `recycle` 就是这条约束的可检查形式。
+4. **按压反馈只有 `pressable` / `pressFeedback` 一个入口，波纹全局为 `NoIndication`。** 波纹的问题不是难看而是**说谎**：匀速扩散的一圈在物理世界里不存在，按下去的东西是缩下去的。所以波纹在主题里一次性换成空实现（不是每个调用点传 `indication = null`——Material 组件内部默认读 `LocalIndication`，逐个传挡不住下一个新写的组件）。缩放 + 透明度 + 触觉全部出自 `Pressable`，力度档位是两头挤出来的：小于 0.98 大面积元素读不出来，大于 0.94 像被捏扁。键盘焦点框走的是 `LocalFocusIndicator`，与这是两条独立通道，关掉波纹不影响焦点可见性。
+
 
 ---
 
@@ -360,6 +376,27 @@ app/src/main/java/com/ilyskyo/wordlens/
   系统自己的 `updatePeriodMillis` 下限是 30 分钟，对一个「还剩几个」的读数没有意义
 - 词典 12000 条、两个模型文件、`scenes.json` / `ambience.json`
 - `LICENSE` + `THIRD_PARTY_NOTICES.md` + `README.md` + `docs/BUILD.md` + GitHub Actions CI
+- **`schemaVersion` 只做新旧互斥，不做多代迁移**：磁盘上的版本比这个构建大 → 只读不写
+  （见 `JsonDocument.readFromDisk`）；相等或更小 → 正常读写。`DeckDocument` 与 `DiaryDocument` 的
+  `CURRENT_SCHEMA` 都还是 1，没有迁移表，因为只有一代。真出现第二代时该补的是一份迁移方案加一次备份，
+  而不是让旧构建照着不认识的样子改回去。
+- **`summary` 不再自动生成**：一句话内容只有用户自己写这一条路径（详情页的「补一句当时发生了什么」）。
+  §8.3 已经决定软件不带在线 AI。`summarySource` 字段仍然留着——它是既有数据的来源标记，
+  也是 §8.1「用户写的东西被 AI 改过必须明确告知」的落点：详情页只在 `summarySource == CLOUD` 时挂来源标记。
+- **设置页剩下的旋钮都有读它的人**（四个空转的已删）：
+  - 保持率 → `AppContainer` 把 `AppSettings.requestRetention` 灌进 `Fsrs.setRequestRetention`，
+    只调目标保持率、不碰 21 维权重向量；设置页与排期器共用 `MIN/MAX_REQUEST_RETENTION` 同一对常量。
+  - 评级色系 → `RatingPalette` 落 DataStore 的是**名字**，`ui.theme.RatingHues` 按名字取色相，
+    `MainActivity` 订阅 `container.ratingPalette` 换整套按钮配色。
+  - 隐私 → 这一节**没有开关**，只有两行写死的事实。上传给云端视觉模型的图是
+    `CloudVisionEngine.encodeImage` 里**重新编码**的位图，`Bitmap.compress` 出来的字节天然不含 EXIF，
+    所以「照片不带着自己的坐标出门」是**结构性保证**，不是开关控制的；照片也不进云备份
+    （`res/xml/data_extraction_rules.xml` 的 `<cloud-backup>` 只白名单 `deck.json` / `diary.json`，
+    `device-transfer` 才整本带走）。原来的 `redactBeforeUpload` 开关连同那句
+    「关掉之后，原文件会原样发送」一起删掉了：没有任何代码读它，而那句文案是对代码的承诺，
+    代码做不到——一个拨了什么都不发生的开关比没有这个开关更糟，因为它把「照片不出门」
+    这件真事说成了一件可以被用户关掉的事。
+
 
 ### 🔧 进行中
 
