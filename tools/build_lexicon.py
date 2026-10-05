@@ -85,6 +85,30 @@ def strip_accents(value: str) -> str:
     )
 
 
+# COCO 类名与词典头词的拼写差：收录了 A 就给 B 开别名，让检测标签能落到同一个词条上。
+EXTRA_ALIASES = {
+    "doughnut": ["donut"],
+    "dryer": ["drier"],
+}
+
+# efficientdet_lite0 输出的 COCO-80 类名里的单词成分。这些词必须在词典里：
+# 缺一个，检测器认出那个物体时就只能显示一枚「不认识」的词片。
+# 除常规频率门槛外它们享有额外通道（见 build()）：允许缺音标、允许非名词释义。
+DETECTOR_VOCAB = frozenset({
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
+    "traffic", "light", "fire", "hydrant", "stop", "sign", "parking", "meter", "bench",
+    "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
+    "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard",
+    "sports", "ball", "kite", "baseball", "bat", "glove", "skateboard", "surfboard",
+    "tennis", "racket", "bottle", "wine", "glass", "cup", "fork", "knife", "spoon", "bowl",
+    "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot", "pizza", "donut",
+    "doughnut", "cake", "chair", "couch", "potted", "plant", "bed", "dining", "table",
+    "toilet", "tv", "television", "laptop", "mouse", "remote", "keyboard", "cell", "phone",
+    "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
+    "scissors", "teddy", "bear", "hair", "drier", "dryer", "toothbrush",
+})
+
+
 def parse_exchange(raw: str) -> dict[str, str]:
     """'s:apples/i:appling' -> {'s': 'apples', 'i': 'appling'}."""
     out: dict[str, str] = {}
@@ -141,6 +165,22 @@ def first_noun_sense(translation: str) -> str | None:
     return None
 
 
+def first_any_sense(translation: str) -> str | None:
+    """检测器词表专用兜底：不要求名词标记，取第一个能看的中文释义。"""
+    if not translation:
+        return None
+    for block in BLOCK_SPLIT_RE.split(translation):
+        candidate = block.strip()
+        for marker in POS_MARKERS:
+            if candidate.lower().startswith(marker):
+                candidate = candidate[len(marker):].strip()
+        sense = BRACKET_RE.sub(" ", candidate)
+        sense = PAREN_RE.sub(" ", sense).strip().strip("。．.；;，,、 ")
+        if sense and len(sense) <= 14 and not any(is_latin(ch) for ch in sense):
+            return sense
+    return None
+
+
 def is_latin(ch: str) -> bool:
     return "LATIN" in unicodedata.name(ch, "")
 
@@ -159,15 +199,17 @@ def clean_ipa(raw: str) -> str | None:
 
 
 def frequency_rank(row: dict[str, str]) -> int:
-    """Lower is more common. Prefer BNC, fall back to the second ranking."""
+    """Lower is more common. 取两个排名里较小的那个：BNC 是老式英语料，
+    laptop / backpack 这类现代生活词被严重低估，FRQ 更贴近日常。"""
+    best = 0
     for key, cap in (("bnc", 60_000), ("frq", 120_000)):
         raw = (row.get(key) or "").strip()
         if not raw.isdigit():
             continue
         value = int(raw)
-        if 0 < value <= cap:
-            return value
-    return 0
+        if 0 < value <= cap and (best == 0 or value < best):
+            best = value
+    return best
 
 
 def build(args: argparse.Namespace) -> int:
@@ -189,7 +231,7 @@ def build(args: argparse.Namespace) -> int:
             # Reject proper nouns: ECDICT does not mark them, but a capitalised first letter
             # with no lowercase form in the corpus is a good proxy.
             first = raw_word[0]
-            if first.isupper():
+            if first.isupper() and raw_word.lower() not in DETECTOR_VOCAB:
                 skipped["proper"] += 1
                 continue
 
@@ -201,27 +243,38 @@ def build(args: argparse.Namespace) -> int:
                 skipped["dupe"] += 1
                 continue
 
+            # 检测器词表享有额外通道：缺音标就留空、没有名词释义就取第一条中文释义。
+            # 宁可音标空着，也不能让「bottle」这种词从词典里消失。
+            required = word in DETECTOR_VOCAB
+
             ipa = clean_ipa(row.get("phonetic") or "")
-            if not ipa:
+            if not ipa and not required:
                 skipped["ipa"] += 1
                 continue
 
             gloss = first_noun_sense(row.get("translation") or "")
+            if not gloss and required:
+                gloss = first_any_sense(row.get("translation") or "")
             if not gloss:
                 skipped["noun"] += 1
                 continue
 
             freq = frequency_rank(row)
             if freq == 0:
-                skipped["freq"] += 1
-                continue
+                # 检测器词表里的词没有排名也收：排在最后，但必须在。
+                if word not in DETECTOR_VOCAB:
+                    skipped["freq"] += 1
+                    continue
+                freq = 10_000_000
 
             seen.add(word)
 
             entry: dict = {
                 "id": f"en.{word}",
                 "words": {"en": word, "zh": gloss},
-                "ipa": {"en": ipa},
+                # 检测器词允许没有音标：宁缺毋null——Map<String, String> 里放 null 会让
+                # 运行时的 kotlinx 解析直接抛异常。
+                "ipa": ({"en": ipa} if ipa else {}),
                 "glosses": {"zh": gloss},
                 "labelAliases": [],
                 "frequency": freq,
@@ -231,6 +284,9 @@ def build(args: argparse.Namespace) -> int:
             plural = parse_exchange(row.get("exchange") or "").get("s")
             if plural and plural.lower() != word:
                 entry["labelAliases"].append(plural.lower())
+            for alias in EXTRA_ALIASES.get(word, []):
+                if alias != word:
+                    entry["labelAliases"].append(alias)
 
             extra = wikidata.get(word)
             if extra:
@@ -246,7 +302,11 @@ def build(args: argparse.Namespace) -> int:
 
     entries.sort(key=lambda e: e["frequency"])
     if args.limit and len(entries) > args.limit:
-        entries = entries[: args.limit]
+        kept = entries[: args.limit]
+        # 频率截断不能截掉检测器词表：那 80 个类名是「拍照出词」这条主路的下限。
+        have = {e["words"]["en"] for e in kept}
+        kept += [e for e in entries[args.limit:] if e["words"]["en"] in DETECTOR_VOCAB and e["words"]["en"] not in have]
+        entries = kept
 
     payload = {
         "schemaVersion": 2,
@@ -270,6 +330,13 @@ def build(args: argparse.Namespace) -> int:
     print(f"  with ja={with_ja} ko={with_ko}", file=sys.stderr)
     print(f"  skipped: {skipped}", file=sys.stderr)
     print(f"  top 15: {[e['words']['en'] for e in entries[:15]]}", file=sys.stderr)
+    have = {e["words"]["en"] for e in entries}
+    # 多词类名（sports ball 等）按空格拆开逐词核对；虚词不在词表里，单独放行。
+    aliases = {a for e in entries for a in e.get("labelAliases", [])}
+    ignore = {"traffic", "fire", "stop", "parking", "sports", "potted", "dining", "cell", "teddy", "hot", "donut", "drier"}
+    missing = sorted(w for w in DETECTOR_VOCAB if w not in have and w not in aliases and w not in ignore)
+    if missing:
+        print(f"  WARNING detector vocab missing: {missing}", file=sys.stderr)
     return 0
 
 
