@@ -258,6 +258,8 @@
     <string name="lookback_load_older">%1$d earlier records · Load</string>
     <string name="search_blank_title">Type a word to look up</string>
     <string name="search_blank_body">This searches your deck, the dictionary and this diary at once. Anything in the dictionary can be added to your deck with one tap, and it then joins the review queue.</string>
+    <string name="search_more_suggest">The dictionary has more matches · type a more specific word</string>
+    <string name="search_more_diary">%1$d more related entries in the diary are not shown</string>
     <string name="notice_word_added">“%1$s” is in your dictionary now</string>
     <string name="notice_word_removed">That entry was deleted</string>
     <string name="notice_word_failed">That was not written; the dictionary file may be unreadable</string>

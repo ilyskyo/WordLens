@@ -254,6 +254,8 @@
     <string name="lookback_load_older">이전의 기록 %1$d개 · 불러오기</string>
     <string name="search_blank_title">찾을 단어를 적어 보세요</string>
     <string name="search_blank_body">내 단어장·사전·이 일기를 함께 찾아요. 사전의 어떤 항목이든 탭 하나로 단어장에 넣을 수 있고, 넣으면 복습 목록에 들어가요.</string>
+    <string name="search_more_suggest">사전에서 더 많이 닿아요 · 더 구체적인 단어를 적어 보세요</string>
+    <string name="search_more_diary">이 일기에 관련된 기록이 %1$d개 더 있어요</string>
     <string name="notice_word_added">%1$s을(를) 사전에 넣었어요</string>
     <string name="notice_word_removed">삭제했어요</string>
     <string name="notice_word_failed">저장되지 않았어요. 사전 파일을 읽을 수 없는 상태인 것 같아요</string>

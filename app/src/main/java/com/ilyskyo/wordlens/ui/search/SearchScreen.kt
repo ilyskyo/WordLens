@@ -145,6 +145,13 @@ fun SearchScreen(
                             }
                         }
                     }
+                    if (state.suggestionOverflow) {
+                        // 只摆出前若干条而不说一句，用户读到的是「词典里就这些」——
+                        // 在一本教词的 App 里那是句假话。
+                        item(key = "more-suggest") {
+                            OverflowNote(stringResource(R.string.search_more_suggest))
+                        }
+                    }
                 }
 
                 if (state.collected.isNotEmpty()) {
@@ -191,10 +198,28 @@ fun SearchScreen(
                             }
                         }
                     }
+                    if (state.diaryOverflow > 0) {
+                        // 整本日记在内存里，所以这个数能如实报出来：不说，列表就 pretend 成
+                        // 「只有这 20 条与它有关」。
+                        item(key = "more-diary") {
+                            OverflowNote(stringResource(R.string.search_more_diary, state.diaryOverflow))
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+/** 列表末尾那句「还有多少没显示」。小字、弱色，不跟内容抢位置。 */
+@Composable
+private fun OverflowNote(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.padding(vertical = Space.xs),
+    )
 }
 
 @Composable

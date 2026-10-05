@@ -46,6 +46,16 @@ data class SearchUiState(
     val diaryHits: List<Entry> = emptyList(),
     /** 本次操作后已经被收录的 id，按钮据此显示「已收」。 */
     val justAdded: Set<String> = emptySet(),
+    /**
+     * 词典命中多于建议区能显示的量。true 时列表末尾给一句「还有更多，打得更具体」。
+     *
+     * 与时间轴那个截断同一个道理：只把前 24 条摆出来而一句不说，用户读到的是「词典里就这些」，
+     * 而那在一本教词的 App 里是一句假话。这里报不出准确条数（那要扫完全表），所以出路不是
+     * 「载入更多」而是「把词打长一点」——词典那一侧真正该教的本来就是具体。
+     */
+    val suggestionOverflow: Boolean = false,
+    /** 日记命中被掐掉的条数。整本日记在内存里，所以这个数能如实报出来。 */
+    val diaryOverflow: Int = 0,
 )
 
 /**
@@ -193,31 +203,40 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
         }
         // 已经在牌组里的词典条目不再提议——否则用户会在两个区看到同一件事。
         val owned = deck.cards.map { LexiconIndex.normalize(it.headword) }.toSet()
+        var suggestionMore = false
         val suggestions = if (needle.isEmpty()) {
             emptyList()
         } else {
-            lexicon.search(q, language = null, limit = SUGGESTION_LIMIT)
+            // 多问一条只为了知道「还有没有更多」：词典里究竟匹配多少条要扫完全表才能报数，
+            // 而这一格的话术不需要数字（打得更具体才是出路）。
+            lexicon.search(q, language = null, limit = SUGGESTION_LIMIT + 1)
                 .filter { LexiconIndex.normalize(it.headword) !in owned }
+                .let { more ->
+                    suggestionMore = more.size > SUGGESTION_LIMIT
+                    more.take(SUGGESTION_LIMIT)
+                }
                 .map { Suggestion(it, it.headword, it.gloss(settings.nativeLanguage)) }
         }
+        var diaryOverflow = 0
         val diaryHits = if (needle.isEmpty()) {
             emptyList()
         } else {
-            diary.entries
-                .filter { entry ->
-                    LexiconIndex.normalize(entry.title.orEmpty()).contains(needle) ||
-                        LexiconIndex.normalize(entry.summary.orEmpty()).contains(needle) ||
-                        entry.keywords.any { LexiconIndex.normalize(it).contains(needle) } ||
-                        entry.objects.any { LexiconIndex.normalize(it.word).contains(needle) }
-                }
-                .sortedByDescending { it.takenAt }
-                .take(DIARY_LIMIT)
+            val related = diary.entries.filter { entry ->
+                LexiconIndex.normalize(entry.title.orEmpty()).contains(needle) ||
+                    LexiconIndex.normalize(entry.summary.orEmpty()).contains(needle) ||
+                    entry.keywords.any { LexiconIndex.normalize(it).contains(needle) } ||
+                    entry.objects.any { LexiconIndex.normalize(it.word).contains(needle) }
+            }
+            diaryOverflow = (related.size - DIARY_LIMIT).coerceAtLeast(0)
+            related.sortedByDescending { it.takenAt }.take(DIARY_LIMIT)
         }
         return SearchUiState(
             query = text,
             collected = collected,
             suggestions = suggestions,
             diaryHits = diaryHits,
+            suggestionOverflow = suggestionMore,
+            diaryOverflow = diaryOverflow,
             // justAdded 不在这里读：它由上面第二个 combine 贴上来，理由写在那儿。
         )
     }
