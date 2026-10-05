@@ -435,6 +435,10 @@ private fun CaptureBottomControls(
  *
  * 不可用时缩到 0.92。分析中时中间换成进度环而不是「转圈图标」，让「正在做什么」与
  * 「做完会得到什么」出现在同一个位置。
+ *
+ * 这一条**不跟随系统的「移除动画」**：它看着像装饰性的缩放，其实是「现在能不能按」的
+ * 读数之一（另一个是外圈透明度）。降级只降拿掉之后信息仍然完整的动效，这条不是。
+ * 开关打开时框架会把时长压成 0，它自己就变成瞬时的了，不需要我们再插手。
  */
 @Composable
 private fun ShutterButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {

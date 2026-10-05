@@ -93,6 +93,7 @@ import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 import com.ilyskyo.wordlens.ui.theme.pressable
 import com.ilyskyo.wordlens.ui.theme.rememberHaptic
+import com.ilyskyo.wordlens.ui.theme.rememberReduceMotion
 import com.ilyskyo.wordlens.ui.theme.softShadow
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -167,6 +168,23 @@ private enum class Arm { None, Again, Good }
  * 调度，用户损失的是三个月后那次复习——那恰恰是他已经投入成本想保住的东西。
  * 「别再给我看它」是长按菜单里那个独立的显式动作，且始终可撤销。
  *
+ * ## 「减少动画」的界线——将来动这一页之前先读这段
+ *
+ * 系统开了「移除动画」之后，这一页只降**装饰性**的动效：卡面提示的呼吸
+ * （[BreathingHint]）与结算页的依次入场（[Staggered]）。以下三样看着也像是可以顺手一起降，
+ * 但降了就不是减动效而是减功能，**不要**把它们加进降级名单：
+ *
+ * - 翻卡（[FlipCard]）：正面与背面是同一张卡的两种**内容状态**，不翻等于把释义直接摊开，
+ *   复习的第一环（自由回忆）就没了。
+ * - 跟手滑动评级（`draggable` + [Motion.settle]）：那是用户自己正在做的动作，位移就是
+ *   操作本身的反馈；改成瞬移等于让手势失效。
+ * - 进度条增长（[RememberProgress]）与滚动数字（[RollingNumber]）：它们是读数变化的
+ *   **唯一**提示。去掉之后「我刚才那一下评级到底有没有被记上」在这页就没有答案了。
+ *
+ * 判断标准只有一条：**把这个动效拿掉，屏幕上的信息还完整吗？** 完整才降，不完整就不许动。
+ * 这条界线之所以写在这里，是因为「减动效」最容易做错的方向就是顺着列表往下减，
+ * 一路减到把功能也减掉，而那时界面看起来更干净、更没人会去回滚。
+ *
  * ## AI 来源标记
  *
  * 复习是把内容反复巩固的过程。模型编错的一条事件会被 FSRS 忠实地刻进长期记忆，而用户永远
@@ -202,6 +220,8 @@ fun RememberScreen(
             selectedIndex = selectedIndex,
             onSelect = { index -> onMaterialChange(materials[index]) },
             modifier = Modifier.fillMaxWidth(),
+            // 传给胶囊的是**下限**而不是死值：系统字号放大时 PillSwitch 会自己长高到容得下
+            // labelLarge 的那一行，这里写 44 只规定「至少 44」。
             height = PILL_HEIGHT,
         )
         RememberProgress(done = state.done, total = state.total)
@@ -872,25 +892,44 @@ private fun CardFront(card: RememberCard, progress: State<Float>, modifier: Modi
  *
  * 周期 2.4s：慢到不抢注意力，又快到「还在想」的那几秒里能被看见一次。
  * 滑动越界时把它压到 0——那一刻该说的是松手，不是轻点。
+ *
+ * 降级前后：
+ *
+ * - 默认（开关关）：不透明度在 0.40↔0.80 之间以 2.4s 一轮往返，逐帧变化。
+ * - 减少动画：不透明度钉死在 0.80，`rememberInfiniteTransition` 整条不建立——
+ *   框架把时长压成 0 也还是会每帧重画一条不动的线，所以这里要的是不创建，不是变慢。
+ *
+ * 呼吸本身不带任何信息：会不会亮、什么时候亮，都不改变「轻点看释义」这句话的内容，
+ * 所以它属于可以降的那一类。
  */
 @Composable
 private fun BreathingHint(progress: State<Float>, modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "hintBreath")
-    val breath by transition.animateFloat(
-        initialValue = HINT_ALPHA_LOW,
-        targetValue = HINT_ALPHA_HIGH,
-        animationSpec = infiniteRepeatable(
-            animation = tween(Motion.BREATHING_PERIOD_MS / 2, easing = Motion.enterEase),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "hintAlpha",
-    )
+    val reduceMotion = rememberReduceMotion()
+    // 两条分支都返回 State<Float>，alpha 只在下面的 graphicsLayer 里被读：
+    // 降级与否都不许引入逐帧重组，那是这一页写死的规矩（见文件注释第 4 条）。
+    val breath: State<Float> = if (reduceMotion) {
+        // 固定值取呼吸的**顶点**而不是往返中点：0.80 是这行字本来就会到达的读数，
+        // 降级不引入新的对比度；取中间值会把「减动效」读成「把提示调暗」。
+        remember { mutableStateOf(HINT_ALPHA_HIGH) }
+    } else {
+        val transition = rememberInfiniteTransition(label = "hintBreath")
+        transition.animateFloat(
+            initialValue = HINT_ALPHA_LOW,
+            targetValue = HINT_ALPHA_HIGH,
+            animationSpec = infiniteRepeatable(
+                animation = tween(Motion.BREATHING_PERIOD_MS / 2, easing = Motion.enterEase),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "hintAlpha",
+        )
+    }
     Text(
         text = stringResource(R.string.review_flip_hint),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.graphicsLayer {
-            alpha = breath * (1f - abs(progress.value).coerceIn(0f, 1f))
+            // 滑动越界时压掉这一条两种模式都保留：它说的是「现在该松手而不是轻点」，是信息。
+            alpha = breath.value * (1f - abs(progress.value).coerceIn(0f, 1f))
         },
     )
 }
@@ -1024,22 +1063,42 @@ private fun Stat(value: String, label: String) {
     }
 }
 
-/** 依次入场的第 index 项，间隔 [STAGGER_MS]。 */
+/**
+ * 依次入场的第 index 项，间隔 [STAGGER_MS]。
+ *
+ * 降级前后（完成结算的那四行）：
+ *
+ * - 默认（开关关）：第 index 行等 `index * 80ms`，再从下方三分之一行高滑入并淡入——
+ *   一行一行落下来才像「在结算」。
+ * - 减少动画：不排队、不滑入，首次组合就直接显示，四行同时到位。
+ *
+ * 这里连 `delay` 一起去掉，而不是只把进场换成瞬时：那 80ms 的间距是协程排出来的**出场次序**，
+ * 不是动画时长，框架的动效缩放管不到它。留着它，界面照样是一行一行往外蹦，只是每行不再滑。
+ * 结算页的四行都是静态读数，先落哪一行后落哪一行不携带任何信息，所以整条次序可以一起摘掉。
+ */
 @Composable
 private fun Staggered(index: Int, content: @Composable () -> Unit) {
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(index * STAGGER_MS.toLong())
-        shown = true
+    val reduceMotion = rememberReduceMotion()
+    // 降级时初值就是已显示：AnimatedContent 不为初始状态跑转场，所以四行在首次组合时
+    // 直接到位，既不排队也不滑入。写成「早退 + 直接 content()」也能得到同样的画面，
+    // 但那条路径会让下面的 remember/LaunchedEffect 变成条件调用，开关一拨就得多搬一次槽位。
+    var shown by remember { mutableStateOf(reduceMotion) }
+    LaunchedEffect(reduceMotion) {
+        if (!reduceMotion) {
+            delay(index * STAGGER_MS.toLong())
+            shown = true
+        }
     }
     AnimatedContent(
         targetState = shown,
         transitionSpec = {
-            if (targetState) {
-                (slideInVertically(Motion.smoothOffset()) { it / 3 } + fadeIn(Motion.smooth))
-                    .togetherWith(ExitTransition.None)
-            } else {
-                EnterTransition.None togetherWith fadeOut(tween(80))
+            when {
+                reduceMotion -> EnterTransition.None togetherWith ExitTransition.None
+                targetState -> {
+                    (slideInVertically(Motion.smoothOffset()) { it / 3 } + fadeIn(Motion.smooth))
+                        .togetherWith(ExitTransition.None)
+                }
+                else -> EnterTransition.None togetherWith fadeOut(tween(80))
             }
         },
         label = "staggered",
@@ -1084,6 +1143,15 @@ private const val HINT_ALPHA_HIGH = 0.8f
 
 private val PILL_HEIGHT = 44.dp
 private val PROGRESS_HEIGHT = 4.dp
+
+/**
+ * 评级按钮的上下内边距。
+ *
+ * 这一档**不随系统字号调整**，因为按钮是 wrap-content 的：文字一行多高，按钮就多高。
+ * fontScale 1.0 时按钮是 10 + 20 + 4 + 16 + 10 = 60dp，1.3 时自己长成 24 + 36 * 1.3 ≈ 71dp，
+ * 长出来的是按钮而不是截断——需要跟着它让路的是卡片区（它是 weight(1f) 的那一块），
+ * 而不是文字。真正会被大字号挤掉的是横向：四档均分一行，标签过长时截断的风险在宽度那一边。
+ */
 private val BUTTON_V_PADDING = 10.dp
 private val PHOTO_BOX = 96.dp
 private val ARCHIVED_MAX_HEIGHT = 320.dp

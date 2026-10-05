@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ilyskyo.wordlens.ui.theme.Motion
+import com.ilyskyo.wordlens.ui.theme.rememberReduceMotion
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.softShadow
 import kotlinx.coroutines.delay
@@ -50,6 +51,7 @@ import kotlinx.coroutines.delay
  * 1. **不抢操作**：它浮在内容上、可点掉、也会自己走。绝不让用户必须看完它才能继续
  *    （这是这个项目对动效的硬要求之一）。
  * 2. **进出不对称**：进用带一点点过冲的弹簧（它是来报告的），出用干脆的淡出（它不该占用注意力）。
+ *    系统开了「移除动画」时两条都退回纯淡入淡出——这里降的是「怎么出现」，不是「出不出现」。
  * 3. **读屏要能听见**：`liveRegion` 让文本出现时被播报一次，而不是等用户摸到它。
  *    关掉波纹、改用视觉提示之后，听觉通道必须自己补上，不然无障碍只是句空话。
  */
@@ -73,11 +75,20 @@ fun NoticeHost(
         }
     }
 
-    val lift by animateFloatAsState(
-        targetValue = if (message != null) 1f else 0f,
-        animationSpec = Motion.snappy,
-        label = "noticeLift",
-    )
+    // 提示的进出是装饰性的，它要讲的那句话本身是完整的（而且同时走了 liveRegion），
+    // 所以系统开了「移除动画」时把缩放与浮起都摘掉，只留淡入淡出——位置与对比度不变，
+    // 只有「怎么出现」变了。
+    val reduceMotion = rememberReduceMotion()
+    val lift: Float = if (reduceMotion) {
+        if (message != null) 1f else 0f
+    } else {
+        val animated by animateFloatAsState(
+            targetValue = if (message != null) 1f else 0f,
+            animationSpec = Motion.snappy,
+            label = "noticeLift",
+        )
+        animated
+    }
 
     Box(
         modifier = modifier
@@ -88,8 +99,16 @@ fun NoticeHost(
     ) {
         AnimatedVisibility(
             visible = message != null,
-            enter = scaleIn(Motion.bouncy, initialScale = 0.92f) + fadeIn(tween(120)),
-            exit = scaleOut(Motion.press, targetScale = 0.96f) + fadeOut(tween(90)),
+            enter = if (reduceMotion) {
+                fadeIn(tween(120))
+            } else {
+                scaleIn(Motion.bouncy, initialScale = 0.92f) + fadeIn(tween(120))
+            },
+            exit = if (reduceMotion) {
+                fadeOut(tween(90))
+            } else {
+                scaleOut(Motion.press, targetScale = 0.96f) + fadeOut(tween(90))
+            },
         ) {
             Surface(
                 onClick = onDismiss,

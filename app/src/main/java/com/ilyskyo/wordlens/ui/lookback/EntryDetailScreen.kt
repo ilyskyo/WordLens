@@ -77,6 +77,7 @@ import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.ui.components.PrimaryButton
 import com.ilyskyo.wordlens.ui.theme.Scale
 import com.ilyskyo.wordlens.ui.theme.pressable
+import com.ilyskyo.wordlens.ui.theme.rememberReduceMotion
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.Space
@@ -161,14 +162,29 @@ fun EntryDetailScreen(
 
             // 主图先飞，落定之前不把文字摆出来：半空中有两组东西在抢注意力，看起来像加载
             // 而不是转场。三组各差一个短延迟，读起来是「照片到位，字陆续浮上来」。
-            var stage by remember(state.entry.id) { mutableIntStateOf(0) }
+            //
+            // 系统开了「移除动画」时整条次序摘掉：三组文字是静态内容，先摆哪一组后摆哪一组
+            // 不携带信息，而那几个 delay 是协程排的，框架的动效缩放管不到——留着它，界面
+            // 照样一组一组往外蹦，只是每组不再滑。照片的共享元素转场不降：那是这次导航本身。
+            //
+            // 只改初值、不碰下面的进场曲线：初值就是最后一幕时，三个 AnimatedVisibility
+            // 第一次组合就 visible，任何 enter 转场都不会跑。再给它们写一套「降级用的空转场」
+            // 是一段永远走不到的分支。
+            val reduceMotion = rememberReduceMotion()
+            var stage by remember(state.entry.id) {
+                mutableIntStateOf(if (reduceMotion) LAST_STAGE else 0)
+            }
             LaunchedEffect(state.entry.id) {
-                delay(HEADLINE_DELAY_MS)
-                stage = 1
-                delay(TAGS_DELAY_MS)
-                stage = 2
-                delay(COMPOSER_DELAY_MS)
-                stage = 3
+                if (reduceMotion) {
+                    stage = LAST_STAGE
+                } else {
+                    delay(HEADLINE_DELAY_MS)
+                    stage = 1
+                    delay(TAGS_DELAY_MS)
+                    stage = 2
+                    delay(COMPOSER_DELAY_MS)
+                    stage = 3
+                }
             }
 
             Column(
@@ -610,6 +626,9 @@ private val CHIP_LIFT = 30.dp
 // 组间 80/100ms 的间隔刚好能感知成「陆续」而不是「同时」，再长就开始显得拖沓。
 private const val HEADLINE_DELAY_MS = 150L
 private const val TAGS_DELAY_MS = 80L
+/** 三步走完的那一幕。开了「移除动画」就直接从这一幕开始。 */
+private const val LAST_STAGE = 3
+
 private const val COMPOSER_DELAY_MS = 100L
 private const val HEADLINE_MS = 220
 private const val EXIT_MS = 140
