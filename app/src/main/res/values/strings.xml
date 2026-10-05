@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">见词</string>
+    <string name="widget_due_label">今日待复习</string>
+    <string name="widget_due_count_zero">今天没有到期的词</string>
+
+    <!-- 底部导航 -->
+    <string name="tab_capture">拍照</string>
+    <string name="tab_collection">收藏</string>
+    <string name="tab_review">复习</string>
+
+    <!-- 主页顶部：回看 / 记住 -->
+    <string name="home_tab_lookback">回看</string>
+    <string name="home_tab_remember">记住</string>
+    <string name="home_search">搜索与筛选</string>
+
+    <!-- 回看页 -->
+    <string name="lookback_greeting">%1$s</string>
+    <string name="lookback_today_count">今天记录了 %1$d 个瞬间</string>
+    <string name="lookback_empty_title">还没有任何记录</string>
+    <string name="lookback_empty_body">举起相机对着任意东西，识别完成后可以直接存下这一帧。</string>
+
+    <!-- 记住页：记什么 -->
+    <string name="study_both">词汇与事件</string>
+    <string name="study_words">词汇</string>
+    <string name="study_events">事件</string>
+
+    <!-- 复习动作：review_got_it / review_fuzzy 定义在下面的复习页小节里 -->
+    <string name="review_verify_source">这条由 AI 整理，请对照原文确认</string>
+    <string name="review_mark_mastered">标记已掌握</string>
+    <string name="review_unmaster">取消标记</string>
+
+    <!-- 拍照页 -->
+    <string name="capture_settings">设置</string>
+    <string name="capture_shutter">拍照</string>
+    <string name="capture_retake">重新拍摄</string>
+    <string name="capture_save">保存贴纸</string>
+    <string name="capture_permission_needed">需要相机权限才能识别物体</string>
+    <string name="capture_grant">去授权</string>
+    <string name="capture_tap_subject">点一下画面里的主体，把它抠出来</string>
+    <string name="capture_speak">播放发音</string>
+    <string name="capture_shot_object">单物体</string>
+    <string name="capture_shot_scene">场景</string>
+
+    <!-- 收藏页 -->
+    <string name="collection_title">我的贴纸</string>
+    <string name="collection_search_hint">搜索单词</string>
+    <string name="collection_filter_all">全部</string>
+    <string name="collection_filter_recent">最近</string>
+    <string name="collection_filter_alpha">按字母</string>
+    <string name="collection_filter_progress">按复习进度</string>
+    <string name="collection_empty_title">拍下第一个物体，开始收集吧</string>
+    <string name="collection_empty_body">对着任意东西按下快门，贴纸会自动长出来。</string>
+    <string name="collection_search_empty_title">没有匹配的单词</string>
+    <string name="collection_search_empty_body">换个关键词试试。</string>
+    <string name="collection_clear_search">清空搜索</string>
+    <string name="collection_action_edit">编辑</string>
+    <string name="collection_action_delete">删除</string>
+    <string name="collection_action_review_now">立即复习</string>
+    <string name="collection_menu_anchor">更多操作</string>
+
+    <!-- 复习页 -->
+    <string name="review_progress">今日复习 %1$d/%2$d</string>
+    <string name="review_fuzzy">模糊</string>
+    <string name="review_got_it">记住了</string>
+    <string name="review_flip_hint">轻点卡片看释义</string>
+    <string name="review_done_title">今天这批过完了</string>
+    <string name="review_done_body">连续复习 %1$d 天，明天见。</string>
+    <string name="review_back">返回收藏</string>
+    <string name="review_empty_title">现在没有到期的词</string>
+    <string name="review_empty_body">先去拍几个，复习队列会在合适的时候把你叫回来。</string>
+    <string name="review_card">复习卡片，轻点翻面</string>
+
+    <!-- 识别为空时的诚实提示 -->
+    <string name="nomatch_title">这个词我还认不出来</string>
+    <string name="nomatch_body">模型只看到了上面的词。你可以直接把它写下来，它会存进你的词典。</string>
+    <string name="nomatch_labels_seen">模型看到的</string>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WordLens" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/wl_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="Theme.WordLens.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/wl_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.WordLens</item>
+    </style>
+</resources>

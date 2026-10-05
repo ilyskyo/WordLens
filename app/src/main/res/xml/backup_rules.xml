@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Vocabulary data is plain JSON in filesDir; back it up so a device swap keeps progress. -->
+    <include
+        domain="file"
+        path="." />
+    <exclude
+        domain="sharedpref"
+        path="." />
+</full-backup-content>
