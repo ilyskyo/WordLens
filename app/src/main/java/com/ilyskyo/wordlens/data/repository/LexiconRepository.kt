@@ -9,13 +9,17 @@ import com.ilyskyo.wordlens.data.model.Lang
 import com.ilyskyo.wordlens.data.model.LexiconEntry
 import com.ilyskyo.wordlens.data.model.LexiconFile
 import com.ilyskyo.wordlens.data.model.LexiconIndex
+import com.ilyskyo.wordlens.data.store.RealDiskOps
 import com.ilyskyo.wordlens.data.store.WordLensJson
+import com.ilyskyo.wordlens.data.store.WriteResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -31,7 +35,12 @@ import java.io.File
  *
  * The user layer exists because the honest failure mode of on-device recognition is "I do not
  * know this object". Letting someone add `荞麦面 -> soba` themselves turns that dead end into
- * the app's main growth path, and keeps the data in a file they can read, diff and share.
+ * the app's main growth path, and keeps the data in a file they can read and diff.
+ *
+ * **这一层目前没有入口**：`saveUserEntry` / `deleteUserEntry` / `userDirectory` 全项目零调用方。
+ * 存储与合并的规矩已经写对了（用户条覆盖同名内置条、一次改一个语言一份文件），缺的是 UI。
+ * 「share my words」那句也从这里删掉了——说明书 §8.4 决定这个 App 不做导出/分享出口，
+ * 一个描述不存在的分享入口的注释只会让下一个人去菜单里找它。
  */
 class LexiconRepository(
     private val context: Context,
@@ -40,7 +49,13 @@ class LexiconRepository(
     private val _index = MutableStateFlow(LexiconIndex(emptyList()))
     val index: StateFlow<LexiconIndex> = _index.asStateFlow()
 
-    /** Set when a dictionary file failed to parse, surfaced in Settings rather than swallowed. */
+    /**
+     * 哪一份词典文件读不出来。
+     *
+     * 这里原来写着「surfaced in Settings」——设置页从头到尾没有读它，所以那句话说的是一件
+     * 没人做的事。留着这条流仍然是对的（词典文件是用户可以直接改的文本，读不出来必须留痕），
+     * 但接线到 UI 是另一件事：见 user 层的注释，那一整层的入口都还没有。
+     */
     val loadWarnings: StateFlow<List<String>> get() = _warnings
     private val _warnings = MutableStateFlow<List<String>>(emptyList())
 
@@ -95,49 +110,41 @@ class LexiconRepository(
      * a person can actually open, rather than one giant generated blob.
      */
     suspend fun saveUserEntry(entry: LexiconEntry): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val lang = Lang.fromAnyTag(entry.primaryLanguage) ?: Lang.ENGLISH
-            val file = userFile(lang)
-            val existing = readLexiconFile(file.name, file.readTextOrNullCompat())
-            val entries = existing.orEmpty().filterNot { it.id == entry.id } + entry
-            file.parentFile?.mkdirs()
-            file.writeText(
-                WordLensJson.instance.encodeToString(
-                    LexiconFile.serializer(),
-                    LexiconFile(schemaVersion = 1, language = lang.tag, entries = entries.sortedBy { it.headword }),
-                ),
-                Charsets.UTF_8,
-            )
-            reload()
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "saveUserEntry failed for ${entry.id}", e)
-            false
+        userWrite.withLock {
+            try {
+                val lang = Lang.fromAnyTag(entry.primaryLanguage) ?: Lang.ENGLISH
+                val file = userFile(lang)
+                val existing = readLexiconFile(file.name, file.readTextOrNullCompat())
+                val entries = existing.orEmpty().filterNot { it.id == entry.id } + entry
+                file.parentFile?.mkdirs()
+                if (!writeUserFile(file, lang.tag, entries.sortedBy { it.headword })) return@withLock false
+                reload()
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "saveUserEntry failed for ${entry.id}", e)
+                false
+            }
         }
     }
 
     /** Remove a user entry. Built-in entries cannot be deleted, only shadowed. */
     suspend fun deleteUserEntry(id: String): Boolean = withContext(Dispatchers.IO) {
-        var changed = false
-        userDir().listFiles { f -> f.isFile && f.name.endsWith(".json") }?.forEach { file ->
-            val entries = readLexiconFile(file.name, file.readTextOrNullCompat()) ?: return@forEach
-            val kept = entries.filterNot { it.id == id }
-            if (kept.size != entries.size) {
-                changed = true
-                file.writeText(
-                    WordLensJson.instance.encodeToString(
-                        LexiconFile.serializer(),
-                        LexiconFile(schemaVersion = 1, language = entries.firstOrNull()?.primaryLanguage ?: "en", entries = kept),
-                    ),
-                    Charsets.UTF_8,
-                )
+        userWrite.withLock {
+            var changed = false
+            userDir().listFiles { f -> f.isFile && f.name.endsWith(".json") }?.forEach { file ->
+                val entries = readLexiconFile(file.name, file.readTextOrNullCompat()) ?: return@forEach
+                val kept = entries.filterNot { it.id == id }
+                if (kept.size != entries.size) {
+                    changed = true
+                    if (!writeUserFile(file, file.languageTagOf(entries), kept)) changed = false
+                }
             }
+            if (changed) reload()
+            changed
         }
-        if (changed) reload()
-        changed
     }
 
-    /** Absolute paths of the user layer, for the "share my words" action. */
+    /** 用户层所在的目录。留给人（或 adb）直接去读那些 JSON，不是给某个分享功能用的。 */
     fun userDirectory(): File = userDir()
 
     // ── internals ────────────────────────────────────────────────────────────
@@ -145,6 +152,41 @@ class LexiconRepository(
     private fun userDir(): File = File(context.filesDir, "lexicon").apply { mkdirs() }
 
     private fun userFile(lang: Lang): File = File(userDir(), "user-${lang.tag}.json")
+
+    /**
+     * 用户层的两次写之间的闸门。
+     *
+     * 这两处都是「读整个文件 → 改一条 → 写回整个文件」，没有锁的话连着存两个词会这样：
+     * 两边读到同一份旧内容，后写的那份把先写的词条直接抹掉。`deck.json` 那边有
+     * `JsonDocument` 的 mutex 管这件事，用户词典这一层是自己读写，所以锁得自己上——
+     * 这是一种很容易在加第二个调用方时才显形的 bug。
+     */
+    private val userWrite = Mutex()
+
+    /**
+     * 落盘走 `RealDiskOps`：临时文件 + fsync + rename，与两份主文档同一个实现。
+     *
+     * 原来这里是 `file.writeText`。用户词典小得不容易出事，但「不容易」不是理由：
+     * 一次断电就是一份残缺的 JSON，而 `readLexiconFile` 对残缺文件返回 null，
+     * 于是下一次保存会把用户已有的词条当成「没有旧内容」从头写——静默丢掉一整层。
+     * 原子写的路子已经有现成实现，不必在这里再抄一份会漂移的第二版本。
+     */
+    private fun writeUserFile(file: File, language: String, entries: List<LexiconEntry>): Boolean {
+        val text = WordLensJson.instance.encodeToString(
+            LexiconFile.serializer(),
+            LexiconFile(schemaVersion = 1, language = language, entries = entries),
+        )
+        val result = RealDiskOps.write(file, text)
+        if (result != WriteResult.Written) {
+            Log.e(TAG, "user lexicon write failed for ${file.name}: $result")
+            return false
+        }
+        return true
+    }
+
+    /** 删条目时要保住文件原来的语言标记；空文件没有条目可问，退回按文件名认。 */
+    private fun File.languageTagOf(entries: List<LexiconEntry>): String =
+        entries.firstOrNull()?.primaryLanguage ?: name.removePrefix("user-").removeSuffix(".json")
 
     /**
      * Read every `assets/lexicon` JSON document as `(fileName, text)` pairs.

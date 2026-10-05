@@ -11,6 +11,16 @@ dependency through Gradle, and model weights and fonts ship as data files.
 
 ## Bundled data files
 
+### Detection model — `efficientdet_lite0.tflite`
+
+| | |
+|---|---|
+| Path | `app/src/main/assets/models/efficientdet_lite0.tflite` |
+| Source | <https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float32/1/efficientdet_lite0.tflite> |
+| Component | MediaPipe EfficientDet-Lite0 object detector |
+| Licence | Apache License 2.0 (part of the MediaPipe distribution) |
+| Why it is here | The 2 Hz detection loop that puts words on objects. 13.5 MB. Without it there is no app — this row used to be missing, which for a bundled model is the one kind of omission you cannot fix later by rebuilding. |
+
 ### Segmentation model — `magic_touch.tflite`
 
 | | |
@@ -50,10 +60,11 @@ Resolved versions are pinned in `gradle/libs.versions.toml`.
 |---|---|---|---|
 | `androidx.compose.*` (BOM) | 2026.02.01 | Apache-2.0 | UI toolkit |
 | `androidx.camera.*` | 1.6.2 | Apache-2.0 | CameraX preview and capture |
-| `androidx.navigation:navigation-compose` | 2.9.8 | Apache-2.0 | Navigation |
 | `androidx.datastore:datastore-preferences` | 1.2.1 | Apache-2.0 | Settings |
 | `androidx.work:work-runtime-ktx` | 2.12.0 | Apache-2.0 | Review reminders |
 | `androidx.core:core-ktx`, `core-splashscreen` | 1.18.0, 1.2.0 | Apache-2.0 | Platform glue, splash screen |
+| `androidx.activity:activity-compose` | 1.13.0 | Apache-2.0 | Edge-to-edge, back handling, the photo picker and permission launchers |
+| `androidx.lifecycle:*` (runtime, viewmodel, compose, process) | 2.10.0 | Apache-2.0 | ViewModel scope and lifecycle-aware collection |
 | `org.jetbrains.kotlinx:kotlinx-serialization-json` | 1.11.0 | Apache-2.0 | Plain-JSON storage |
 | `org.jetbrains.kotlinx:kotlinx-coroutines-android` | 1.11.0 | Apache-2.0 | Async work |
 | `com.google.mlkit:image-labeling` | 17.0.9 | Apache-2.0 | On-device image labelling (bundled model) |
@@ -71,16 +82,16 @@ falling back to the bundled MediaPipe model.
 
 This is a known cost of advertising the automatic shot classification. The alternative — dropping
 it entirely — would make the object-versus-scene decision impossible to make without a tap on
-every device. See `docs/DECISIONS.md`.
+every device. The reasoning lives in `docs/PRODUCT_SPEC.md` §5 and §8.
 
 ---
 
 ## Fonts and icons are original
 
-The seven icons in `ui/icons/WordLensIcons.kt` are hand-authored geometric `ImageVector`s. They
+The fourteen icons in `ui/icons/WordLensIcons.kt` are hand-authored geometric `ImageVector`s. They
 contain no third-party icon geometry, and `androidx.compose.material:material-icons-extended` is
 deliberately **not** a dependency: it carries roughly two thousand icons for an app that needs
-seven, which is a poor trade against APK size.
+fourteen, which is a poor trade against APK size.
 
 ## Model weights carry no separate attribution file
 

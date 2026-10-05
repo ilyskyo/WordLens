@@ -331,7 +331,7 @@ app/src/main/java/com/ilyskyo/wordlens/
     │              SoftShadow           多层柔和阴影（接触 / 半影 / 铺开三段），替代单层硬边 elevation
     │              Indication           NoIndication：全局零波纹的空指示器，主题里一处生效
     │              Pressable            pressable / pressFeedback：按压反馈的唯一入口
-    ├── icons/     WordLensIcons（7 个手绘）
+    ├── icons/     WordLensIcons（11 个手绘）
     ├── common/    ByteLruCache         按字节上限的位图 LRU；淘汰只丢引用，绝不 recycle()
     ├── components/ Common · PillSwitch（胶囊分段切换：选中背景是一块在段间滑动的胶囊）
     │              OptionChip（选择胶囊：复用 M3 FilterChip 的语义，只把按压手感接上 pressFeedback）
@@ -403,14 +403,16 @@ app/src/main/java/com/ilyskyo/wordlens/
 
 ### 🔧 进行中
 
-**整条取景—拍摄—落库链路只在真机上跑过一部分，还没做系统的真机验证。** 类型检查与单测能证明几何
-和调度是对的，证明不了「画面里的词片确实压在杯子上」。需要验的三件事：
+**剩下的只有一件事：系统的真机验证。** 类型检查与单测能证明几何和调度是对的，
+证明不了「画面里的词片确实压在杯子上」。清单在 `docs/BUILD.md` 的「发布前收口」一节，
+13 条，每条都写清了**看什么**而不是「正常即可」——包括相册导入那张表（记在它拍下的那天、
+卡片有贴纸那个角、连导几张 12MP 不 OOM、云相册未同步项要开口）、以及系统「移除动画」
+该停哪几样与**不该**停哪几样。
 
-1. 点词片 → 推近 → 抠图，贴纸的边缘是否干净（`magic_touch` 的 seed point 走的是传感器归一化坐标）。
-2. 横竖屏与不同 `rotationDegrees` 下，回看页把词长回原图的位置是否还准。
-3. 国产 ROM 的首帧黑屏（已按 `ImplementationMode.COMPATIBLE` 处理，要找具体机器确认）。
+这一节原来只列三条（抠图边缘 / 旋转 / 国产 ROM 首帧黑屏），那是三个月前的规模；
+继续在这里维护第二份清单的结果一定是两份不同步，所以指向 BUILD.md。
 
-已修掉的三个真 bug（都有回归测试）：
+已修掉的三个坐标真 bug（都有回归测试）：
 
 - `OverlayGeometry` **漏了传感器旋转**：手机竖持时预览转 90°，不换算宽高比就比，映射在最常见的场景下是错的。
   之前测试用 `rotationDegrees = 0` 写，这条路径一次都没被覆盖。
@@ -439,15 +441,19 @@ app/src/main/java/com/ilyskyo/wordlens/
 
 ### R8 之后的实测体积
 
-`assembleRelease`（arm64 单 ABI，`lintVitalRelease` 一起过）**49.1 MB**：
+`assembleRelease`（arm64 单 ABI，`lintVitalRelease` 一起过）**49.55 MB**（十进制；47.25 MiB）。
 
-| 内容 | 体积 |
-|---|---|
-| `lib/arm64-v8a`（MediaPipe + ML Kit 原生库） | 22.1 MB |
-| `assets/models`（两个 tflite，不压缩） | 20.1 MB |
-| `assets/mlkit_label_default_model` | 3.0 MB |
-| `classes.dex` | 2.7 MB |
-| 资源 + 词典 + arsc | 约 1.1 MB |
+| 内容 | 体积 | 占比 |
+|---|---|---|
+| `lib/arm64-v8a`（MediaPipe + ML Kit 原生库） | 22.06 MB | 44.6% |
+| `assets/models`（两个 tflite，不压缩） | 20.06 MB | 40.6% |
+| `classes.dex` | 3.11 MB | 6.3% |
+| `assets/mlkit_label_default_model` | 3.04 MB | 6.1% |
+| 资源 + arsc + manifest | 0.71 MB | 1.4% |
+| 其余 assets（词典 + scenes + ambience） | 0.43 MB | 0.9% |
 
-代码只占 5%，剩下全是模型和原生库。想再瘦只能减模型，减 R8 配置没有意义。
+代码加资源合计约 9%，剩下全是模型和原生库。想再瘦只能减模型，减 R8 配置没有意义。
+这张表**每个数字都是重新量的**，不是抄上一版：`python -c` 走一遍 `zipfile` 把
+`compress_size` 按前缀分桶就行（一行命令，不用 apkanalyzer）。上一版写着 49.1 MB /
+dex 2.7 MB，那是日历筛选与相册导入之前的事——体积会随功能动，抄旧数字比不写更难发现。
 debug 包 77.5 MB 的差值主要来自未压缩的 dex 与 debug 资源。
