@@ -218,5 +218,70 @@ class FsrsTest {
         }
     }
 
+    /**
+     * 保持率必须**单调地**改变排期：拉高保持率 → 每张卡的间隔变短。
+     *
+     * 这是设置页那个滑块唯一真正承诺的行为。如果哪天 `intervalForStability` 里的符号写反了，
+     * 滑块会变成「越想要记住、越少复习」，而没有任何其他测试会失败。
+     */
+    @Test
+    fun `raising target retention shortens every previewed interval`() {
+        val state = learnedState()
+        withRetention(Fsrs.MIN_REQUEST_RETENTION) {
+            val loose = Fsrs.previewIntervals(state, t0).getValue(Fsrs.Rating.GOOD)
+            withRetention(0.95) {
+                val tight = Fsrs.previewIntervals(state, t0).getValue(Fsrs.Rating.GOOD)
+                assertTrue("tight=$tight must be shorter than loose=$loose", tight < loose)
+            }
+        }
+    }
+
+    /**
+     * 越界与非有限输入：夹紧而不是抛，也不能悄悄改成「排期不再响应」。
+     *
+     * 调用方是一个绑定 DataStore 的滑块，旧版本落盘的取值不该让排期器拒绝工作。
+     */
+    @Test
+    fun `retention input is clamped and never rejects the schedule`() {
+        withRetention(0.999) {
+            assertEquals(Fsrs.MAX_REQUEST_RETENTION, Fsrs.currentRequestRetention(), 1e-9)
+        }
+        withRetention(0.0) {
+            assertEquals(Fsrs.MIN_REQUEST_RETENTION, Fsrs.currentRequestRetention(), 1e-9)
+        }
+        // NaN / Infinity 直接忽略：一个坏输入不该把保持率推到区间端点去。
+        withRetention(0.85) {
+            Fsrs.setRequestRetention(Double.NaN)
+            assertEquals(0.85, Fsrs.currentRequestRetention(), 1e-9)
+            Fsrs.setRequestRetention(Double.POSITIVE_INFINITY)
+            assertEquals(0.85, Fsrs.currentRequestRetention(), 1e-9)
+        }
+    }
+
+    /**
+     * `Fsrs` 是进程级单例，保持率是它的全局状态，所以测试必须自己还原，
+     * 否则同一 JVM 里后跑的用例会继承前一个用例的保持率——那种失败看起来完全随机。
+     */
+    private fun withRetention(value: Double, block: () -> Unit) {
+        val saved = Fsrs.currentRequestRetention()
+        try {
+            Fsrs.setRequestRetention(value)
+            block()
+        } finally {
+            Fsrs.setRequestRetention(saved)
+        }
+    }
+
+    /** 一张已经被复习过、有稳定性的卡：预览间隔只有在这种状态下才有意义。 */
+    private fun learnedState(): Fsrs.State {
+        var state = Fsrs.State()
+        var now = t0
+        repeat(3) {
+            now += 2 * day
+            state = Fsrs.review(state, Fsrs.Rating.GOOD, now)
+        }
+        return state
+    }
+
     private fun round2(v: Double) = kotlin.math.round(v * 100.0) / 100.0
 }

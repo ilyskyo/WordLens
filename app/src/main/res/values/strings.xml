@@ -48,9 +48,6 @@
     <string name="study_events">事件</string>
 
     <!-- 复习 -->
-    <string name="review_progress">今日复习 %1$d/%2$d</string>
-    <string name="review_fuzzy">模糊</string>
-    <string name="review_got_it">记住了</string>
     <string name="review_flip_hint">轻点看释义 · 长按可归档</string>
     <string name="review_event_prompt">那天发生了什么？</string>
     <string name="review_done_title">今天这批过完了</string>
@@ -137,4 +134,43 @@
     <string name="detail_delete_confirm_title">删除这条记录？</string>
     <string name="detail_delete_confirm_body">照片和贴纸会一起删除，无法恢复。由它生成的词卡会保留。</string>
     <string name="walk_empty">还没有可以回去的过去</string>
+    <!-- 设置：复习节奏与配色 -->
+    <string name="settings_review_section">复习节奏</string>
+    <string name="settings_retention">目标保持率</string>
+    <string name="settings_retention_looser">间隔更长</string>
+    <string name="settings_retention_tighter">复习更勤</string>
+    <string name="settings_retention_hint">保持率越高，每张卡复习得越早、间隔越短；0.90 是推荐值。</string>
+    <string name="settings_rating_colors">评级配色</string>
+    <string name="settings_rating_colors_hint">换色系只换颜色。四档的顺序与按钮上的文字都不变，颜色永远不是唯一的线索。</string>
+    <string name="settings_palette_warm">暖调</string>
+    <string name="settings_palette_cool">冷调</string>
+    <string name="settings_palette_muted">柔和</string>
+    <!-- 设置：隐私 -->
+    <string name="settings_privacy_section">隐私</string>
+    <string name="settings_redact">上传前剥离照片信息</string>
+    <string name="settings_redact_hint">把照片交给云端识别之前，去掉 EXIF 与拍摄位置。关掉之后，原文件会原样发送。</string>
+    <!-- 复习：四档评级与间隔读数 -->
+    <string name="review_again">忘了</string>
+    <string name="review_hard">困难</string>
+    <string name="review_good">好</string>
+    <string name="review_easy">简单</string>
+    <string name="review_progress_label">今日复习</string>
+    <string name="review_card_front_desc">看到「%1$s」，轻点看释义，长按可归档</string>
+    <string name="review_card_back_desc">释义：%1$s，现在可以给这一张评级</string>
+    <string name="review_interval_now">现在</string>
+    <string name="review_interval_year">1 年</string>
+    <string name="review_done_time">用时</string>
+    <string name="review_done_accuracy">一次想起</string>
+    <plurals name="review_interval_days">
+        <item quantity="other">%1$d 天</item>
+    </plurals>
+    <plurals name="review_interval_weeks">
+        <item quantity="other">%1$d 周</item>
+    </plurals>
+    <plurals name="review_interval_months">
+        <item quantity="other">%1$d 个月</item>
+    </plurals>
+    <plurals name="review_interval_years">
+        <item quantity="other">%1$d 年</item>
+    </plurals>
 </resources>

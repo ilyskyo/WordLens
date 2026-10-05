@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ilyskyo.wordlens.core.AppContainer
 import com.ilyskyo.wordlens.data.model.Lang
+import com.ilyskyo.wordlens.data.model.RatingPalette
 import com.ilyskyo.wordlens.data.model.StudyDirection
 import com.ilyskyo.wordlens.data.repository.AppSettings
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,9 +20,10 @@ import kotlinx.coroutines.launch
 /**
  * 设置页的写入口。
  *
- * 只暴露**确实有消费方**的项。[AppSettings] 里还有目标保持率、置信度下限、复习提醒等字段，
- * 但目前没有任何代码读它们——把它们做成开关，用户拨完会发现什么也没发生，那比没有这个开关
- * 更糟。等接上消费方再补界面。
+ * 只暴露**确实有消费方**的项：用户拨完发现什么也没发生的开关，比没有这个开关更糟——
+ * 它教会用户「这里的设置不可信」，而那个印象会波及所有真的生效的开关。
+ * 反过来说，一旦某个字段接上了消费方（保持率 → `Fsrs`、色系 → 主题、脱敏 → 上传前剥 EXIF），
+ * 它就欠着一个界面，必须补在这里。
  */
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
@@ -37,6 +39,12 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun onNativeLanguage(lang: Lang) = write { setNativeLanguage(lang) }
 
     fun onDirection(direction: StudyDirection) = write { setDirection(direction) }
+
+    fun onRetention(value: Double) = write { setRetention(value) }
+
+    fun onRatingPalette(palette: RatingPalette) = write { setRatingPalette(palette) }
+
+    fun onRedactBeforeUpload(enabled: Boolean) = write { setRedactBeforeUpload(enabled) }
 
     fun onCloudEnabled(enabled: Boolean) = write { setCloudEnabled(enabled) }
 

@@ -40,9 +40,6 @@
     <string name="study_words">Words</string>
     <string name="study_events">Moments</string>
 
-    <string name="review_progress">Today %1$d/%2$d</string>
-    <string name="review_fuzzy">Fuzzy</string>
-    <string name="review_got_it">Got it</string>
     <string name="review_flip_hint">Tap to reveal, long-press for more</string>
     <string name="review_event_prompt">What happened that day?</string>
     <string name="review_done_title">That is the whole batch</string>
@@ -120,4 +117,47 @@
     <string name="detail_delete_confirm_title">Delete this moment?</string>
     <string name="detail_delete_confirm_body">The photo and its sticker go away for good. Word cards made from it stay.</string>
     <string name="walk_empty">Nothing to wander back to yet</string>
+    <!-- 设置：复习节奏与配色 -->
+    <string name="settings_review_section">Review pacing</string>
+    <string name="settings_retention">Target retention</string>
+    <string name="settings_retention_looser">Longer gaps</string>
+    <string name="settings_retention_tighter">More reviews</string>
+    <string name="settings_retention_hint">A higher target brings each card back sooner and shortens every interval. 0.90 is the recommended default.</string>
+    <string name="settings_rating_colors">Rating colours</string>
+    <string name="settings_rating_colors_hint">A palette changes only the colours. The four grades keep their order and their words — colour is never the only cue.</string>
+    <string name="settings_palette_warm">Warm</string>
+    <string name="settings_palette_cool">Cool</string>
+    <string name="settings_palette_muted">Muted</string>
+    <!-- 设置：隐私 -->
+    <string name="settings_privacy_section">Privacy</string>
+    <string name="settings_redact">Strip photo metadata before upload</string>
+    <string name="settings_redact_hint">Removes EXIF and the capture location before a photo is sent to a vision API. Turn this off and the original file goes out as-is.</string>
+    <!-- 复习：四档评级与间隔读数 -->
+    <string name="review_again">Forgot</string>
+    <string name="review_hard">Hard</string>
+    <string name="review_good">Good</string>
+    <string name="review_easy">Easy</string>
+    <string name="review_progress_label">Today</string>
+    <string name="review_card_front_desc">%1$s — tap to reveal the meaning, hold for more actions</string>
+    <string name="review_card_back_desc">Meaning: %1$s — now rate this card</string>
+    <string name="review_interval_now">Now</string>
+    <string name="review_interval_year">1 year</string>
+    <string name="review_done_time">Time</string>
+    <string name="review_done_accuracy">First recall</string>
+    <plurals name="review_interval_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="review_interval_weeks">
+        <item quantity="one">%1$d week</item>
+        <item quantity="other">%1$d weeks</item>
+    </plurals>
+    <plurals name="review_interval_months">
+        <item quantity="one">%1$d month</item>
+        <item quantity="other">%1$d months</item>
+    </plurals>
+    <plurals name="review_interval_years">
+        <item quantity="one">%1$d year</item>
+        <item quantity="other">%1$d years</item>
+    </plurals>
 </resources>

@@ -63,6 +63,7 @@ import com.ilyskyo.wordlens.ui.search.SearchViewModel
 import com.ilyskyo.wordlens.ui.settings.SettingsScreen
 import com.ilyskyo.wordlens.ui.settings.SettingsViewModel
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
+import com.ilyskyo.wordlens.ui.theme.hues
 
 class MainActivity : ComponentActivity() {
 
@@ -81,7 +82,10 @@ class MainActivity : ComponentActivity() {
         applyIntent(intent)
         val container = (application as WordLensApplication).container
         setContent {
-            WordLensTheme {
+            // 色系必须在第一帧就是用户选的那一套：让按钮先闪一下默认色系，
+            // 比色系本身好不好看更值得在意。
+            val palette by container.ratingPalette.collectAsStateWithLifecycle()
+            WordLensTheme(ratingScheme = palette.hues()) {
                 WordLensRoot(container, requestedTab)
             }
         }
@@ -408,6 +412,9 @@ private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
         onTargetLanguage = vm::onTargetLanguage,
         onNativeLanguage = vm::onNativeLanguage,
         onDirection = vm::onDirection,
+        onRetention = vm::onRetention,
+        onRatingPalette = vm::onRatingPalette,
+        onRedactBeforeUpload = vm::onRedactBeforeUpload,
         onCloudEnabled = vm::onCloudEnabled,
         onCloudModel = vm::onCloudModel,
         onCloudApiKey = vm::onCloudApiKey,

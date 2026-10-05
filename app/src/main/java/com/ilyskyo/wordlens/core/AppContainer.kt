@@ -6,6 +6,7 @@ package com.ilyskyo.wordlens.core
 import android.content.Context
 import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.data.model.LexiconEntry
+import com.ilyskyo.wordlens.data.model.RatingPalette
 import com.ilyskyo.wordlens.data.model.WordCard
 import com.ilyskyo.wordlens.data.repository.DeckDocument
 import com.ilyskyo.wordlens.data.repository.DeckRepository
@@ -15,12 +16,19 @@ import com.ilyskyo.wordlens.data.repository.LexiconRepository
 import com.ilyskyo.wordlens.data.repository.SettingsRepository
 import com.ilyskyo.wordlens.data.store.JsonDocument
 import com.ilyskyo.wordlens.speech.Speaker
+import com.ilyskyo.wordlens.srs.Fsrs
 import com.ilyskyo.wordlens.vision.VisionRepository
 import com.ilyskyo.wordlens.vision.detection.EfficientDetector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -120,5 +128,35 @@ class AppContainer(context: Context) {
         lexicon.loadAsync()
         // 词表是一份小 JSON，冷启动就该在：取景页第一次出词前它必须就绪。
         vision.loadTaxonomy()
+        applyRetentionFromSettings()
     }
+
+    /**
+     * 用户选的目标保持率 → 排期器。
+     *
+     * 唯一通路放在容器里，而不是每个 ViewModel 各自 `configure` 一遍：`Fsrs` 是进程级单例，
+     * 复习页算间隔、小组件数到期、设置页回显读的都是它。谁最后写它一旦有第二处，
+     * 「按钮上的天数和真正排出来的天数不一致」就只是时间问题。
+     *
+     * 冷启动时这一路是异步的（DataStore 第一次读通常几毫秒），而牌组本身也在异步加载，
+     * 所以第一张卡渲染时保持率已经就位；把它做成同步读反而会拖住 onCreate。
+     */
+    private fun applyRetentionFromSettings() {
+        applicationScope.launch {
+            settings.settings
+                .map { it.requestRetention }
+                .distinctUntilChanged()
+                .collect { Fsrs.setRequestRetention(it) }
+        }
+    }
+
+    /**
+     * 评级四档的色系选择。主题在 `MainActivity` 订阅它，设置页写它。
+     *
+     * Eagerly：主题必须在第一帧就有正确的颜色，不能让按钮先闪一下默认色系。
+     */
+    val ratingPalette: StateFlow<RatingPalette> = settings.settings
+        .map { it.ratingPalette }
+        .distinctUntilChanged()
+        .stateIn(applicationScope, SharingStarted.Eagerly, RatingPalette.WARM)
 }

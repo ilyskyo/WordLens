@@ -40,9 +40,6 @@
     <string name="study_words">단어</string>
     <string name="study_events">사건</string>
 
-    <string name="review_progress">오늘 %1$d/%2$d</string>
-    <string name="review_fuzzy">가물가물</string>
-    <string name="review_got_it">기억났어</string>
     <string name="review_flip_hint">탭하면 뜻 · 길게 누르면 추가 동작</string>
     <string name="review_event_prompt">그날 무슨 일이 있었을까?</string>
     <string name="review_done_title">오늘 몫은 여기까지</string>
@@ -120,4 +117,43 @@
     <string name="detail_delete_confirm_title">이 기록을 삭제할까요?</string>
     <string name="detail_delete_confirm_body">사진과 스티커가 완전히 사라져요. 거기서 만든 단어 카드는 남아요.</string>
     <string name="walk_empty">아직 돌아갈 과거가 없어요</string>
+    <!-- 设置：复习节奏与配色 -->
+    <string name="settings_review_section">복습 리듬</string>
+    <string name="settings_retention">목표 유지율</string>
+    <string name="settings_retention_looser">간격 길게</string>
+    <string name="settings_retention_tighter">복습 자주</string>
+    <string name="settings_retention_hint">유지율을 올리면 각 카드가 더 빨리 돌아오고 간격이 짧아져요. 0.90이 권장 값이에요.</string>
+    <string name="settings_rating_colors">평가 색상</string>
+    <string name="settings_rating_colors_hint">색상은 색만 바뀝니다. 네 단계의 순서와 글자는 그대로라 색이 유일한 단서가 되진 않아요.</string>
+    <string name="settings_palette_warm">웜</string>
+    <string name="settings_palette_cool">쿨</string>
+    <string name="settings_palette_muted">차분</string>
+    <!-- 设置：隐私 -->
+    <string name="settings_privacy_section">개인정보</string>
+    <string name="settings_redact">업로드 전 사진 정보 제거</string>
+    <string name="settings_redact_hint">사진을 클라우드 인식에 보내기 전에 EXIF와 촬영 위치를 지워요. 끄면 원본 그대로가 전송돼요.</string>
+    <!-- 复习：四档评级与间隔读数 -->
+    <string name="review_again">잊었어요</string>
+    <string name="review_hard">어려워요</string>
+    <string name="review_good">좋아요</string>
+    <string name="review_easy">쉬워요</string>
+    <string name="review_progress_label">오늘</string>
+    <string name="review_card_front_desc">“%1$s” — 탭하면 뜻, 길게 누르면 추가 동작</string>
+    <string name="review_card_back_desc">뜻: %1$s — 이제 이 카드를 평가할 수 있어요</string>
+    <string name="review_interval_now">지금</string>
+    <string name="review_interval_year">1년</string>
+    <string name="review_done_time">걸린 시간</string>
+    <string name="review_done_accuracy">한 번에 떠올림</string>
+    <plurals name="review_interval_days">
+        <item quantity="other">%1$d일</item>
+    </plurals>
+    <plurals name="review_interval_weeks">
+        <item quantity="other">%1$d주</item>
+    </plurals>
+    <plurals name="review_interval_months">
+        <item quantity="other">%1$d개월</item>
+    </plurals>
+    <plurals name="review_interval_years">
+        <item quantity="other">%1$d년</item>
+    </plurals>
 </resources>

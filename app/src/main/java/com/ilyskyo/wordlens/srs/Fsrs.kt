@@ -93,6 +93,16 @@ object Fsrs {
     /** Anki's default target retention. */
     const val DEFAULT_REQUEST_RETENTION = 0.9
 
+    /**
+     * 保持率的可用区间。
+     *
+     * 下限 0.70：再低的话排期会拉出一两个月的间隔，复习队列看起来「清空了」，而用户其实正在忘。
+     * 上限 0.97：Anki 自己也在这里收口——0.99 意味着几乎每天都要复习新牌，间隔普遍缩到 1 天，
+     * 队列会在几天内堆到不可完成。滑块的两端就取这两个值。
+     */
+    const val MIN_REQUEST_RETENTION = 0.70
+    const val MAX_REQUEST_RETENTION = 0.97
+
     private const val MIN_STABILITY = 0.1
     private const val MS_PER_DAY = 24L * 60 * 60 * 1000
     private const val MAX_INTERVAL_DAYS = 36500
@@ -115,9 +125,27 @@ object Fsrs {
     fun configure(w: List<Double>, retention: Double) {
         if (w.size == 21 && w.all { it.isFinite() } && w[20] > 0) {
             params = w
-            requestRetention = retention.coerceIn(0.01, 0.99)
+            setRequestRetention(retention)
         }
     }
+
+    /**
+     * 只改目标保持率，保留当前权重向量。
+     *
+     * 这件事 [configure] 做不了：它要求同时传入 21 维权重，而我们能拿出的只有 [DEFAULT_PARAMS]。
+     * 用户在设置页拖动保持率滑块并不是在重新调模型，只是想要不同的到期密度——走 configure
+     * 会把未来任何优化器产出的权重向量悄悄抹掉。
+     *
+     * 越界输入是夹紧而不是拒绝：调用方是一个绑定 DataStore 的滑块，旧版本已经落盘的取值
+     * 不该让排期从此不再响应。
+     */
+    fun setRequestRetention(retention: Double) {
+        if (!retention.isFinite()) return
+        requestRetention = retention.coerceIn(MIN_REQUEST_RETENTION, MAX_REQUEST_RETENTION)
+    }
+
+    /** 当前排期使用的目标保持率，供设置页回显。 */
+    fun currentRequestRetention(): Double = requestRetention
 
     /** Probability the card is still recalled right now, 0..1. */
     fun retention(state: State, now: Long = System.currentTimeMillis()): Double {

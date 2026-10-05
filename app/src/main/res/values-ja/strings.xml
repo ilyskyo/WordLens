@@ -40,9 +40,6 @@
     <string name="study_words">単語</string>
     <string name="study_events">出来事</string>
 
-    <string name="review_progress">今日 %1$d/%2$d</string>
-    <string name="review_fuzzy">あいまい</string>
-    <string name="review_got_it">覚えた</string>
     <string name="review_flip_hint">タップで意味・長押しで他の操作</string>
     <string name="review_event_prompt">あの日は何があった？</string>
     <string name="review_done_title">今日はこれで終わり</string>
@@ -120,4 +117,43 @@
     <string name="detail_delete_confirm_title">この記録を削除しますか？</string>
     <string name="detail_delete_confirm_body">写真とステッカーは完全に削除されます。そこから作った単語カードは残ります。</string>
     <string name="walk_empty">まだ戻れる過去はありません</string>
+    <!-- 设置：复习节奏与配色 -->
+    <string name="settings_review_section">復習のリズム</string>
+    <string name="settings_retention">目標保持率</string>
+    <string name="settings_retention_looser">間隔を長く</string>
+    <string name="settings_retention_tighter">こまめに復習</string>
+    <string name="settings_retention_hint">目標保持率を上げるほど各カードが早く戻ってきて、間隔は短くなります。0.90 が推奨値です。</string>
+    <string name="settings_rating_colors">評価の配色</string>
+    <string name="settings_rating_colors_hint">配色は色だけが変わります。4段階の順序とラベルはそのままなので、色が単手がかりにはなりません。</string>
+    <string name="settings_palette_warm">暖色</string>
+    <string name="settings_palette_cool">寒色</string>
+    <string name="settings_palette_muted">控えめ</string>
+    <!-- 设置：隐私 -->
+    <string name="settings_privacy_section">プライバシー</string>
+    <string name="settings_redact">送信前に写真の情報を取り除く</string>
+    <string name="settings_redact_hint">写真をクラウドの認識に渡す前に、EXIF と撮影位置を削除します。オフにすると元の写真がそのまま送られます。</string>
+    <!-- 复习：四档评级与间隔读数 -->
+    <string name="review_again">忘れた</string>
+    <string name="review_hard">難しい</string>
+    <string name="review_good">よし</string>
+    <string name="review_easy">簡単</string>
+    <string name="review_progress_label">今日</string>
+    <string name="review_card_front_desc">「%1$s」——タップで意味、長押しでその他の操作</string>
+    <string name="review_card_back_desc">意味：%1$s。このカードを評価できます</string>
+    <string name="review_interval_now">今</string>
+    <string name="review_interval_year">1年</string>
+    <string name="review_done_time">かかった時間</string>
+    <string name="review_done_accuracy">一度で思い出せた</string>
+    <plurals name="review_interval_days">
+        <item quantity="other">%1$d日</item>
+    </plurals>
+    <plurals name="review_interval_weeks">
+        <item quantity="other">%1$d週</item>
+    </plurals>
+    <plurals name="review_interval_months">
+        <item quantity="other">%1$dか月</item>
+    </plurals>
+    <plurals name="review_interval_years">
+        <item quantity="other">%1$d年</item>
+    </plurals>
 </resources>

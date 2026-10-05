@@ -6,6 +6,7 @@ package com.ilyskyo.wordlens.ui.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import com.ilyskyo.wordlens.data.model.RatingPalette
 
 /**
  * 「温暖手账 × 现代数字贴纸」色板。
@@ -119,6 +120,19 @@ object RatingSchemes {
     )
 
     val entries: List<RatingHues> = listOf(Warm, Cool, Muted)
+}
+
+/**
+ * 设置里存的是**选择**，颜色在这里才长出来。
+ *
+ * 方向很重要：data 层不能 import Compose 的 `Color`，否则换一套 UI 会变成数据层的破坏性改动，
+ * 而且落盘的枚举名必须与渲染无关才稳。所以 `RatingPalette` 住在 data.model，
+ * 这一层负责把选择翻译成色相。
+ */
+fun RatingPalette.hues(): RatingHues = when (this) {
+    RatingPalette.WARM -> RatingSchemes.Warm
+    RatingPalette.COOL -> RatingSchemes.Cool
+    RatingPalette.MUTED -> RatingSchemes.Muted
 }
 
 /**

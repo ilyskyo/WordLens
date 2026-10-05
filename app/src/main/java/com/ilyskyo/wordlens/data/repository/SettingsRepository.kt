@@ -9,11 +9,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ilyskyo.wordlens.data.model.Lang
+import com.ilyskyo.wordlens.data.model.RatingPalette
 import com.ilyskyo.wordlens.data.model.StudyDirection
 import com.ilyskyo.wordlens.srs.Fsrs
 import kotlinx.coroutines.flow.Flow
@@ -35,22 +35,14 @@ data class AppSettings(
     /** FSRS target retention. 0.9 is Anki's default. */
     val requestRetention: Double = Fsrs.DEFAULT_REQUEST_RETENTION,
 
-    /** Run the labeller on the preview stream as well as on the shutter. */
-    val livePreview: Boolean = true,
+    /** 评级四档按钮的色系。 */
+    val ratingPalette: RatingPalette = RatingPalette.WARM,
 
-    /** Minimum labeller score (0-1) before a suggestion is offered at all. */
-    val confidenceFloor: Float = 0.45f,
-
-    /** Ask before saving when the top suggestion is ambiguous between close alternatives. */
-    val confirmAmbiguous: Boolean = true,
-
+    /** 每日复习提醒的开关。默认关：不让用户被静默订阅通知。 */
     val reminderEnabled: Boolean = false,
 
     /** Minutes from local midnight; 20:00 = 20*60. */
     val reminderMinuteOfDay: Int = 20 * 60,
-
-    /** Ask for the camera permission on first launch. */
-    val onboardingComplete: Boolean = false,
 
     // ── optional cloud vision backend ────────────────────────────────────────
     val cloudEnabled: Boolean = false,
@@ -100,14 +92,11 @@ class SettingsRepository(private val context: Context) {
                 StudyDirection.valueOf(prefs[Keys.DIRECTION] ?: StudyDirection.RECOGNIZE.name)
             }.getOrDefault(StudyDirection.RECOGNIZE),
             requestRetention = (prefs[Keys.RETENTION] ?: Fsrs.DEFAULT_REQUEST_RETENTION)
-                .coerceIn(0.7, 0.98),
-            livePreview = prefs[Keys.LIVE_PREVIEW] ?: true,
-            confidenceFloor = (prefs[Keys.CONFIDENCE_FLOOR] ?: 0.45f).coerceIn(0.05f, 0.95f),
-            confirmAmbiguous = prefs[Keys.CONFIRM_AMBIGUOUS] ?: true,
+                .coerceIn(Fsrs.MIN_REQUEST_RETENTION, Fsrs.MAX_REQUEST_RETENTION),
+            ratingPalette = RatingPalette.fromName(prefs[Keys.RATING_PALETTE]),
             reminderEnabled = prefs[Keys.REMINDER_ON] ?: false,
             reminderMinuteOfDay = (prefs[Keys.REMINDER_MINUTE] ?: 20 * 60)
                 .coerceIn(0, 24 * 60 - 1),
-            onboardingComplete = prefs[Keys.ONBOARDING_DONE] ?: false,
             cloudEnabled = prefs[Keys.CLOUD_ON] ?: false,
             cloudModel = prefs[Keys.CLOUD_MODEL] ?: AppSettings.DEFAULT_CLOUD_MODEL,
             cloudApiKey = prefs[Keys.CLOUD_KEY] ?: "",
@@ -122,22 +111,16 @@ class SettingsRepository(private val context: Context) {
     suspend fun setDirection(direction: StudyDirection) = put(Keys.DIRECTION, direction.name)
 
     suspend fun setRetention(value: Double) {
-        // Clamp to a range where FSRS still produces sane intervals. 0.99 asks for an interval
-        // so short the learner reviews 300 times a day; 0.7 forgets almost immediately.
-        put(Keys.RETENTION, value.coerceIn(0.7, 0.98))
+        // 区间由 Fsrs 自己定义，设置页与排期器读同一对常量：
+        // 两处各写一份数字，早晚会夹出「滑块能拉到但排期器不接受」的空档。
+        put(Keys.RETENTION, value.coerceIn(Fsrs.MIN_REQUEST_RETENTION, Fsrs.MAX_REQUEST_RETENTION))
     }
 
-    suspend fun setLivePreview(enabled: Boolean) = put(Keys.LIVE_PREVIEW, enabled)
-
-    suspend fun setConfidenceFloor(value: Float) = put(Keys.CONFIDENCE_FLOOR, value.coerceIn(0.05f, 0.95f))
-
-    suspend fun setConfirmAmbiguous(enabled: Boolean) = put(Keys.CONFIRM_AMBIGUOUS, enabled)
+    suspend fun setRatingPalette(palette: RatingPalette) = put(Keys.RATING_PALETTE, palette.name)
 
     suspend fun setReminder(enabled: Boolean) = put(Keys.REMINDER_ON, enabled)
 
     suspend fun setReminderMinuteOfDay(minute: Int) = put(Keys.REMINDER_MINUTE, minute.coerceIn(0, 24 * 60 - 1))
-
-    suspend fun setOnboardingComplete(done: Boolean) = put(Keys.ONBOARDING_DONE, done)
 
     suspend fun setCloudEnabled(enabled: Boolean) = put(Keys.CLOUD_ON, enabled)
 
@@ -162,12 +145,9 @@ class SettingsRepository(private val context: Context) {
         val TARGET_LANG = stringPreferencesKey("target_language")
         val DIRECTION = stringPreferencesKey("direction")
         val RETENTION = doublePreferencesKey("request_retention")
-        val LIVE_PREVIEW = booleanPreferencesKey("live_preview")
-        val CONFIDENCE_FLOOR = floatPreferencesKey("confidence_floor")
-        val CONFIRM_AMBIGUOUS = booleanPreferencesKey("confirm_ambiguous")
+        val RATING_PALETTE = stringPreferencesKey("rating_palette")
         val REMINDER_ON = booleanPreferencesKey("reminder_enabled")
         val REMINDER_MINUTE = intPreferencesKey("reminder_minute_of_day")
-        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_complete")
         val CLOUD_ON = booleanPreferencesKey("cloud_enabled")
         val CLOUD_MODEL = stringPreferencesKey("cloud_model")
         val CLOUD_KEY = stringPreferencesKey("cloud_api_key")
