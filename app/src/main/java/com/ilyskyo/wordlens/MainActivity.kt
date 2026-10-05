@@ -1,26 +1,44 @@
+// Copyright (c) 2026 ilyskyo
+// SPDX-License-Identifier: MIT
+
 package com.ilyskyo.wordlens
 
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalView
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ilyskyo.wordlens.core.AppContainer
@@ -29,9 +47,16 @@ import com.ilyskyo.wordlens.ui.capture.CaptureScreen
 import com.ilyskyo.wordlens.ui.capture.CaptureViewModel
 import com.ilyskyo.wordlens.ui.capture.captureViewModelFactory
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailScreen
+import com.ilyskyo.wordlens.ui.lookback.EntryDetailState
+import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
 import com.ilyskyo.wordlens.ui.nav.HomeTab
 import com.ilyskyo.wordlens.ui.nav.HomeViewModel
+import com.ilyskyo.wordlens.ui.nav.LocalPageVisibilityScope
+import com.ilyskyo.wordlens.ui.nav.LocalSharedTransitionScope
+import com.ilyskyo.wordlens.ui.nav.Page
 import com.ilyskyo.wordlens.ui.nav.WordLensApp
+import com.ilyskyo.wordlens.ui.nav.depth
+import com.ilyskyo.wordlens.ui.remember.RememberUiState
 import com.ilyskyo.wordlens.ui.search.SearchScreen
 import com.ilyskyo.wordlens.ui.search.SearchViewModel
 import com.ilyskyo.wordlens.ui.settings.SettingsScreen
@@ -56,64 +81,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as WordLensApplication).container
         setContent {
             WordLensTheme {
-                var showCapture by remember { mutableStateOf(false) }
-                var showSearch by remember { mutableStateOf(false) }
-                var showSettings by remember { mutableStateOf(false) }
-                val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
-                val lookback by home.lookback.collectAsStateWithLifecycle()
-                val rememberState by home.remember.collectAsStateWithLifecycle()
-                val detail by home.detail.collectAsStateWithLifecycle()
-                // 详情页、搜索页、设置页都是浮层而不是路由，所以系统返回键要自己接：
-                // 不接的话一次返回直接退出应用。三者的 enabled 互斥，同时只有一个生效，
-                // 顺序与层叠一致（详情 > 设置 > 搜索）。
-                androidx.activity.compose.BackHandler(enabled = detail != null, onBack = home::onCloseEntry)
-                androidx.activity.compose.BackHandler(
-                    enabled = detail == null && showSettings,
-                    onBack = { showSettings = false },
-                )
-                androidx.activity.compose.BackHandler(
-                    enabled = detail == null && !showSettings && showSearch,
-                    onBack = { showSearch = false },
-                )
-                Box(Modifier.fillMaxSize()) {
-                    WordLensApp(
-                        requestedTab = requestedTab.value,
-                        lookbackState = lookback,
-                        rememberState = rememberState,
-                        onMaterialChange = home::onMaterialChange,
-                        onReveal = home::onReveal,
-                        onGrade = home::onGrade,
-                        onReviewSpeak = home::onSpeak,
-                        onMarkMastered = home::onMarkMastered,
-                        onUnmark = home::onUnmark,
-                        onLookbackSpeak = home::onEntrySpeak,
-                        onOpenEntry = home::onOpenEntry,
-                        onCapture = { showCapture = true },
-                        onSearch = { showSearch = true },
-                    )
-                    if (showSearch) {
-                        SearchHost(container, onClose = { showSearch = false }, onOpenEntry = home::onOpenEntry)
-                    }
-                    if (showCapture) {
-                        CaptureHost(
-                            container = container,
-                            onDismiss = { showCapture = false },
-                            onOpenSettings = { showSettings = true },
-                        )
-                    }
-                    if (showSettings) {
-                        SettingsHost(container, onClose = { showSettings = false })
-                    }
-                    detail?.let { state ->
-                        EntryDetailScreen(
-                            state = state,
-                            onBack = home::onCloseEntry,
-                            onDraftChange = home::onEventDraftChange,
-                            onSaveEvent = home::onSaveEvent,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
+                WordLensRoot(container, requestedTab)
             }
         }
     }
@@ -138,10 +106,176 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
+ * 单 Activity 的页面栈。
+ *
+ * 没有 NavHost：主页、详情、取景、搜索、设置都在同一棵组合树里，由一个栈管理。这既符合
+ * 「拍照是就地动作而不是导航目的地」的产品设定，也是共享元素转场的前提——照片的两端必须
+ * 同时存在于同一个 [SharedTransitionLayout] 之下。NavHost 的片段式生命周期让这件事变脆，
+ * 多场景同时组合也更容易在低端机上掉帧。
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<HomeTab>) {
+    val stack = remember { mutableStateListOf<Page>(Page.Home) }
+    val top = stack.lastOrNull() ?: Page.Home
+    val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
+    val lookback by home.lookback.collectAsStateWithLifecycle()
+    val rememberState by home.remember.collectAsStateWithLifecycle()
+
+    // 时间轴的滚动状态提在这里：详情页属于另一个场景，本场景在转场结束后会被拆掉。
+    // 状态留在 LookbackScreen 内部的话，返回时列表会跳回顶部——用户刚看的那条瞬间消失了。
+    val lookbackListState = rememberLazyListState()
+
+    applyLightStatusBar(darkSurface = top == Page.Capture)
+
+    BackHandler(enabled = stack.size > 1) { pop(stack, home) }
+
+    SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+            AnimatedContent(
+                targetState = top,
+                transitionSpec = { pageTransition(from = initialState.depth, to = targetState.depth) },
+                contentKey = { it },
+                label = "page",
+            ) { page ->
+                CompositionLocalProvider(LocalPageVisibilityScope provides this) {
+                    when (page) {
+                        Page.Home -> HomeScene(
+                            home = home,
+                            lookback = lookback,
+                            rememberState = rememberState,
+                            requestedTab = requestedTab.value,
+                            lookbackListState = lookbackListState,
+                            onCapture = { stack.add(Page.Capture) },
+                            onSearch = { stack.add(Page.Search) },
+                            onOpenEntry = { id -> openEntry(stack, home, id) },
+                        )
+
+                        is Page.Detail -> DetailScene(home = home, onBack = { pop(stack, home) })
+
+                        Page.Capture -> CaptureHost(
+                            container = container,
+                            onDismiss = { pop(stack, home) },
+                            onOpenSettings = { stack.add(Page.Settings) },
+                        )
+
+                        Page.Search -> SearchHost(
+                            container = container,
+                            onClose = { pop(stack, home) },
+                            onOpenEntry = { id -> openEntry(stack, home, id) },
+                        )
+
+                        Page.Settings -> SettingsHost(
+                            container = container,
+                            onClose = { pop(stack, home) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun openEntry(stack: SnapshotStateList<Page>, home: HomeViewModel, id: String) {
+    home.onOpenEntry(id)
+    stack.add(Page.Detail(id))
+}
+
+private fun pop(stack: SnapshotStateList<Page>, home: HomeViewModel) {
+    if (stack.lastOrNull() is Page.Detail) home.onCloseEntry()
+    if (stack.size > 1) stack.removeAt(stack.lastIndex)
+}
+
+/**
+ * 场景之间的过渡。
+ *
+ * 非共享的内容只做淡入淡出，不做位移——照片已经承担了全部运动，整页再滑一次就是两个互相
+ * 竞争的动作，读起来像卡顿而不是流畅。进入比退出略长：用户对「出现」比对「消失」更敏感。
+ */
+private fun pageTransition(from: Int, to: Int): ContentTransform {
+    val forward = to > from
+    return ContentTransform(
+        targetContentEnter = fadeIn(tween(if (forward) ENTER_MS else EXIT_MS)),
+        initialContentExit = fadeOut(tween(if (forward) EXIT_MS else ENTER_MS)),
+        // 进入中的场景画在旧场景之上：详情页要盖住时间轴，而不是被它压住。
+        targetContentZIndex = if (forward) 1f else 0f,
+    )
+}
+
+private const val ENTER_MS = 220
+private const val EXIT_MS = 160
+
+/**
+ * 取景页是暗画面，状态栏图标要翻成浅色；其余页面是奶油白底，保持深色图标。
+ *
+ * 只在页面切换时改一次：`isAppearanceLightStatusBars` 每次赋值都会走一次系统窗口属性写入。
+ */
+@Composable
+private fun applyLightStatusBar(darkSurface: Boolean) {
+    val window = (LocalContext.current as? ComponentActivity)?.window ?: return
+    val view = LocalView.current
+    LaunchedEffect(darkSurface) {
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkSurface
+    }
+}
+
+@Composable
+private fun HomeScene(
+    home: HomeViewModel,
+    lookback: LookbackUiState,
+    rememberState: RememberUiState,
+    requestedTab: HomeTab,
+    lookbackListState: LazyListState,
+    onCapture: () -> Unit,
+    onSearch: () -> Unit,
+    onOpenEntry: (String) -> Unit,
+) {
+    WordLensApp(
+        modifier = Modifier.fillMaxSize(),
+        requestedTab = requestedTab,
+        lookbackListState = lookbackListState,
+        lookbackState = lookback,
+        rememberState = rememberState,
+        onMaterialChange = home::onMaterialChange,
+        onReveal = home::onReveal,
+        onGrade = home::onGrade,
+        onReviewSpeak = home::onSpeak,
+        onMarkMastered = home::onMarkMastered,
+        onUnmark = home::onUnmark,
+        onLookbackSpeak = home::onEntrySpeak,
+        onOpenEntry = onOpenEntry,
+        onCapture = onCapture,
+        onSearch = onSearch,
+    )
+}
+
+/**
+ * 详情页场景。
+ *
+ * 返回时 VM 里的 detail 会先变 null，而退出动画还要画最后一帧——所以这里留一份最后一次
+ * 非空的快照给退场用。不这么做的话照片会在按返回的瞬间消失，共享元素也就没有回程终点。
+ */
+@Composable
+private fun DetailScene(home: HomeViewModel, onBack: () -> Unit) {
+    val live by home.detail.collectAsStateWithLifecycle()
+    var shown by remember { mutableStateOf<EntryDetailState?>(null) }
+    LaunchedEffect(live) {
+        if (live != null) shown = live
+    }
+    val state = shown ?: return
+    EntryDetailScreen(
+        state = state,
+        onBack = onBack,
+        onDraftChange = home::onEventDraftChange,
+        onSaveEvent = home::onSaveEvent,
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+/**
  * 搜索 / 添加页宿主。
  *
- * 与取景页同一个理由：它是就地动作，不是导航目的地。VM 挂在这里而不是 HomeViewModel 上，
- * 是因为搜索状态（输入框里那几个字）应该在离开时清空，不该跟着主页活一辈子。
+ * VM 独立于 HomeViewModel：输入框里那几个字应该在离开时清空，不该跟着主页活一辈子。
  */
 @Composable
 private fun SearchHost(container: AppContainer, onClose: () -> Unit, onOpenEntry: (String) -> Unit) {
@@ -159,8 +293,65 @@ private fun SearchHost(container: AppContainer, onClose: () -> Unit, onOpenEntry
 }
 
 /**
- * 设置页宿主。取景页的齿轮与主页都可能拉起它，所以它盖在它们之上。
+ * 取景页宿主。
+ *
+ * ViewModel 不挂 key：每次进入都想要一台干净的相机与一份新的暂存状态，回到主页后再进来
+ * 不应残留上一次的贴纸。
  */
+@Composable
+private fun CaptureHost(
+    container: AppContainer,
+    onDismiss: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    val vm: CaptureViewModel = viewModel(factory = captureViewModelFactory(container))
+    val state by vm.ui.collectAsStateWithLifecycle()
+    val event by vm.event.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    LaunchedEffect(event) {
+        when (val e = event) {
+            is CaptureViewModel.Event.Saved -> {
+                vm.acknowledgeEvent()
+                onDismiss()
+            }
+
+            is CaptureViewModel.Event.Failed -> {
+                vm.acknowledgeEvent()
+                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+            }
+
+            // 抠图失败不影响保存，只说明一句：贴纸是这份记录的加分项，不是必要条件。
+            is CaptureViewModel.Event.StickerFailed -> {
+                vm.acknowledgeEvent()
+                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+            }
+
+            null -> Unit
+        }
+    }
+
+    CaptureScreen(
+        // 快门是这页唯一必须够得着的控件：手势条压在它上面就按不到了。
+        bottomInset = PaddingValues(
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+        ),
+        state = state,
+        // 左上角的关闭键：取景页是盖在主页上的一层，不接就等于把用户关在里面。
+        onClose = onDismiss,
+        onOpenSettings = onOpenSettings,
+        onShutter = vm::onShutter,
+        onRetake = vm::onRetake,
+        onSave = vm::onSave,
+        onSpeak = vm::onSpeak,
+        onTapSubject = vm::onTapSubject,
+        onChipSelect = vm::onChipSelect,
+        modifier = Modifier.fillMaxSize(),
+        previewContent = { CaptureCamera(vm) },
+    )
+}
+
+/** 设置页宿主。从取景页打开时它压在取景页之上。 */
 @Composable
 private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
     val vm: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
@@ -176,60 +367,5 @@ private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
         onCloudApiKey = vm::onCloudApiKey,
         onClearCloudApiKey = vm::onClearCloudApiKey,
         modifier = Modifier.fillMaxSize(),
-    )
-}
-
-/**
- * 取景页宿主：全屏浮在主界面之上。
- *
- * 拍照是**就地动作**而不是导航目的地（见 [com.ilyskyo.wordlens.ui.nav.WordLensApp] 的注释），
- * 所以这里用组合内条件渲染而不是 NavHost。ViewModel 不挂 key：每次进入都想要一台干净的
- * 相机与一份新的暂存状态，回到主页后再进来不应残留上一次的贴纸。
- */
-@Composable
-private fun CaptureHost(
-    container: AppContainer,
-    onDismiss: () -> Unit,
-    onOpenSettings: () -> Unit,
-) {
-    val vm: CaptureViewModel = viewModel(factory = captureViewModelFactory(container))
-    val state by vm.ui.collectAsStateWithLifecycle()
-    val event by vm.event.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    androidx.compose.runtime.LaunchedEffect(event) {
-        when (val e = event) {
-            is CaptureViewModel.Event.Saved -> {
-                vm.acknowledgeEvent()
-                onDismiss()
-            }
-            is CaptureViewModel.Event.Failed -> {
-                vm.acknowledgeEvent()
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
-            }
-            // 抠图失败不影响保存，只说明一句：贴纸是这份记录的加分项，不是必要条件。
-            is CaptureViewModel.Event.StickerFailed -> {
-                vm.acknowledgeEvent()
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
-            }
-            null -> Unit
-        }
-    }
-
-    CaptureScreen(
-        // 快门是这页唯一必须够得着的控件：手势条压在它上面就按不到了。
-        bottomInset = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
-        state = state,
-        // 左上角的关闭键：取景页是盖在主页上的一层，不接就等于把用户关在里面。
-        onClose = onDismiss,
-        onOpenSettings = onOpenSettings,
-        onShutter = vm::onShutter,
-        onRetake = vm::onRetake,
-        onSave = vm::onSave,
-        onSpeak = vm::onSpeak,
-        onTapSubject = vm::onTapSubject,
-        onChipSelect = vm::onChipSelect,
-        modifier = Modifier.fillMaxSize(),
-        previewContent = { CaptureCamera(vm) },
     )
 }

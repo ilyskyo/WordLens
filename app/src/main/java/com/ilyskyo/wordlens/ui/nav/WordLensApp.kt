@@ -11,6 +11,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -53,6 +55,8 @@ import com.ilyskyo.wordlens.ui.remember.RememberUiState
 fun WordLensApp(
     modifier: Modifier = Modifier,
     requestedTab: HomeTab = HomeTab.LOOKBACK,
+    /** 时间轴的滚动状态由宿主外提：详情页是 AnimatedContent 的另一个场景，本场景会被拆掉。 */
+    lookbackListState: LazyListState = rememberLazyListState(),
     lookbackState: LookbackUiState = LookbackUiState(),
     rememberState: RememberUiState = RememberUiState(),
     onCapture: () -> Unit = {},
@@ -112,6 +116,7 @@ fun WordLensApp(
                     HomeTab.LOOKBACK -> LookbackScreen(
                         topInset = PaddingValues(top = contentTop),
                         bottomInset = PaddingValues(bottom = BOTTOM_INSET),
+                        listState = lookbackListState,
                         state = lookbackState,
                         onOpenEntry = onOpenEntry,
                         onSpeak = onLookbackSpeak,

@@ -21,7 +21,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +47,7 @@ import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntryMood
 import com.ilyskyo.wordlens.ui.components.EmptyState
+import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
@@ -113,6 +116,11 @@ fun LookbackScreen(
     topInset: PaddingValues,
     bottomInset: PaddingValues,
     state: LookbackUiState = LookbackUiState(),
+    /**
+     * 由宿主外提。详情页与主页是 AnimatedContent 的两个场景，转场结束后旧场景会被拆掉；
+     * 状态留在本文件里的话，从详情页返回时列表会跳回顶部——用户刚看的那条瞬间消失了。
+     */
+    listState: LazyListState = rememberLazyListState(),
     onOpenEntry: (String) -> Unit = {},
     onSpeak: (EntryCard) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -134,6 +142,7 @@ fun LookbackScreen(
     }
 
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = Space.md,
@@ -288,7 +297,11 @@ private fun EntryTimelineCard(
                         bitmap = card.photo.asImageBitmap(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
+                        // 点开的详情页用的就是这一张位图（同一个实例，不二次解码），
+                        // 所以飞过去的画面和原地看到的是同一份像素。
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .sharedEntryPhoto(entry.id),
                     )
                 } else {
                     Box(

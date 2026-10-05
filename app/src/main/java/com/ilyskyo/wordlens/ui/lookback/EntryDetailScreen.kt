@@ -4,6 +4,15 @@
 package com.ilyskyo.wordlens.ui.lookback
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -31,6 +40,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,9 +62,11 @@ import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.ui.components.PrimaryButton
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
+import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.NormBox
+import kotlinx.coroutines.delay
 
 /**
  * 详情页上长在物体中的一个词。
@@ -119,6 +135,18 @@ fun EntryDetailScreen(
                 }
             }
 
+            // 主图先飞，落定之前不把文字摆出来：半空中有两组东西在抢注意力，看起来像加载
+            // 而不是转场。三组各差一个短延迟，读起来是「照片到位，字陆续浮上来」。
+            var stage by remember(state.entry.id) { mutableIntStateOf(0) }
+            LaunchedEffect(state.entry.id) {
+                delay(HEADLINE_DELAY_MS)
+                stage = 1
+                delay(TAGS_DELAY_MS)
+                stage = 2
+                delay(COMPOSER_DELAY_MS)
+                stage = 3
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -127,13 +155,41 @@ fun EntryDetailScreen(
                     .padding(bottom = Space.xl),
                 verticalArrangement = Arrangement.spacedBy(Space.md),
             ) {
-                PhotoArea(state.photo, state.objects)
-                EntryBody(state)
-                EventComposer(
-                    draft = state.eventDraft,
-                    onDraftChange = onDraftChange,
-                    onSave = onSaveEvent,
-                )
+                PhotoArea(state.photo, state.objects, state.entry.id)
+
+                AnimatedVisibility(
+                    visible = stage >= 1,
+                    enter = fadeIn(tween(HEADLINE_MS)) + slideInVertically(tween(HEADLINE_MS)) { it / 4 },
+                    exit = fadeOut(tween(EXIT_MS)) + slideOutVertically(tween(EXIT_MS)) { it / 4 },
+                ) {
+                    EntryHeadline(state)
+                }
+
+                AnimatedVisibility(
+                    visible = stage >= 2,
+                    enter = scaleIn(
+                        initialScale = 0.8f,
+                        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+                    ) + fadeIn(tween(HEADLINE_MS)),
+                    exit = fadeOut(tween(EXIT_MS)),
+                ) {
+                    EntryTags(state)
+                }
+
+                AnimatedVisibility(
+                    visible = stage >= 3,
+                    enter = slideInVertically(
+                        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+                        initialOffsetY = { it },
+                    ) + fadeIn(tween(HEADLINE_MS)),
+                    exit = fadeOut(tween(EXIT_MS)),
+                ) {
+                    EventComposer(
+                        draft = state.eventDraft,
+                        onDraftChange = onDraftChange,
+                        onSave = onSaveEvent,
+                    )
+                }
             }
         }
     }
@@ -141,7 +197,12 @@ fun EntryDetailScreen(
 
 /** 照片 + 压在物体上方的词片。词片锚在上沿，不压住物体本身。 */
 @Composable
-private fun PhotoArea(bitmap: Bitmap?, objects: List<ObjectPlace>, modifier: Modifier = Modifier) {
+private fun PhotoArea(
+    bitmap: Bitmap?,
+    objects: List<ObjectPlace>,
+    entryId: String,
+    modifier: Modifier = Modifier,
+) {
     if (bitmap == null) {
         // 换机后文字带回来了、照片没回来。这时正文照常显示，不能整页空白。
         Box(
@@ -165,7 +226,9 @@ private fun PhotoArea(bitmap: Bitmap?, objects: List<ObjectPlace>, modifier: Mod
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(bitmap.width.toFloat() / bitmap.height.toFloat())
-            .clip(MaterialTheme.shapes.large),
+            .clip(MaterialTheme.shapes.large)
+            // 与时间轴卡片上是同一张位图、同一个键：飞过去的不是「另一张相似的照片」。
+            .sharedEntryPhoto(entryId),
     ) {
         Image(
             bitmap = bitmap.asImageBitmap(),
@@ -222,9 +285,9 @@ private fun GrownWord(place: ObjectPlace, width: Dp, modifier: Modifier = Modifi
     }
 }
 
-/** 文字区：标题、摘要（含 AI 来源提示）、mood、氛围词、被婉拒的词。 */
+/** 标题与摘要。交错入场的第一组：主图落定的那一刻浮上来。 */
 @Composable
-private fun EntryBody(state: EntryDetailState, modifier: Modifier = Modifier) {
+private fun EntryHeadline(state: EntryDetailState, modifier: Modifier = Modifier) {
     val entry = state.entry
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -252,7 +315,17 @@ private fun EntryBody(state: EntryDetailState, modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.tertiary,
             )
         }
+    }
+}
 
+/** mood、氛围词与被婉拒的词。交错入场的第二组，比标题晚一步。 */
+@Composable
+private fun EntryTags(state: EntryDetailState, modifier: Modifier = Modifier) {
+    val entry = state.entry
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(Space.sm),
+    ) {
         val chips = buildList {
             state.moodLabel?.let { add(it) }
             addAll(state.ambience)
@@ -329,3 +402,14 @@ private fun EventComposer(
 
 private val MIN_CHIP_WIDTH = 64.dp
 private val CHIP_LIFT = 30.dp
+
+// ── 交错入场的节奏 ────────────────────────────────────────────────────────
+//
+// 主图由共享元素负责飞（约 400ms 的弹簧），文字在三段短延迟后依次浮上来。
+// 数字是这么定的：图片起步 150ms 后已经走完大半程，此时开始摆文字不会觉得在抢位置；
+// 组间 80/100ms 的间隔刚好能感知成「陆续」而不是「同时」，再长就开始显得拖沓。
+private const val HEADLINE_DELAY_MS = 150L
+private const val TAGS_DELAY_MS = 80L
+private const val COMPOSER_DELAY_MS = 100L
+private const val HEADLINE_MS = 220
+private const val EXIT_MS = 140
