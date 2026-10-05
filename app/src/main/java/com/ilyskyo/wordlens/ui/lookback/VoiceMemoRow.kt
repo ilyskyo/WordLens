@@ -141,6 +141,7 @@ fun VoiceMemoSection(
     var foreverDenied by remember { mutableStateOf(false) }
     var askPermission by remember { mutableStateOf(false) }
     var confirmDetach by remember { mutableStateOf(false) }
+    var confirmReplace by remember { mutableStateOf(false) }
 
     val permission: MicPermission = remember(permissionTick, foreverDenied) {
         when {
@@ -159,6 +160,9 @@ fun VoiceMemoSection(
             // 唯一可靠的判别：还能弹出 rationale 就还能再问；弹不出来而权限仍然没有，就是永久拒绝。
             // 第一次走到这里时 rationale 也是 false，所以这条判断只在用户答过之后才做。
             if (!granted) {
+                // 这一次按下到此为止。留着它的话下一条 effect 会卡在 ASK 那一格——权限没变，
+                // key 就没变，于是按钮看起来还在，再按一次什么都不发生。
+                askPermission = false
                 foreverDenied = activity?.shouldShowRequestPermissionRationale(
                     Manifest.permission.RECORD_AUDIO,
                 ) != true
@@ -166,14 +170,32 @@ fun VoiceMemoSection(
         },
     )
 
-    // 授权框回来之后接着把这一次录音开起来：按下「录一段」就是这一次意图，
-    // 让用户在系统对话框之后重新按一次，读起来像第一次没生效。
-    LaunchedEffect(askPermission) {
+    /**
+     * 按下「录一段」这一次意图，活到权限有答案为止。
+     *
+     * 原来这里先 `askPermission = false` 再去 launch：系统框答「允许」之后权限确实变成了 GRANTED，
+     * 而这条 effect 的 key 已经不再变化——那一次按下就被吞掉了，用户看到的是「第一下没反应，
+     * 得按第二下」。这正是这个功能最不该有的手感：录音键按下去不录音，而麦克风权限明明是刚给出去的。
+     *
+     * 所以意图要在问权限那一步**留着**：答完 `permissionTick++` → `permission` 变 GRANTED →
+     * key 变 → 这条重跑 → 那一下真的开录，然后才清掉。被拒时由 onResult 收尾（见上）。
+     */
+    LaunchedEffect(askPermission, permission) {
         if (!askPermission) return@LaunchedEffect
-        askPermission = false
-        if (permission == MicPermission.GRANTED) actions.onStartTake(entryId) else permissionLauncher.launch(
-            Manifest.permission.RECORD_AUDIO,
-        )
+        when (permission) {
+            MicPermission.GRANTED -> {
+                askPermission = false
+                actions.onStartTake(entryId)
+            }
+
+            MicPermission.ASK -> permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+
+            // 永久拒绝：再 launch 只会拿到同一个静默的 false，把人送到应用详情页才有出路。
+            MicPermission.DENIED_FOREVER -> {
+                askPermission = false
+                openAppSettings(context)
+            }
+        }
     }
 
     // owner 必须在组合过程里取：LocalLifecycleOwner 是个 composition local，在 DisposableEffect
@@ -214,10 +236,9 @@ fun VoiceMemoSection(
 
             entry.audioPath != null -> CommittedStrip(
                 file = state.audioFile,
-                entryId = entryId,
                 durationMs = entry.audioDurationMs,
                 actions = actions,
-                onReRecord = { askPermission = true },
+                onReRecord = { confirmReplace = true },
                 onDelete = { confirmDetach = true },
             )
 
@@ -249,6 +270,41 @@ fun VoiceMemoSection(
             },
             dismissButton = {
                 TextButton(onClick = { confirmDetach = false }) {
+                    Text(stringResource(R.string.selection_cancel))
+                }
+            },
+        )
+    }
+
+    /**
+     * 「重录会先删掉原来那段」的确认。
+     *
+     * 这一次确认不是礼貌：文件名按条目 id 定死，新的那一段与旧的落在同一个位置上，所以开录那一步
+     * `MediaRecorder` 是**截断重写**，旧的必然先没掉。它是整个功能里唯一一处由「录」这个动作本身
+     * 造成的不可逆，所以要一次明确的同意；确认之后什么都不再问。
+     *
+     * 确认之后仍然要先过权限那一关（见上面那条 `LaunchedEffect`）：`HomeViewModel.onStartTake` 在
+     * 真的录起来之前会把 `audioPath` 摘掉，所以「用户同意了」不能等于「可以动手删」——
+     * 只有麦克风确实到手了，那一步才走。顺序错了的长相是：用户点了同意、权限被拒、
+     * 旧的那段没了、新的没录上。
+     */
+    if (confirmReplace) {
+        AlertDialog(
+            onDismissRequest = { confirmReplace = false },
+            title = { Text(stringResource(R.string.audio_replace_confirm_title)) },
+            text = { Text(stringResource(R.string.audio_replace_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmReplace = false
+                        askPermission = true
+                    },
+                ) {
+                    Text(stringResource(R.string.audio_re_record))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReplace = false }) {
                     Text(stringResource(R.string.selection_cancel))
                 }
             },
@@ -359,7 +415,6 @@ private fun StagedStrip(
 @Composable
 private fun CommittedStrip(
     file: File?,
-    entryId: String,
     durationMs: Long,
     actions: VoiceMemoActions,
     onReRecord: () -> Unit,
@@ -392,9 +447,8 @@ private fun CommittedStrip(
                 modifier = Modifier.weight(1f),
             )
         }
-        // 重录的确认放在最后而不是按下之前弹：这一条的删除时机是「新的那一段真的开始写了」，
-        // 而不是「用户点了重录」——提前删掉旧的那段，权限被拒或录音机起不来时他就两头空。
-        ReplaceConfirm(entryId = entryId, onStartTake = actions.onStartTake)
+        // 重录的确认由上层那一节挂着的对话框负责（见 VoiceMemoSection）：这里只负责把「要重录」
+        // 这一下说出去。放在这里画一个对话框，它就没有主人——而覆盖旧录音这件事必须有主人同意。
     }
 }
 
@@ -554,41 +608,7 @@ private fun PlaybackRow(
     }
 }
 
-/**
- * 「重录会先删掉原来那段」的确认。
- *
- * 这一次确认不是礼貌：文件名按条目 id 定死，新的那一段与旧的落在同一个位置上，
- * 所以开录的那一刻旧的必然没了。它是这一整个功能里唯一一个**由录这个动作本身**造成的
- * 不可逆，所以要一次明确的同意；确认之后什么都不再问。
- */
-@Composable
-private fun ReplaceConfirm(entryId: String, onStartTake: (String) -> Unit) {
-    var pending by remember { mutableStateOf(false) }
-    if (!pending) {
-        // 确认框只在按过重录之后才存在，所以这一节平时什么都不占位。
-        LaunchedEffect(entryId) { pending = false }
-        return
-    }
-    AlertDialog(
-        onDismissRequest = { pending = false },
-        title = { Text(stringResource(R.string.audio_replace_confirm_title)) },
-        text = { Text(stringResource(R.string.audio_replace_confirm_body)) },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    pending = false
-                    onStartTake(entryId)
-                },
-            ) {
-                Text(stringResource(R.string.audio_re_record))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { pending = false }) { Text(stringResource(R.string.selection_cancel)) }
-        },
-    )
-}
-
+/** 「录一段」与「去设置」共用这一颗键：同一形状，只是文案与去处不同。 */
 @Composable
 private fun TonalRecord(text: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     PrimaryButton(text = stringResource(text), onClick = onClick, modifier = modifier)
