@@ -12,6 +12,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.core.AppContainer
 import com.ilyskyo.wordlens.data.model.EntryObject
+import com.ilyskyo.wordlens.data.model.EntryMood
 import com.ilyskyo.wordlens.data.model.EventCard
 import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.data.model.FsrsState
@@ -330,6 +331,34 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val word = card.words.firstOrNull { it.text.isNotBlank() } ?: return
         val lang = Lang.fromAnyTag(word.languageTag ?: "en") ?: settingsFlow.value.targetLanguage
         speakOrNotify(word.text, lang)
+    }
+
+    /**
+     * 详情页的编辑保存。只改用户能直接看见的三项，其余字段原样写回。
+     *
+     * `summarySource` 必须跟着改：用户重写过的那句话就不再是机器整理的，如果继续顶着
+     * AI 标记，界面上会出现「这句我写的，它说是模型写的」——而 §8.1 要求的正是
+     * 「机器生成的东西必须能被认出来」，反向误标同样是破坏这条约定。
+     */
+    fun onSaveEditing(title: String, summary: String, mood: EntryMood?) {
+        val current = detail.value?.entry ?: return
+        val trimmedSummary = summary.trim()
+        viewModelScope.launch {
+            gradeLock.withLock {
+                container.diary.updateEntry(
+                    current.copy(
+                        title = title.trim().takeIf { it.isNotEmpty() },
+                        summary = trimmedSummary.takeIf { it.isNotEmpty() },
+                        mood = mood,
+                        summarySource = if (trimmedSummary.isEmpty() || trimmedSummary == current.summary) {
+                            current.summarySource
+                        } else {
+                            EntrySource.MANUAL
+                        },
+                    ),
+                )
+            }
+        }
     }
 
     private fun speakOrNotify(text: String, lang: Lang) {

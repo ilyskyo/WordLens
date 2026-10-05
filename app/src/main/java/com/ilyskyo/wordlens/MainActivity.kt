@@ -319,6 +319,7 @@ private fun DetailScene(home: HomeViewModel, onBack: () -> Unit) {
             home.onDeleteEntries(setOf(state.entry.id))
             onBack()
         },
+        onSaveEditing = home::onSaveEditing,
         modifier = Modifier.fillMaxSize(),
     )
 }

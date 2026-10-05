@@ -191,4 +191,10 @@
     <string name="settings_import_hint">카드와 복습 진도만 합쳐요. 사진은 deck.json에 절대 담기지 않고 파일명만 있어, 스티커 카드는 이미지 없이 올 수 있어요.</string>
     <string name="settings_import_done">%1$d개 추가, %2$d개 업데이트</string>
     <string name="settings_import_bad">그 파일을 읽을 수 없어요. 이 앱이 내보낸 deck.json이어야 해요.</string>
+    <!-- 详情页：编辑这一条 -->
+    <string name="detail_edit">제목과 기분 편집</string>
+    <string name="detail_edit_title">이 기록 편집</string>
+    <string name="detail_edit_field_title">제목</string>
+    <string name="detail_edit_field_summary">그날 무슨 일이 있었나요</string>
+    <string name="detail_edit_field_mood">그때의 기분 (한 번 더 누르면 해제)</string>
 </resources>

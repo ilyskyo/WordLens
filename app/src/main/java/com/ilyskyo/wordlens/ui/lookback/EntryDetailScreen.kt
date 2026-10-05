@@ -18,6 +18,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.ilyskyo.wordlens.data.model.EntryMood
+import com.ilyskyo.wordlens.ui.components.OptionChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -119,10 +124,12 @@ fun EntryDetailScreen(
     onDraftChange: (String) -> Unit,
     onSaveEvent: () -> Unit,
     onDelete: () -> Unit = {},
+    onSaveEditing: (title: String, summary: String, mood: EntryMood?) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     var sheetOpen by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
     val clipboard = LocalClipboard.current
     val clipScope = rememberCoroutineScope()
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
@@ -232,6 +239,13 @@ fun EntryDetailScreen(
                             },
                         )
                         SheetAction(
+                            text = stringResource(R.string.detail_edit),
+                            onClick = {
+                                sheetOpen = false
+                                editing = true
+                            },
+                        )
+                        SheetAction(
                             text = stringResource(R.string.detail_delete),
                             destructive = true,
                             onClick = {
@@ -241,6 +255,14 @@ fun EntryDetailScreen(
                         )
                     }
                 }
+            }
+
+            if (editing) {
+                EditEntryDialog(
+                    entry = state.entry,
+                    onSave = onSaveEditing,
+                    onDismiss = { editing = false },
+                )
             }
 
             if (confirmDelete) {
@@ -270,6 +292,80 @@ fun EntryDetailScreen(
             }
         }
     }
+}
+
+/**
+ * 编辑这一条日记：标题、一句话、当时的感受。
+ *
+ * 编辑入口只存在于详情页，**不进拍照流程**（§4.2）：按下快门那一下必须仍然是完整的一个动作。
+ * 想补什么随时回来补，但别让「拍完还要填表」变成放弃记录的理由。
+ *
+ * 草稿用 rememberSaveable：对话框里字打到一半转屏就清空，是最容易被误报成 bug 的一种丢数据。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun EditEntryDialog(
+    entry: Entry,
+    onSave: (title: String, summary: String, mood: EntryMood?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var title by rememberSaveable { mutableStateOf(entry.title.orEmpty()) }
+    var summary by rememberSaveable { mutableStateOf(entry.summary.orEmpty()) }
+    var mood by rememberSaveable(entry.mood) { mutableStateOf(entry.mood) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.detail_edit_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Space.md),
+            ) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text(stringResource(R.string.detail_edit_field_title)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = summary,
+                    onValueChange = { summary = it },
+                    label = { Text(stringResource(R.string.detail_edit_field_summary)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = stringResource(R.string.detail_edit_field_mood),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // 再点一次已选中的那颗就是取消：心情这一项是「可选且轻量」的，
+                // 只能选不能撤会把它变成一个新的枷锁。
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
+                    EntryMood.entries.forEach { option ->
+                        OptionChip(
+                            label = "${option.emoji} ${stringResource(option.labelRes)}",
+                            selected = mood == option,
+                            onClick = { mood = if (mood == option) null else option },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(title, summary, mood)
+                    onDismiss()
+                },
+            ) {
+                Text(stringResource(R.string.capture_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.selection_cancel)) }
+        },
+    )
 }
 
 /** Sheet 里的一行操作。删除项用 error 色，和列表里的多选删除保持同一套语义。 */

@@ -191,4 +191,10 @@
     <string name="settings_import_hint">カードと復習進度だけを取り込みます。写真はずっと deck.json の外（ファイル名だけ）なので、ステッカー付きのカードは画像なしで届くことがあります。</string>
     <string name="settings_import_done">%1$d件追加、%2$d件更新</string>
     <string name="settings_import_bad">このファイルは読めませんでした。このアプリが書き出した deck.json が必要です。</string>
+    <!-- 详情页：编辑这一条 -->
+    <string name="detail_edit">タイトルと気持ちを編集</string>
+    <string name="detail_edit_title">この1件を編集</string>
+    <string name="detail_edit_field_title">タイトル</string>
+    <string name="detail_edit_field_summary">その日なにがあったか</string>
+    <string name="detail_edit_field_mood">そのときの気持ち（もう一度タップで解除）</string>
 </resources>
