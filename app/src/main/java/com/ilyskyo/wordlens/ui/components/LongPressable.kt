@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -40,7 +41,8 @@ import androidx.compose.animation.core.spring
 @Composable
 fun Modifier.longPressable(
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    role: Role? = null,
     pressedScale: Float = 0.97f,
     enabled: Boolean = true,
 ): Modifier {
@@ -58,10 +60,15 @@ fun Modifier.longPressable(
             interactionSource = interactionSource,
             indication = ripple(color = MaterialTheme.colorScheme.primary),
             enabled = enabled,
+            role = role,
             onClick = onClick,
-            onLongClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onLongClick()
+            // 没有长按语义的元素不该震：触觉是在承诺「这里有隐藏动作」，
+            // 震了却什么都不发生，比不震更伤信任。
+            onLongClick = onLongClick?.let { action ->
+                {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    action()
+                }
             },
         )
         .graphicsLayer {

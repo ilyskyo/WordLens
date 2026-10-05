@@ -116,6 +116,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _selected = MutableStateFlow<Set<String>>(emptySet())
 
+    /** 随机漫步最近去过哪几天。只在内存里——它是「别连着重复」，不是用户数据。 */
+    private val walked = ArrayDeque<String>()
+
     /** 非空即处于多选模式。UI 与返回键都只看这一个集合，不再另存一个布尔。 */
     val selected: StateFlow<Set<String>> = _selected.asStateFlow()
 
@@ -168,6 +171,24 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             }
             DueWidgetProvider.refresh(container.appContext)
         }
+    }
+
+    /**
+     * 随机漫步：跳回任意一个过去的日子。
+     *
+     * 排除今天（今天没什么可「回到」的），并记住最近几步去过哪天——真随机会连着三次
+     * 落在同一天，那读起来像坏了而不是随机。
+     *
+     * @return 选中条目的 id；没有可去的过去时返回 null，由界面决定怎么告诉用户。
+     */
+    fun onRandomWalk(): String? {
+        val today = LocalDate.now().toString()
+        val candidates = container.diary.document.value.entries
+            .filter { it.dayKey != today && it.dayKey !in walked }
+        val pick = candidates.randomOrNull() ?: return null
+        walked.addLast(pick.dayKey)
+        while (walked.size > WALK_MEMORY) walked.removeFirst()
+        return pick.id
     }
 
     // ── 条目详情 ────────────────────────────────────────────────────────────
@@ -548,6 +569,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
         /** 详情页只有全屏一张图，可以解得比时间轴大得多——词框要压在真实细节上。 */
         private const val MAX_DETAIL_PX = 1440
+
+        /** 随机漫步的去重窗口：连着八次不重复同一天，够打破「刚去过又回来」的错觉。 */
+        private const val WALK_MEMORY = 8
         private const val BITMAP_CACHE_SIZE = 64
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {

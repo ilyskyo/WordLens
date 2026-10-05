@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import com.ilyskyo.wordlens.R
+import com.ilyskyo.wordlens.ui.components.longPressable
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
@@ -73,6 +74,7 @@ enum class HomeTab(val route: String, @StringRes val labelRes: Int, val icon: Im
 fun HomeTopTabs(
     current: HomeTab,
     onSelect: (HomeTab) -> Unit,
+    onLongPress: (HomeTab) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -92,17 +94,22 @@ fun HomeTopTabs(
                     tab = tab,
                     selected = tab == current,
                     onClick = { onSelect(tab) },
+                    // 只有「回看」有隐藏动作（随机漫步）。「记住」传 null，
+                    // 于是它既不震也不弹——触觉是在承诺这里有动作，不能空口承诺。
+                    onLongClick = if (tab == HomeTab.LOOKBACK) ({ onLongPress(tab) }) else null,
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TabItem(
     tab: HomeTab,
     selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val indicator by animateColorAsState(
@@ -147,7 +154,7 @@ private fun TabItem(
             .clip(CircleShape)
             .background(indicator)
             .padding(horizontal = indicatorWidth, vertical = Space.sm)
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .longPressable(onClick = onClick, onLongClick = onLongClick, role = Role.Tab)
             // 合并语义：读屏念一次「记住，标签页，已选中」，而不是把图标与文字分开念。
             .clearAndSetSemantics {
                 contentDescription = label

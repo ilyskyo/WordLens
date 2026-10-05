@@ -72,6 +72,8 @@ fun WordLensApp(
     onReviewSpeak: () -> Unit = {},
     onMarkMastered: () -> Unit = {},
     onUnmark: (String) -> Unit = {},
+    /** 长按「回看」页签：随机漫步回某一天。 */
+    onRandomWalk: () -> Unit = {},
 ) {
     var tab by remember { mutableStateOf(HomeTab.LOOKBACK) }
     // 外部要求换页（小组件点击）时跟随一次。key 是请求值而不是 tab，所以用户自己点页签
@@ -146,6 +148,7 @@ fun WordLensApp(
             HomeTopTabs(
                 current = tab,
                 onSelect = { tab = it },
+                onLongPress = { if (it == HomeTab.LOOKBACK) onRandomWalk() },
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = tabTop),
             )
         }

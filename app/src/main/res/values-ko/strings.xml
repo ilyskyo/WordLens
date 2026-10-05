@@ -119,4 +119,5 @@
     <string name="detail_delete">이 기록 삭제</string>
     <string name="detail_delete_confirm_title">이 기록을 삭제할까요?</string>
     <string name="detail_delete_confirm_body">사진과 스티커가 완전히 사라져요. 거기서 만든 단어 카드는 남아요.</string>
+    <string name="walk_empty">아직 돌아갈 과거가 없어요</string>
 </resources>

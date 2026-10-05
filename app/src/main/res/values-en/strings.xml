@@ -119,4 +119,5 @@
     <string name="detail_delete">Delete this moment</string>
     <string name="detail_delete_confirm_title">Delete this moment?</string>
     <string name="detail_delete_confirm_body">The photo and its sticker go away for good. Word cards made from it stay.</string>
+    <string name="walk_empty">Nothing to wander back to yet</string>
 </resources>

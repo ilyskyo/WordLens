@@ -119,6 +119,8 @@ class MainActivity : ComponentActivity() {
 private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<HomeTab>) {
     val stack = remember { mutableStateListOf<Page>(Page.Home) }
     val top = stack.lastOrNull() ?: Page.Home
+    // 在组合作用域里取一次：回调 lambda 不是 composable，里面读不到 LocalContext。
+    val appContext = LocalContext.current
     val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val lookback by home.lookback.collectAsStateWithLifecycle()
     val rememberState by home.remember.collectAsStateWithLifecycle()
@@ -161,6 +163,16 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
                             onSelectAllEntries = home::onSelectAllEntries,
                             onClearSelection = home::onClearSelection,
                             onDeleteSelected = home::onDeleteSelected,
+                            onRandomWalk = {
+                                // 没有可去的过去时要说一声：页签震了一下却什么都没发生，
+                                // 读起来像 bug 而不是「日记还是空的」。
+                                val id = home.onRandomWalk()
+                                if (id != null) {
+                                    openEntry(stack, home, id)
+                                } else {
+                                    Toast.makeText(appContext, R.string.walk_empty, Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             onCapture = { stack.add(Page.Capture) },
                             onSearch = { stack.add(Page.Search) },
                             onOpenEntry = { id -> openEntry(stack, home, id) },
@@ -246,6 +258,7 @@ private fun HomeScene(
     onSelectAllEntries: () -> Unit,
     onClearSelection: () -> Unit,
     onDeleteSelected: () -> Unit,
+    onRandomWalk: () -> Unit,
     onCapture: () -> Unit,
     onSearch: () -> Unit,
     onOpenEntry: (String) -> Unit,
@@ -271,6 +284,7 @@ private fun HomeScene(
         onUnmark = home::onUnmark,
         onLookbackSpeak = home::onEntrySpeak,
         onOpenEntry = onOpenEntry,
+        onRandomWalk = onRandomWalk,
         onCapture = onCapture,
         onSearch = onSearch,
     )

@@ -136,4 +136,5 @@
     <string name="detail_delete">删除这条记录</string>
     <string name="detail_delete_confirm_title">删除这条记录？</string>
     <string name="detail_delete_confirm_body">照片和贴纸会一起删除，无法恢复。由它生成的词卡会保留。</string>
+    <string name="walk_empty">还没有可以回去的过去</string>
 </resources>
