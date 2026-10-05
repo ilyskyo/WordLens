@@ -53,7 +53,15 @@ interface SubjectSegmenter {
         val mask: FloatArray,
         val maskWidth: Int,
         val maskHeight: Int,
-        /** The same source image with the background removed, or null if not produced. */
+        /**
+         * **已经裁好的贴纸**：按前景紧框裁过、背景透明，尺寸由这张位图自己说话。
+         *
+         * 契约必须写死在这一层。之前的注释说它是「去掉背景的同一张源图」，而 MediaPipe
+         * 实际给的是工作尺度（长边 1024）的图，ML Kit 干脆给 `null`；取景页于是拿原图
+         * 像素尺度的矩形去裁一张小图，越界异常被静默吞掉，贴纸在所有设备上都是空的。
+         *
+         * 现在两个实现都必须自己完成裁切与合成，调用方**不再碰第二个坐标系**。
+         */
         val cutout: Bitmap?,
         /** Tight bounding box of the foreground in *source image* pixels. */
         val bounds: IntArray,

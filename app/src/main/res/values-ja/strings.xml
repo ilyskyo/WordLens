@@ -89,4 +89,5 @@
     <string name="search_section_diary">記録に出てきた</string>
     <string name="search_empty_title">見つかりませんでした</string>
     <string name="search_empty_body">別の言葉で試すか、一枚撮りましょう。言葉は画面から育ちます。</string>
+    <string name="capture_sticker_failed">今回はステッカーを作れませんでしたが、単語カードは保存されました</string>
 </resources>

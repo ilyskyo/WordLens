@@ -89,4 +89,5 @@
     <string name="search_section_diary">Seen in the diary</string>
     <string name="search_empty_title">Nothing matches</string>
     <string name="search_empty_body">Try another word, or go take a shot — words grow out of the picture.</string>
+    <string name="capture_sticker_failed">The sticker could not be cut out this time — the card was still saved</string>
 </resources>

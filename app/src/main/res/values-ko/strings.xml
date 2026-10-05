@@ -89,4 +89,5 @@
     <string name="search_section_diary">일기에 나온 적 있는</string>
     <string name="search_empty_title">일치하는 게 없어요</string>
     <string name="search_empty_body">다른 단어로 해 보거나 한 장 찍어 보세요. 단어는 화면에서 자라요.</string>
+    <string name="capture_sticker_failed">이번엔 스티커를 오려내지 못했지만 단어 카드는 저장됐어요</string>
 </resources>

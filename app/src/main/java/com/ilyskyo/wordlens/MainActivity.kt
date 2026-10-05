@@ -8,7 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -164,12 +167,18 @@ private fun CaptureHost(container: AppContainer, onDismiss: () -> Unit) {
                 vm.acknowledgeEvent()
                 Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
             }
+            // 抠图失败不影响保存，只说明一句：贴纸是这份记录的加分项，不是必要条件。
+            is CaptureViewModel.Event.StickerFailed -> {
+                vm.acknowledgeEvent()
+                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+            }
             null -> Unit
         }
     }
 
     CaptureScreen(
-        bottomInset = PaddingValues(0.dp),
+        // 快门是这页唯一必须够得着的控件：手势条压在它上面就按不到了。
+        bottomInset = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         state = state,
         onShutter = vm::onShutter,
         onRetake = vm::onRetake,

@@ -4,7 +4,6 @@
 package com.ilyskyo.wordlens.ui.capture
 
 import android.graphics.Bitmap
-import android.graphics.Rect
 import android.util.Log
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
@@ -16,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.core.AppContainer
 import com.ilyskyo.wordlens.data.model.CardOrigin
 import com.ilyskyo.wordlens.data.model.Entry
@@ -56,7 +56,6 @@ import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.math.roundToInt
 
 /**
  * 取景页的控制器：检测循环、点词片推镜头、快门落库。
@@ -87,6 +86,12 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         /** 已落库，取景页可以关闭。savedCard=false 表示走的是「整张照片进回看」。 */
         data class Saved(val entryId: String, val savedCard: Boolean) : Event
         data class Failed(val message: String) : Event
+
+        /**
+         * 抠图两条后端都没给出贴纸。词卡与照片**照常入库**，只是没有贴纸——
+         * 用户点了词片这个动作不能白给（§4.2），但也不该被一个可选的视觉产物卡住。
+         */
+        data class StickerFailed(val message: String) : Event
     }
 
     private val _ui = MutableStateFlow(CaptureUiState())
@@ -379,20 +384,15 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
                 CutResult(null, null)
             } else {
                 val bitmap = upright.bitmap
+                // 词片框归一化在传感器坐标系里；先换算到这张**转正后的显示图**，再取中心做点选。
                 val imageBox = CameraFocusMath.imageBoxFromSensorNorm(selected.chip.box, upright.rotationDegrees)
-                val rect = Rect(
-                    (imageBox.left * bitmap.width).roundToInt().coerceIn(0, bitmap.width - 1),
-                    (imageBox.top * bitmap.height).roundToInt().coerceIn(0, bitmap.height - 1),
-                    (imageBox.right * bitmap.width).roundToInt().coerceIn(1, bitmap.width),
-                    (imageBox.bottom * bitmap.height).roundToInt().coerceIn(1, bitmap.height),
-                )
-                val cutout = segmentCutout(bitmap, rect)
-                val sticker = cutout?.let { cropToRect(it, rect) }
-                val png = sticker?.let { encodePng(it) }
+                val sticker = segmentSticker(bitmap, imageBox)
                 bitmap.recycle()
-                if (cutout != null && cutout !== sticker) cutout.recycle()
-                CutResult(sticker, png)
+                CutResult(sticker, sticker?.let { encodePng(it) })
             }
+        }
+        if (cut.sticker == null) {
+            _event.value = Event.StickerFailed(container.appContext.getString(R.string.capture_sticker_failed))
         }
 
         val stickerName = if (cut.png != null) "st-$entryId.png" else null
@@ -435,25 +435,34 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    private suspend fun segmentCutout(bitmap: Bitmap, rect: Rect): Bitmap? {
-        val segmenters = container.vision.segmenters.value
-        val automatic = segmenters.firstOrNull { it.automatic }
-        val manual = segmenters.firstOrNull { !it.automatic }
-        val backend = automatic ?: manual ?: return null
-        val tap = if (backend.automatic) null else {
-            rect.centerX().toFloat() / bitmap.width to rect.centerY().toFloat() / bitmap.height
+    /**
+     * 拿一张**已经裁好、背景透明**的贴纸。坐标系由后端负责，这里不换算——
+     * 之前正是这一层拿原图像素尺度的矩形去裁工作尺度的位图，越界异常被吞掉后贴纸永远是空的。
+     *
+     * 选后端的顺序按「谁能给出 cutout」，不是按「谁是 automatic」：`automatic ?: manual`
+     * 在装了 Play 服务的机器上正好选中那个当时不给 cutout 的实现，而本来能出图的那条路被跳过。
+     */
+    private suspend fun segmentSticker(bitmap: Bitmap, imageBox: NormBox): Bitmap? {
+        val ordered = container.vision.segmenters.value.sortedBy { if (it.automatic) 0 else 1 }
+        if (ordered.isEmpty()) {
+            Log.w(TAG, "no segmentation backend available on this device")
+            return null
         }
-        return runCatching { backend.segment(bitmap, tap)?.cutout }.getOrNull()
+        val tap = imageBox.centerX to imageBox.centerY
+        for (backend in ordered) {
+            val result = runCatching { backend.segment(bitmap, if (backend.automatic) null else tap) }
+                .onFailure { Log.w(TAG, "segmenter ${backend.displayName} threw", it) }
+                .getOrNull()
+            result?.cutout?.let { return it }
+            Log.w(TAG, "segmenter ${backend.displayName} produced no cutout")
+        }
+        return null
     }
 
-    /** 只裁不缩：白描边由覆盖层与时间轴画，不在这里烧进图里。 */
-    private fun cropToRect(source: Bitmap, rect: Rect): Bitmap? = runCatching {
-        Bitmap.createBitmap(source, rect.left, rect.top, rect.width(), rect.height())
-    }.getOrNull()
-
+    /** 只编码不缩放：白描边由覆盖层与时间轴画，不在这里烧进图里。 */
     private fun encodePng(bitmap: Bitmap): ByteArray? = runCatching {
         ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
-    }.getOrNull()
+    }.onFailure { Log.w(TAG, "PNG encode failed for sticker", it) }.getOrNull()
 
     private fun buildEntry(
         entryId: String,

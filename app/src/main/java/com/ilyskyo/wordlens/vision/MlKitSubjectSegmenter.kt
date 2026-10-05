@@ -5,6 +5,7 @@ package com.ilyskyo.wordlens.vision
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.util.Log
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.vision.common.InputImage
@@ -85,14 +86,66 @@ class MlKitSubjectSegmenter(context: Context) : SubjectSegmenter {
             }
 
             val bounds = tightBounds(mask, width, height, bitmap.width, bitmap.height)
+            if (small !== bitmap) small.recycle()
             SubjectSegmenter.Result(
                 mask = mask,
                 maskWidth = width,
                 maskHeight = height,
-                cutout = null,
+                // 以前这里是硬编码的 null，而取景页优先选 automatic —— 装了 Play 服务的机器
+                // 反而一张贴纸都拿不到。mask 本身就够用，剩下的只是把它变成 alpha 通道。
+                cutout = sticker(bitmap, mask, width, height, bounds),
                 bounds = bounds,
             )
         }
+
+    /**
+     * 由 160 尺度的置信度 mask 合成一张裁好、背景透明的贴纸。
+     *
+     * 顺序很重要：**先算输出尺寸，再一次 crop+scale**。先按原分辨率裁出一块 2560×1920 再缩放，
+     * 峰值内存是 19MB；`createBitmap(src, x, y, w, h, matrix, filter)` 只分配最终那张
+     * （长边 [MAX_STICKER_EDGE]），峰值约 4MB。
+     */
+    private fun sticker(
+        source: Bitmap,
+        mask: FloatArray,
+        maskWidth: Int,
+        maskHeight: Int,
+        bounds: IntArray,
+    ): Bitmap? {
+        val rect = CutoutGeometry.cropRect(
+            bounds = bounds,
+            sourceWidth = source.width,
+            sourceHeight = source.height,
+            cutoutWidth = source.width,
+            cutoutHeight = source.height,
+            padCutoutPx = STICKER_PAD_PX,
+        ) ?: return null
+        val size = CutoutGeometry.capRegion(rect, MAX_STICKER_EDGE)
+        val outWidth = size[2]
+        val outHeight = size[3]
+
+        val scale = Matrix().apply {
+            postScale(outWidth.toFloat() / rect[2], outHeight.toFloat() / rect[3])
+        }
+        val cropped = runCatching {
+            Bitmap.createBitmap(source, rect[0], rect[1], rect[2], rect[3], scale, true)
+        }.getOrNull() ?: return null
+
+        val pixels = IntArray(outWidth * outHeight)
+        cropped.getPixels(pixels, 0, outWidth, 0, 0, outWidth, outHeight)
+        val alpha = AlphaMatte.alphaForRegion(
+            mask = mask,
+            maskWidth = maskWidth,
+            maskHeight = maskHeight,
+            sourceWidth = source.width,
+            sourceHeight = source.height,
+            region = rect,
+            outWidth = outWidth,
+            outHeight = outHeight,
+        )
+        cropped.setPixels(AlphaMatte.applyAlpha(pixels, alpha), 0, outWidth, 0, 0, outWidth, outHeight)
+        return cropped
+    }
 
     override fun close() {
         runCatching { segmenter?.close() }
@@ -135,6 +188,12 @@ class MlKitSubjectSegmenter(context: Context) : SubjectSegmenter {
     private companion object {
         const val TAG = "MlKitSegmenter"
         const val CUTOFF = 0.5f
+
+        /** 贴纸长边上限。界面最大也就 300dp，再细只是多占内存。 */
+        const val MAX_STICKER_EDGE = 1024
+
+        /** 紧框四周留的**原图像素**边距，让 4dp 白描边不至于切到物体边缘。 */
+        const val STICKER_PAD_PX = 12
 
         fun downscale(source: Bitmap, edge: Int): Bitmap {
             val longEdge = maxOf(source.width, source.height)

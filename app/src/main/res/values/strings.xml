@@ -106,4 +106,5 @@
     <string name="search_section_diary">日记里出现过</string>
     <string name="search_empty_title">没有匹配的东西</string>
     <string name="search_empty_body">换个词试试，或者去拍一张——词是从画面里长出来的。</string>
+    <string name="capture_sticker_failed">这次没能抠出贴纸，词卡照常保存</string>
 </resources>

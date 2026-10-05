@@ -83,14 +83,15 @@ class MagicTouchSegmenter(private val context: Context) : SubjectSegmenter {
             val engine = ensureLoaded() ?: return@withContext null
             val work = downscale(bitmap, WORK_EDGE)
 
-            val cutout = runSegment(engine, work, point) ?: return@withContext null
+            val rgba = runSegment(engine, work, point) ?: return@withContext null
+            if (work !== bitmap) work.recycle()
 
             // Alpha is the mask. Reading it once and deriving everything from it keeps the mask
             // and the cut-out provably consistent.
-            val width = cutout.width
-            val height = cutout.height
+            val width = rgba.width
+            val height = rgba.height
             val pixels = IntArray(width * height)
-            cutout.getPixels(pixels, 0, width, 0, 0, width, height)
+            rgba.getPixels(pixels, 0, width, 0, 0, width, height)
 
             val mask = FloatArray(width * height)
             for (i in 0 until pixels.size) {
@@ -100,13 +101,29 @@ class MagicTouchSegmenter(private val context: Context) : SubjectSegmenter {
             // Downscale the mask for the geometry pass; 160px is plenty and keeps
             // `analyseMask` cheap enough to run inline.
             val (maskW, maskH, scaledMask) = downscaleMask(mask, width, height, SubjectSegmenter.MASK_EDGE)
+            val bounds = tightBounds(scaledMask, maskW, maskH, bitmap.width, bitmap.height)
+
+            // 贴纸在 rgba 自己的尺度上裁。bounds 是**原图像素**尺度，两者不同——直接把
+            // bounds 的数值拿去 createBitmap 就是那个静默失效的 bug，所以必须过 CutoutGeometry。
+            val sticker = CutoutGeometry.cropRect(
+                bounds = bounds,
+                sourceWidth = bitmap.width,
+                sourceHeight = bitmap.height,
+                cutoutWidth = width,
+                cutoutHeight = height,
+                padCutoutPx = STICKER_PAD_PX,
+            )?.let { rect -> Bitmap.createBitmap(rgba, rect[0], rect[1], rect[2], rect[3]) }
+            if (sticker == null) {
+                Log.w(TAG, "segmentation produced a degenerate foreground box; no sticker")
+            }
+            if (sticker !== rgba) rgba.recycle()
 
             SubjectSegmenter.Result(
                 mask = scaledMask,
                 maskWidth = maskW,
                 maskHeight = maskH,
-                cutout = cutout,
-                bounds = tightBounds(scaledMask, maskW, maskH, bitmap.width, bitmap.height),
+                cutout = sticker,
+                bounds = bounds,
             )
         }
 
@@ -231,6 +248,12 @@ class MagicTouchSegmenter(private val context: Context) : SubjectSegmenter {
 
         /** Long edge the model runs at. A sticker never needs more, and this bounds memory. */
         const val WORK_EDGE = 1024
+
+        /**
+         * 贴纸四周留的工作尺度像素边距。紧框是按 ALPHA_CUTOFF 算的，不留这一点余量，
+         * 界面上那圈 4dp 白描边就会切到物体边缘（毛发、杯柄这类最先到）。
+         */
+        const val STICKER_PAD_PX = 8
 
         fun downscale(source: Bitmap, edge: Int): Bitmap {
             val longEdge = maxOf(source.width, source.height)
