@@ -312,12 +312,15 @@ app/src/main/java/com/ilyskyo/wordlens/
 │   ├── MagicTouchSegmenter · SubjectSegmenter · MlKitSubjectSegmenter
 │   ├── CutoutGeometry.kt             前景框：原图像素尺度 → 贴纸位图尺度并夹紧（修「贴纸一直是空的且不报错」）
 │   ├── AlphaMatte.kt                 低分辨率 mask → 贴纸 alpha，双线性放大（die-cut 白描边不留台阶）
+│   ├── PhotoEntryPipeline.kt         「一张照片 → 一条条目」的唯一一条流水线：快门与相册导入共用
 │   └── camera/
 │       ├── CameraFocusMath.kt         纯几何（19 测试）
 │       ├── OverlayGeometry.kt         框 → 屏幕坐标（15 测试）
 │       ├── CameraFocusController.kt   逐帧下发裁切
 │       ├── DecodeSizing.kt            inSampleSize + 精确缩放的两步算术（纯函数；滚动时 OOM 的成因在这里）
 │       ├── PhotoDecoder.kt            解码即按 EXIF 转正
+│       ├── GalleryPhoto.kt            照片选择器选中的那张：整份拷进私有目录 + 带回时刻线索（零权限）
+│       ├── PhotoTiming.kt             「这张照片属于哪一天」的优先级：EXIF 拍摄时刻 → 修改时刻 → 现在（纯函数）
 │       └── YuvFrames.kt               YUV_420_888 → ARGB（11 测试）
 ├── widget/DueWidgetProvider.kt
 └── ui/
@@ -422,7 +425,6 @@ app/src/main/java/com/ilyskyo/wordlens/
 | 真机验证 | 见上面「进行中」，这是发布前唯一的硬门槛。详情页的词片位置是坐标链路的终点，也是最需要先看一眼的一段 |
 | 四语词典 | 只有 `lexicon/en.json`。中/日/韩的词条需要从其他来源补，`LexiconEntry.words` 的结构已经支持多语言 |
 | release 签名 | 签名四项写在 `local.properties`，缺省产物不签名（见 `docs/BUILD.md`）；要发版需要一个长期 keystore |
-| 小组件配色 | RemoteViews 用不了 MaterialTheme，深色模式下读数颜色还是硬编码的一组，需要一套 night 资源 |
 | `PROCESS_TEXT` / `SEND` intent | manifest 里声明了，接收端未实现 |
 
 ### ✅ 已决定：模型文件直接提交
