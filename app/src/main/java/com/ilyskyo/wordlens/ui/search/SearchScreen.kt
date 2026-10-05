@@ -79,6 +79,18 @@ fun SearchScreen(
             }
 
             val blank = state.query.isBlank()
+            if (blank && state.collected.isEmpty()) {
+                // 全新装机第一次点进来就是这一格：输入框下面整片空白，没有任何东西说明
+                // 「这一页能干什么」。空着不是中立的选择——用户只会以为自己点错了页面。
+                // 牌组里已经有东西时不显示，因为那时「最近」那一栏本身就是回答。
+                EmptyState(
+                    emoji = "\uD83D\uDCD6",
+                    title = stringResource(R.string.search_blank_title),
+                    body = stringResource(R.string.search_blank_body),
+                    modifier = Modifier.fillMaxSize(),
+                )
+                return@Column
+            }
             if (!blank && state.collected.isEmpty() && state.suggestions.isEmpty() && state.diaryHits.isEmpty()) {
                 EmptyState(
                     emoji = "\uD83D\uDD0D",

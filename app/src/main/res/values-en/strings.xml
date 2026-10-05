@@ -256,6 +256,8 @@
     <string name="settings_word_add">Add it</string>
     <string name="settings_word_remove_desc">Delete this entry</string>
     <string name="lookback_load_older">%1$d earlier records · Load</string>
+    <string name="search_blank_title">Type a word to look up</string>
+    <string name="search_blank_body">This searches your deck, the dictionary and this diary at once. Anything in the dictionary can be added to your deck with one tap, and it then joins the review queue.</string>
     <string name="notice_word_added">“%1$s” is in your dictionary now</string>
     <string name="notice_word_removed">That entry was deleted</string>
     <string name="notice_word_failed">That was not written; the dictionary file may be unreadable</string>

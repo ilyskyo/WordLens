@@ -271,6 +271,8 @@
     <string name="settings_word_add">加进去</string>
     <string name="settings_word_remove_desc">删掉这条</string>
     <string name="lookback_load_older">更早的还有 %1$d 条 · 载入</string>
+    <string name="search_blank_title">想查什么，打进来</string>
+    <string name="search_blank_body">这里同时找你的牌组、词典和这本日记。词典里的任何一条都能一键收进牌组，收下之后就进复习队列。</string>
     <string name="notice_word_added">「%1$s」已经加进词典</string>
     <string name="notice_word_removed">已经删掉</string>
     <string name="notice_word_failed">这条没写进去，词典文件可能正读不出来</string>

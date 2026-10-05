@@ -49,6 +49,29 @@ data class SearchUiState(
 )
 
 /**
+ * 只留下「牌组里确实还找得到这个词」的那些标记，`id` 是词典条目 id。
+ *
+ * 单独抽成一个不碰 Android 的函数有两个理由：这条判据是这次修复的全部实质内容，而
+ * `SearchViewModel` 需要 `AppContainer`（JVM 里造不出来）；另外它必须对**认不出的 id** 保守——
+ * 用户词典里删掉的一条也会留下标记，那种 id 查不到词头，留着就等于永久灰着一个按钮。
+ *
+ * 判据用规范化的词头而不是 id：牌组里的卡是 `toCard` 发的新 id，与词典条目 id 天生不同源，
+ * 而「这个词我收过了」问的本来就是词，不是哪一行 JSON。
+ */
+internal fun Set<String>.retainingOwned(
+    owned: Set<String>,
+    headwordOf: (String) -> String?,
+): Set<String> {
+    if (isEmpty()) return emptySet()
+    val kept = mutableSetOf<String>()
+    for (id in this) {
+        val word = headwordOf(id) ?: continue
+        if (LexiconIndex.normalize(word) in owned) kept += id
+    }
+    return kept
+}
+
+/**
  * 搜索 / 添加页。
  *
  * ## 为什么词库不是第三个标签
@@ -76,7 +99,12 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
         // `added` 必须是第二个 combine 的**输入**而不是 build 里顺手读的一份值：
         // 收录成功后，牌组流的变化会先于 `added.value` 写下来到达这里，于是那一格的
         // 「已收」有没有出现取决于两次写入谁先跑到——而它没有第二次机会被重算。
-        .combine(added) { found, just -> found.copy(justAdded = just) }
+        //
+        // 过一道 `stillOwned` 是因为同一个标记会**永不失效**：用户收下 soba、之后把那张卡删了，
+        // 词典那一格会重新出现在建议里（`owned` 那层过滤放它回来了），而按钮仍然按着
+        // `added` 里的旧标记灰着、写着「已收」。那就是一个说谎的读数加一条死路——
+        // 唯一的出路是退出这一页让 ViewModel 死掉。
+        .combine(added) { found, just -> found.copy(justAdded = stillOwned(just)) }
         // 每一次按键都要在 12000 条词典里做线性搜索，再把整本日记扫一遍匹配标题/摘要/关键词/物体。
         // combine 的变换跑在**下游收集器**的上下文里，而下游是 viewModelScope（Main.immediate）：
         // 不加这一句就是每敲一个字在主线程扫一遍词典。首页的位图解码早就走同样的路。
@@ -86,6 +114,12 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
     fun onQueryChange(text: String) {
         query.value = text
     }
+
+    /** 标记里还在牌组的那些。见上面 `combine(added)` 那段：删掉一张卡，那个词就该能重新收。 */
+    private fun stillOwned(markers: Set<String>): Set<String> = markers.retainingOwned(
+        owned = container.deck.snapshot().mapTo(mutableSetOf()) { LexiconIndex.normalize(it.headword) },
+        headwordOf = { id -> container.lexicon.byId(id)?.headword },
+    )
 
     /**
      * 收录词典里的一条。
