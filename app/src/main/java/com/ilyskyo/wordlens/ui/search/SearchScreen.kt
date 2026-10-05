@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,7 +51,8 @@ fun SearchScreen(
     modifier: Modifier = Modifier,
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        // 整页不透明，内容一律退到系统栏之内（背景仍铺满，避免状态栏下露出色块边界）。
+        Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

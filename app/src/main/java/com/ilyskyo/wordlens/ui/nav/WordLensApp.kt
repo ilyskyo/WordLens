@@ -10,8 +10,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,6 +74,13 @@ fun WordLensApp(
     // 目前只有主页面，没有二级路由；一旦加了详情页，这里改成跟随导航栈深度。
     val atTopLevel = true
 
+    // 悬浮页签不进 Scaffold.topBar（照片要从它下方穿过），代价是避让得自己算。
+    // enableEdgeToEdge 之后状态栏真实高度只有 WindowInsets 知道——写死 dp 一定会被
+    // 刘海屏和各家 ROM 的状态栏打穿。
+    val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val tabTop = statusBar + TAB_TOP_GAP
+    val contentTop = tabTop + TAB_PILL_HEIGHT + TAB_CONTENT_GAP
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         // 顶部与底部控件都是浮在内容之上的，Scaffold 自己不消费内边距：
@@ -100,6 +110,7 @@ fun WordLensApp(
             ) { current ->
                 when (current) {
                     HomeTab.LOOKBACK -> LookbackScreen(
+                        topInset = PaddingValues(top = contentTop),
                         bottomInset = PaddingValues(bottom = BOTTOM_INSET),
                         state = lookbackState,
                         onOpenEntry = onOpenEntry,
@@ -108,6 +119,7 @@ fun WordLensApp(
                     )
 
                     HomeTab.REMEMBER -> RememberScreen(
+                        topInset = PaddingValues(top = contentTop),
                         bottomInset = PaddingValues(bottom = BOTTOM_INSET),
                         state = rememberState,
                         onMaterialChange = onMaterialChange,
@@ -125,9 +137,7 @@ fun WordLensApp(
             HomeTopTabs(
                 current = tab,
                 onSelect = { tab = it },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = Space_topInset),
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = tabTop),
             )
         }
     }
@@ -135,8 +145,14 @@ fun WordLensApp(
 
 private const val TAB_MS = 200
 
-/** 顶部页签距屏幕顶端的距离，给状态栏留出空间。 */
-private val Space_topInset = 8.dp
+/** 页签胶囊距状态栏下沿的间隙。 */
+private val TAB_TOP_GAP = 8.dp
+
+/** 页签胶囊自身高度，用于推算内容起始线。 */
+private val TAB_PILL_HEIGHT = 52.dp
+
+/** 内容起始线在胶囊之下再留的呼吸距离。 */
+private val TAB_CONTENT_GAP = 12.dp
 
 /** 底部动作胶囊大致占的高度，供页面内容避让。 */
 private val BOTTOM_INSET = 72.dp

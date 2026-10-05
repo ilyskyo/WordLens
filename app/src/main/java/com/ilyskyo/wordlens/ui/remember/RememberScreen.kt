@@ -127,6 +127,7 @@ data class RememberCard(
  */
 @Composable
 fun RememberScreen(
+    topInset: PaddingValues,
     bottomInset: PaddingValues,
     state: RememberUiState = RememberUiState(),
     onMaterialChange: (StudyMaterial) -> Unit = {},
@@ -141,7 +142,8 @@ fun RememberScreen(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = Space.lg)
-            .padding(top = Space.md),
+            // 悬浮页签盖不住第一行：材料选择行与进度条都在避让范围之内。
+            .padding(top = topInset.calculateTopPadding()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         MaterialRow(
@@ -599,6 +601,7 @@ private const val FLIP_CARD_ASPECT = 320f / 420f
 private fun RememberWordPreview() {
     WordLensTheme {
         RememberScreen(
+            topInset = PaddingValues(0.dp),
             bottomInset = PaddingValues(0.dp),
             state = RememberUiState(
                 done = 3,
@@ -626,6 +629,7 @@ private fun RememberWordPreview() {
 private fun RememberEventPreview() {
     WordLensTheme {
         RememberScreen(
+            topInset = PaddingValues(0.dp),
             bottomInset = PaddingValues(0.dp),
             state = RememberUiState(
                 material = StudyMaterial.EVENTS,
@@ -655,6 +659,10 @@ private fun RememberEventPreview() {
 @Composable
 private fun RememberEmptyPreview() {
     WordLensTheme {
-        RememberScreen(bottomInset = PaddingValues(0.dp), state = RememberUiState())
+        RememberScreen(
+            topInset = PaddingValues(0.dp),
+            bottomInset = PaddingValues(0.dp),
+            state = RememberUiState(),
+        )
     }
 }

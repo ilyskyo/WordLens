@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -233,8 +234,10 @@ private fun CaptureTopBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            // 顶部渐变遮罩：保证白色文字在亮天空上也读得清。
+            // 顶部渐变遮罩：保证白色文字在亮天空上也读得清。遮罩要一直铺到屏幕顶端，
+            // 避让放在它之后——否则状态栏那一条既没有遮罩也没有留白，标题会压在时钟上。
             .background(Brush.verticalGradient(listOf(Color(0xB3000000), Color(0x00000000))))
+            .statusBarsPadding()
             .padding(horizontal = Space.md, vertical = Space.sm),
         verticalArrangement = Arrangement.spacedBy(Space.sm),
     ) {

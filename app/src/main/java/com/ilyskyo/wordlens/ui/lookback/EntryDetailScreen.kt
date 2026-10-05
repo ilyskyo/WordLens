@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -92,7 +93,8 @@ fun EntryDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        // 不透明整页：关闭按钮不能压在状态栏时钟上，正文末尾也不能藏进手势条。
+        Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

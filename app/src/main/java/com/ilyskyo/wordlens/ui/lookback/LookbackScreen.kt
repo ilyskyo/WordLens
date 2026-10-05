@@ -110,6 +110,7 @@ data class CardWord(
  */
 @Composable
 fun LookbackScreen(
+    topInset: PaddingValues,
     bottomInset: PaddingValues,
     state: LookbackUiState = LookbackUiState(),
     onOpenEntry: (String) -> Unit = {},
@@ -117,7 +118,11 @@ fun LookbackScreen(
     modifier: Modifier = Modifier,
 ) {
     if (state.groups.isEmpty()) {
-        Box(modifier = modifier.fillMaxSize()) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(topInset),
+        ) {
             EmptyState(
                 emoji = "\uD83D\uDCF7",
                 title = stringResource(R.string.lookback_empty_title),
@@ -133,7 +138,8 @@ fun LookbackScreen(
         contentPadding = PaddingValues(
             start = Space.md,
             end = Space.md,
-            top = Space.sm,
+            // 静止时问候语不能被悬浮页签压住；滚动起来照片从页签下方穿过仍是想要的效果。
+            top = topInset.calculateTopPadding() + Space.sm,
             bottom = bottomInset.calculateBottomPadding() + Space.xl,
         ),
         verticalArrangement = Arrangement.spacedBy(Space.md),
@@ -479,6 +485,7 @@ private const val entryAspectRatio = 3f / 2f
 private fun LookbackPreview() {
     WordLensTheme {
         LookbackScreen(
+            topInset = PaddingValues(0.dp),
             bottomInset = PaddingValues(0.dp),
             state = LookbackUiState(
                 todayCount = 2,
@@ -528,6 +535,10 @@ private fun LookbackPreview() {
 @Composable
 private fun LookbackEmptyPreview() {
     WordLensTheme {
-        LookbackScreen(bottomInset = PaddingValues(0.dp), state = LookbackUiState())
+        LookbackScreen(
+            topInset = PaddingValues(0.dp),
+            bottomInset = PaddingValues(0.dp),
+            state = LookbackUiState(),
+        )
     }
 }

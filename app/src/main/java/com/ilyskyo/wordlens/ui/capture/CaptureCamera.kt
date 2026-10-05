@@ -14,11 +14,13 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
@@ -54,15 +56,16 @@ fun CaptureCamera(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val previewView = rememberPreviewView(context)
-    androidx.compose.foundation.layout.Box(modifier = modifier) {
-        androidx.compose.ui.viewinterop.AndroidView(
-            factory = { previewView },
-            modifier = Modifier
-                .matchParentSize()
-                // 推镜头的目标倍率按取景控件的真实宽高比算，尺寸必须实时上报。
-                .onSizeChanged { viewModel.updateViewAspect(it.width, it.height) },
-        )
-    }
+    // 尺寸必须自己挣：调用方普遍不传 modifier（取景器就该占满整页）。这里曾经用一层
+    // wrap-content 的 Box 包 AndroidView，而 AndroidView 用 matchParentSize 去够父级——
+    // 父级又按子级量尺寸，结果是 0x0，PreviewView 拿不到 surface，取景器整块不可见。
+    AndroidView(
+        factory = { previewView },
+        modifier = modifier
+            .fillMaxSize()
+            // 推镜头的目标倍率按取景控件的真实宽高比算，尺寸必须实时上报。
+            .onSizeChanged { viewModel.updateViewAspect(it.width, it.height) },
+    )
 
     LaunchedEffect(lifecycleOwner, previewView) {
         try {

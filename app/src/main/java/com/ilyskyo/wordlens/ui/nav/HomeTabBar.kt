@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -38,7 +39,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
@@ -195,6 +195,8 @@ fun HomeBottomActions(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            // 悬浮动作贴着屏幕底边，手势条会压在按钮上；让位之后再谈视觉间距。
+            .navigationBarsPadding()
             .padding(horizontal = ACTION_INSET, vertical = Space.sm)
             .padding(bottom = Space.sm),
         contentAlignment = BottomCenter,
