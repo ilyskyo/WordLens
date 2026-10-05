@@ -186,6 +186,10 @@ CI 里挂在 `assembleRelease` 之后、体积报告与 `upload-artifact` 之前
    `Vibrator`，绕过了 `View.performHapticFeedback` 那个会自动核对开关的路径，所以只能自己问；
    中途改设置要立刻生效，不需要重进 App。
 8. **设置页生效**：拖保持率 → 复习页四个按钮预告的间隔要跟着变；换评级色系 → 四档按钮的色相要变。
+   「我的词条」那两条也要走通：补一个 App 认不出的词（词 + 意思）→ 回搜索页或取景页手输同一个词，
+   **不该再撞**「词典里还没有它，暂时不能进复习队列」；删掉它 → 那句重新出现。
+   另外把 `filesDir/lexicon/user-en.json` 手动改坏（多一个逗号）→ 设置里要出现那句红字说明是哪一份，
+   而不是安静地退回内置词典（那一份文件是用户自己能打开改的文本，报不出原因就等于没报错）。
 9. **深色模式的两处 XML 资源**：小组件与冷启动。night 资源已经补上
    （`values-night/colors.xml` 的 `wl_background` / `widget_*`，`values-night/themes.xml` 覆盖
    `Theme.WordLens` 的父主题与 `windowLightStatusBar`），要看的是两件事：

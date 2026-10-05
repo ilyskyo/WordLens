@@ -252,6 +252,7 @@
     <string name="settings_word_add">加える</string>
     <string name="settings_word_remove_desc">この項目を削除</string>
     <string name="lookback_load_older">もっと前の記録が %1$d 件 · 読み込む</string>
+    <string name="settings_lexicon_warnings">辞書ファイル %1$d 個を読み取れませんでした：%2$s。手で編集したならカンマと引用符を確認してください。読み取れないファイルは丸ごとスキップされます</string>
     <string name="search_blank_title">言葉を打って調べます</string>
     <string name="search_blank_body">マイカード・辞書・この日記をまとめて探します。辞書のどの項目もワンタップでマイカードに加えられ、加えると復習リストに入ります。</string>
     <string name="search_more_suggest">辞書にもっと項目が合っています · もっと具体的な言葉を打ってください</string>

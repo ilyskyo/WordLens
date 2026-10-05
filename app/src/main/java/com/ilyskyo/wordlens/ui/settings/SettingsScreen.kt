@@ -98,6 +98,7 @@ fun SettingsScreen(
     onRecheckVoices: () -> Unit = {},
     onImport: (android.net.Uri) -> Unit = {},
     userWords: List<LexiconEntry> = emptyList(),
+    lexiconWarnings: List<String> = emptyList(),
     onAddWord: (word: String, gloss: String) -> Unit = { _, _ -> },
     onRemoveWord: (id: String) -> Unit = {},
     onCloudEnabled: (Boolean) -> Unit = {},
@@ -212,6 +213,7 @@ fun SettingsScreen(
 
                 MyWordsSection(
                     words = userWords,
+                    warnings = lexiconWarnings,
                     onAdd = onAddWord,
                     onRemove = onRemoveWord,
                 )
@@ -565,6 +567,7 @@ private const val SEPARATOR = "  ·  "
 @Composable
 private fun MyWordsSection(
     words: List<LexiconEntry>,
+    warnings: List<String>,
     onAdd: (word: String, gloss: String) -> Unit,
     onRemove: (id: String) -> Unit,
 ) {
@@ -627,6 +630,16 @@ private fun MyWordsSection(
             },
             enabled = word.isNotBlank() && meaning.isNotBlank(),
         )
+        if (warnings.isNotEmpty()) {
+            // 手改 JSON 最常见的结果是多一个逗号，而那份文件会被整份跳过、界面安静地退回内置词典。
+            // 不说的话，用户得到的体验是「我加的词 App 不认」，真正的原因却在十个屏幕之外。
+            // 文件名不翻译：那是磁盘上的路径片段，翻了就找不到文件了。
+            Text(
+                text = stringResource(R.string.settings_lexicon_warnings, warnings.size, warnings.joinToString(", ")),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 

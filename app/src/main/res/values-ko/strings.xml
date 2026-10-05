@@ -252,6 +252,7 @@
     <string name="settings_word_add">추가하기</string>
     <string name="settings_word_remove_desc">이 항목 삭제</string>
     <string name="lookback_load_older">이전의 기록 %1$d개 · 불러오기</string>
+    <string name="settings_lexicon_warnings">사전 파일 %1$d개를 읽지 못했어요: %2$s. 직접 편집했다면 쉼표와 따옴표를 확인해 주세요. 읽지 못한 파일은 통째로 건너뛰어요</string>
     <string name="search_blank_title">찾을 단어를 적어 보세요</string>
     <string name="search_blank_body">내 단어장·사전·이 일기를 함께 찾아요. 사전의 어떤 항목이든 탭 하나로 단어장에 넣을 수 있고, 넣으면 복습 목록에 들어가요.</string>
     <string name="search_more_suggest">사전에서 더 많이 닿아요 · 더 구체적인 단어를 적어 보세요</string>

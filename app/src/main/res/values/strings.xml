@@ -271,6 +271,7 @@
     <string name="settings_word_add">加进去</string>
     <string name="settings_word_remove_desc">删掉这条</string>
     <string name="lookback_load_older">更早的还有 %1$d 条 · 载入</string>
+    <string name="settings_lexicon_warnings">有 %1$d 份词典文件读不出来：%2$s。自己改过那个文件的话，检查逗号与引号——读不出来的那一份会整份被跳过</string>
     <string name="search_blank_title">想查什么，打进来</string>
     <string name="search_blank_body">这里同时找你的牌组、词典和这本日记。词典里的任何一条都能一键收进牌组，收下之后就进复习队列。</string>
     <string name="search_more_suggest">词典里还有更多条匹配 · 把词打得更具体一些</string>

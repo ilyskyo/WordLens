@@ -87,6 +87,16 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val userWords: StateFlow<List<LexiconEntry>> = container.lexicon.userEntries
 
     /**
+     * 读不出来的词典文件名。
+     *
+     * 这一格必须露在界面上，因为那一层文件是**用户自己能改的文本**：说明书把「拿编辑器打开
+     * `user-en.json` 自己补一条」当成这本 App 的成长路径，而手改 JSON 最常见的结果是多一个逗号。
+     * 现在那一份会被整份跳过、界面安静地退回内置词典——用户以为自己加的词没生效是「App 不认」，
+     * 而真正的原因他在十个屏幕之外。
+     */
+    val lexiconWarnings: StateFlow<List<String>> = container.lexicon.loadWarnings
+
+    /**
      * 让「我不认识这个词」变成一条走得通的路。
      *
      * 这条链本来到 `manual_not_found` 就断了：取景页认不出那个东西，用户手写下来，App 说

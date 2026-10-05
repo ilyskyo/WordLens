@@ -52,10 +52,10 @@ class LexiconRepository(
     /**
      * 哪一份词典文件读不出来。
      *
-     * 这里原来写着「surfaced in Settings」——设置页从头到尾没有读它，所以那句话说的是一件
-     * 没人做的事。留着这条流仍然是对的（词典文件是用户可以直接改的文本，读不出来必须留痕），
-     * 但接到界面上是另一件事，还没有做：现在能看见的只有「词条数量」与「这条没写进去」，
-     * 而一份坏掉的内置词典是一份都不进索引的——那需要一句用户看得懂、又不必自己去修的话。
+     * 这里原来写着「surfaced in Settings」而设置页从头到尾没读它，所以那句话说的是一件没人做的事；
+     * 现在接上了（设置 → 我的词条 下面那一行红字），因为这一层的文件是**用户自己能改的文本**，
+     * 而手改 JSON 最常见的结果是多一个逗号——那份会被整份跳过、安静地退回内置词典，
+     * 用户只会以为自己加的词「App 不认」。原因必须在他能看见的地方说一句。
      */
     val loadWarnings: StateFlow<List<String>> get() = _warnings
     private val _warnings = MutableStateFlow<List<String>>(emptyList())

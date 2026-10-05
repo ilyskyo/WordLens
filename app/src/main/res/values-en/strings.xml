@@ -256,6 +256,7 @@
     <string name="settings_word_add">Add it</string>
     <string name="settings_word_remove_desc">Delete this entry</string>
     <string name="lookback_load_older">%1$d earlier records · Load</string>
+    <string name="settings_lexicon_warnings">%1$d dictionary file(s) could not be read: %2$s. If you edited one by hand, check the commas and quotes - an unreadable file is skipped whole</string>
     <string name="search_blank_title">Type a word to look up</string>
     <string name="search_blank_body">This searches your deck, the dictionary and this diary at once. Anything in the dictionary can be added to your deck with one tap, and it then joins the review queue.</string>
     <string name="search_more_suggest">The dictionary has more matches · type a more specific word</string>
