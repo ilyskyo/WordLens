@@ -171,4 +171,7 @@
     <string name="notification_channel_reminder_desc">Once a day: how many cards are still waiting</string>
     <string name="notification_due_title">%1$d cards are due today</string>
     <string name="notification_due_body">Open WordLens and file them into long-term memory</string>
+    <!-- 发音失败的可行动提示 -->
+    <string name="notice_tts_silent">Nothing was heard. The speech engine on this device cannot voice that word.</string>
+    <string name="notice_tts_unsupported">This device’s speech engine has no %1$s voice. Install an engine with %1$s support to hear it.</string>
 </resources>

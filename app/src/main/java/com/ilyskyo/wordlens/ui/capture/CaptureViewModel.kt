@@ -92,6 +92,12 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
          * 用户点了词片这个动作不能白给（§4.2），但也不该被一个可选的视觉产物卡住。
          */
         data class StickerFailed(val message: String) : Event
+
+        /**
+         * 点了发音但没出声。这颗按钮是本应用使用频率最高的操作之一，
+         * 静默失败会被当成「App 坏了」，所以必须说出来，而且说清能不能改善。
+         */
+        data class SpeakHint(val message: String) : Event
     }
 
     private val _ui = MutableStateFlow(CaptureUiState())
@@ -523,7 +529,11 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
 
     fun onSpeak() {
         val word = _ui.value.headword ?: return
-        container.speaker.speak(word, settingsFlow.value.targetLanguage)
+        val lang = settingsFlow.value.targetLanguage
+        if (container.speaker.speak(word, lang)) return
+        val missing = lang in container.speaker.unsupportedLanguages.value
+        val resId = if (missing) R.string.notice_tts_unsupported else R.string.notice_tts_silent
+        _event.value = Event.SpeakHint(container.appContext.getString(resId, lang.nativeName))
     }
 
     fun acknowledgeEvent() {

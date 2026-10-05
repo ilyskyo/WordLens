@@ -184,4 +184,7 @@
     <string name="notification_channel_reminder_desc">每天一次，告诉你今天还剩几张要复习</string>
     <string name="notification_due_title">今天还有 %1$d 张要复习</string>
     <string name="notification_due_body">打开见词，把它们收进长期记忆</string>
+    <!-- 发音失败的可行动提示 -->
+    <string name="notice_tts_silent">刚才没有出声。这台设备的语音引擎没能为这个词发声。</string>
+    <string name="notice_tts_unsupported">这台设备的语音引擎没有%1$s语音，装一个带%1$s发音的引擎就能读。</string>
 </resources>

@@ -196,7 +196,10 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val today = LocalDate.now().toString()
         val candidates = container.diary.document.value.entries
             .filter { it.dayKey != today && it.dayKey !in walked }
-        val pick = candidates.randomOrNull() ?: return null
+        val pick = candidates.randomOrNull() ?: run {
+            _notice.value = container.appContext.getString(R.string.walk_empty)
+            return null
+        }
         walked.addLast(pick.dayKey)
         while (walked.size > WALK_MEMORY) walked.removeFirst()
         return pick.id
@@ -295,17 +298,45 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** 复习页发音：词汇卡读词条本身；事件是一句话，界面本来就不给发音按钮。 */    fun onSpeak() {
+    /**
+     * 一次性低调提示。见 [com.ilyskyo.wordlens.ui.components.NoticeHost] 为什么这里不用 Toast。
+     *
+     * 只放「用户刚才那一下没成功」这一类信息。可成功的反馈不该占用它：那是动效的工作。
+     */
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
+
+    fun acknowledgeNotice() {
+        _notice.value = null
+    }
+
+    /**
+     * 发音。**点了必须有回声**：`speak()` 返回 false 意味着这台机器现在念不出来，
+     * 而静默无声是最容易被当成「App 坏了」的一种失败——尤其这个产品把发音做成了一颗
+     * 56dp 的大按钮。
+     *
+     * 两种失败分开说：语言在装好的引擎里根本没有对应语音（该去装引擎），
+     * 以及引擎在但这次没出声（重试或换引擎）。前者是可以改善的长期状态，
+     * 后者是一次性的，把两者混成一句「无法发音」等于什么也没告诉用户。
+     */
+    fun onSpeak() {
         val card = (remember.value.current?.item as? ReviewItem.Word)?.card ?: return
         val lang = card.headLang() ?: settingsFlow.value.targetLanguage
-        container.speaker.speak(card.headword, lang)
+        speakOrNotify(card.headword, lang)
     }
 
     /** 回看页某张卡片的发音：读第一个物品词。 */
     fun onEntrySpeak(card: EntryCard) {
         val word = card.words.firstOrNull { it.text.isNotBlank() } ?: return
         val lang = Lang.fromAnyTag(word.languageTag ?: "en") ?: settingsFlow.value.targetLanguage
-        container.speaker.speak(word.text, lang)
+        speakOrNotify(word.text, lang)
+    }
+
+    private fun speakOrNotify(text: String, lang: Lang) {
+        if (container.speaker.speak(text, lang)) return
+        val missing = lang in container.speaker.unsupportedLanguages.value
+        val resId = if (missing) R.string.notice_tts_unsupported else R.string.notice_tts_silent
+        _notice.value = container.appContext.getString(resId, lang.nativeName)
     }
 
     fun onOpenEntry(id: String) {

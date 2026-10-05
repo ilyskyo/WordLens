@@ -5,7 +5,6 @@ package com.ilyskyo.wordlens
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -17,6 +16,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -46,6 +46,7 @@ import com.ilyskyo.wordlens.ui.capture.CaptureCamera
 import com.ilyskyo.wordlens.ui.capture.CaptureScreen
 import com.ilyskyo.wordlens.ui.capture.CaptureViewModel
 import com.ilyskyo.wordlens.ui.capture.captureViewModelFactory
+import com.ilyskyo.wordlens.ui.components.NoticeHost
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailScreen
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailState
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
@@ -123,12 +124,11 @@ class MainActivity : ComponentActivity() {
 private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<HomeTab>) {
     val stack = remember { mutableStateListOf<Page>(Page.Home) }
     val top = stack.lastOrNull() ?: Page.Home
-    // 在组合作用域里取一次：回调 lambda 不是 composable，里面读不到 LocalContext。
-    val appContext = LocalContext.current
     val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val lookback by home.lookback.collectAsStateWithLifecycle()
     val rememberState by home.remember.collectAsStateWithLifecycle()
     val selectedIds by home.selected.collectAsStateWithLifecycle()
+    val homeNotice by home.notice.collectAsStateWithLifecycle()
 
     // 时间轴的滚动状态提在这里：详情页属于另一个场景，本场景在转场结束后会被拆掉。
     // 状态留在 LookbackScreen 内部的话，返回时列表会跳回顶部——用户刚看的那条瞬间消失了。
@@ -167,15 +167,12 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
                             onSelectAllEntries = home::onSelectAllEntries,
                             onClearSelection = home::onClearSelection,
                             onDeleteSelected = home::onDeleteSelected,
+                            notice = homeNotice,
+                            onDismissNotice = home::acknowledgeNotice,
+                            // 没有可去的过去时，VM 会把「日记还太空」这条提示放进 notice：
+                            // 页签震了一下却什么都没发生，读起来像 bug。
                             onRandomWalk = {
-                                // 没有可去的过去时要说一声：页签震了一下却什么都没发生，
-                                // 读起来像 bug 而不是「日记还是空的」。
-                                val id = home.onRandomWalk()
-                                if (id != null) {
-                                    openEntry(stack, home, id)
-                                } else {
-                                    Toast.makeText(appContext, R.string.walk_empty, Toast.LENGTH_SHORT).show()
-                                }
+                                home.onRandomWalk()?.let { openEntry(stack, home, it) }
                             },
                             onCapture = { stack.add(Page.Capture) },
                             onSearch = { stack.add(Page.Search) },
@@ -266,11 +263,15 @@ private fun HomeScene(
     onCapture: () -> Unit,
     onSearch: () -> Unit,
     onOpenEntry: (String) -> Unit,
+    notice: String?,
+    onDismissNotice: () -> Unit,
 ) {
     WordLensApp(
         modifier = Modifier.fillMaxSize(),
         requestedTab = requestedTab,
         lookbackListState = lookbackListState,
+        notice = notice,
+        onDismissNotice = onDismissNotice,
         lookbackState = lookback,
         selection = TimelineSelection(
             selection = selectedIds,
@@ -357,7 +358,9 @@ private fun CaptureHost(
     val vm: CaptureViewModel = viewModel(factory = captureViewModelFactory(container))
     val state by vm.ui.collectAsStateWithLifecycle()
     val event by vm.event.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    // 取景页整体是暗的，一条系统 Toast 在这里既压不住快门按钮也跟不上主题：
+    // 用应用自己的提示层，消息与消失都由这一层负责。
+    var notice by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(event) {
         when (val e = event) {
@@ -368,37 +371,45 @@ private fun CaptureHost(
 
             is CaptureViewModel.Event.Failed -> {
                 vm.acknowledgeEvent()
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+                notice = e.message
             }
 
             // 抠图失败不影响保存，只说明一句：贴纸是这份记录的加分项，不是必要条件。
             is CaptureViewModel.Event.StickerFailed -> {
                 vm.acknowledgeEvent()
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+                notice = e.message
+            }
+
+            is CaptureViewModel.Event.SpeakHint -> {
+                vm.acknowledgeEvent()
+                notice = e.message
             }
 
             null -> Unit
         }
     }
 
-    CaptureScreen(
-        // 快门是这页唯一必须够得着的控件：手势条压在它上面就按不到了。
-        bottomInset = PaddingValues(
-            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
-        ),
-        state = state,
-        // 左上角的关闭键：取景页是盖在主页上的一层，不接就等于把用户关在里面。
-        onClose = onDismiss,
-        onOpenSettings = onOpenSettings,
-        onShutter = vm::onShutter,
-        onRetake = vm::onRetake,
-        onSave = vm::onSave,
-        onSpeak = vm::onSpeak,
-        onTapSubject = vm::onTapSubject,
-        onChipSelect = vm::onChipSelect,
-        modifier = Modifier.fillMaxSize(),
-        previewContent = { CaptureCamera(vm) },
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        CaptureScreen(
+            // 快门是这页唯一必须够得着的控件：手势条压在它上面就按不到了。
+            bottomInset = PaddingValues(
+                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+            ),
+            state = state,
+            // 左上角的关闭键：取景页是盖在主页上的一层，不接就等于把用户关在里面。
+            onClose = onDismiss,
+            onOpenSettings = onOpenSettings,
+            onShutter = vm::onShutter,
+            onRetake = vm::onRetake,
+            onSave = vm::onSave,
+            onSpeak = vm::onSpeak,
+            onTapSubject = vm::onTapSubject,
+            onChipSelect = vm::onChipSelect,
+            modifier = Modifier.fillMaxSize(),
+            previewContent = { CaptureCamera(vm) },
+        )
+        NoticeHost(message = notice, onDismiss = { notice = null })
+    }
 }
 
 /** 设置页宿主。从取景页打开时它压在取景页之上。 */

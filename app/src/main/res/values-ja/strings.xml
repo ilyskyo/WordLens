@@ -167,4 +167,7 @@
     <string name="notification_channel_reminder_desc">1日1回、今日残っている復習の枚数をお知らせ</string>
     <string name="notification_due_title">今日、復習が%1$d枚残っています</string>
     <string name="notification_due_body">WordLens を開いて、長期記憶に留めましょう</string>
+    <!-- 发音失败的可行动提示 -->
+    <string name="notice_tts_silent">音がでませんでした。この端末の音声エンジンはこの語を発声できません。</string>
+    <string name="notice_tts_unsupported">この端末の音声エンジンに%1$sの声はありません。%1$sに対応したエンジンを追加すると読めるようになります。</string>
 </resources>

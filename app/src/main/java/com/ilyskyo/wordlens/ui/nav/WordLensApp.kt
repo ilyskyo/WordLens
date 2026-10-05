@@ -24,11 +24,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ilyskyo.wordlens.data.model.StudyMaterial
 import com.ilyskyo.wordlens.srs.Fsrs
+import com.ilyskyo.wordlens.ui.components.NoticeHost
 import com.ilyskyo.wordlens.ui.lookback.EntryCard
 import com.ilyskyo.wordlens.ui.lookback.LookbackScreen
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
@@ -74,8 +76,36 @@ fun WordLensApp(
     onUnmark: (String) -> Unit = {},
     /** 长按「回看」页签：随机漫步回某一天。 */
     onRandomWalk: () -> Unit = {},
+    /** 一次性提示（发音没出声之类）。空就什么都不显示。 */
+    notice: String? = null,
+    onDismissNotice: () -> Unit = {},
 ) {
     var tab by remember { mutableStateOf(HomeTab.LOOKBACK) }
+
+    /*
+     * 往下滚就把底部动作收起来，往上滚就回来。
+     *
+     * 判据只看 firstVisibleItemIndex 的**趋势**，不看每次像素级偏移：时间轴的项很高，
+     * 一次惯性滚动会连续推进好几个 item，用它做方向比逐帧 velocity 稳，也不会因为
+     * 手指停在半路就反复抖动。滚动一停就复位成「可见」——用户停下来读的时候，
+     * 拍照按钮必须在那里等他。
+     */
+    var hiddenByScroll by remember { mutableStateOf(false) }
+    var lastItemIndex by remember { mutableStateOf(lookbackListState.firstVisibleItemIndex) }
+    LaunchedEffect(lookbackListState) {
+        snapshotFlow {
+            lookbackListState.firstVisibleItemIndex to lookbackListState.isScrollInProgress
+        }.collect { (index, scrolling) ->
+            if (!scrolling) {
+                hiddenByScroll = false
+                lastItemIndex = index
+            } else {
+                if (index > lastItemIndex) hiddenByScroll = true
+                lastItemIndex = index
+            }
+        }
+    }
+
     // 外部要求换页（小组件点击）时跟随一次。key 是请求值而不是 tab，所以用户自己点页签
     // 不会被这条效果拽回去。
     LaunchedEffect(requestedTab) { tab = requestedTab }
@@ -99,7 +129,7 @@ fun WordLensApp(
             HomeBottomActions(
                 onCapture = onCapture,
                 onSearch = onSearch,
-                visible = atTopLevel,
+                visible = atTopLevel && !(hiddenByScroll && tab == HomeTab.LOOKBACK),
             )
         },
     ) { innerPadding ->
@@ -143,6 +173,8 @@ fun WordLensApp(
                     )
                 }
             }
+
+            NoticeHost(message = notice, onDismiss = onDismissNotice)
 
             // 顶部页签浮在内容之上：照片从它下方穿过，而不是被一条横栏切开。
             HomeTopTabs(

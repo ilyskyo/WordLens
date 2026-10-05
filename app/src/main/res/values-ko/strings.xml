@@ -167,4 +167,7 @@
     <string name="notification_channel_reminder_desc">하루에 한 번, 오늘 남은 복습 개수를 알려 드려요</string>
     <string name="notification_due_title">오늘 복습할 카드 %1$d장</string>
     <string name="notification_due_body">WordLens를 열고 장기 기억으로 옮겨 보세요</string>
+    <!-- 发音失败的可行动提示 -->
+    <string name="notice_tts_silent">소리가 나지 않았어요. 이 기기의 음성 엔진이 그 단어를 발음할 수 없어요.</string>
+    <string name="notice_tts_unsupported">이 기기의 음성 엔진에 %1$s 음성이 없어요. %1$s를 지원하는 엔진을 설치하면 들을 수 있어요.</string>
 </resources>
