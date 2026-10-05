@@ -216,11 +216,11 @@
 
     <string name="audio_row_title">그때의 목소리</string>
     <string name="audio_record">한 마디 녹음</string>
-    <string name="audio_recording_label">녹음 중</string>
+    <string name="audio_recording_label">녹음 중 %1$s</string>
     <string name="audio_stop">멈춤</string>
     <string name="audio_discard">버리기</string>
     <string name="audio_take_sealing">파일 마무리 중…</string>
-    <string name="audio_staged_label">녹음됐지만 아직 저장하지 않음</string>
+    <string name="audio_staged_label">%1$s 녹음됐지만 아직 저장하지 않음</string>
     <string name="audio_commit">저장</string>
     <string name="audio_re_record">다시 녹음</string>
     <string name="audio_delete">녹음 삭제</string>

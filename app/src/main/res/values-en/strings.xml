@@ -220,11 +220,11 @@
 
     <string name="audio_row_title">A voice from that moment</string>
     <string name="audio_record">Record a clip</string>
-    <string name="audio_recording_label">Recording</string>
+    <string name="audio_recording_label">Recording %1$s</string>
     <string name="audio_stop">Stop</string>
     <string name="audio_discard">Discard</string>
     <string name="audio_take_sealing">Writing the file…</string>
-    <string name="audio_staged_label">Recorded, not kept yet</string>
+    <string name="audio_staged_label">Recorded %1$s, not kept yet</string>
     <string name="audio_commit">Keep</string>
     <string name="audio_re_record">Re-record</string>
     <string name="audio_delete">Delete recording</string>

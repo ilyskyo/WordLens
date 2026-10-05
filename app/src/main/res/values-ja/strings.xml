@@ -216,11 +216,11 @@
 
     <string name="audio_row_title">そのときの声</string>
     <string name="audio_record">ひとこと録る</string>
-    <string name="audio_recording_label">録信中</string>
+    <string name="audio_recording_label">録信中 %1$s</string>
     <string name="audio_stop">やめる</string>
     <string name="audio_discard">すてる</string>
     <string name="audio_take_sealing">ファイルをまとめています…</string>
-    <string name="audio_staged_label">録れたけど、まだ保存していません</string>
+    <string name="audio_staged_label">%1$s 録れましたが、まだ保存していません</string>
     <string name="audio_commit">保存する</string>
     <string name="audio_re_record">録り直す</string>
     <string name="audio_delete">音声を削除</string>

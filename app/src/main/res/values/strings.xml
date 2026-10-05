@@ -234,11 +234,11 @@
     <!-- 语音日记附件。四语都要齐，且每种说法都回答「接下来能做什么」，不停在「失败了」。 -->
     <string name="audio_row_title">一句当时的声音</string>
     <string name="audio_record">录一段</string>
-    <string name="audio_recording_label">正在录</string>
+    <string name="audio_recording_label">正在录 %1$s</string>
     <string name="audio_stop">停下</string>
     <string name="audio_discard">丢弃</string>
     <string name="audio_take_sealing">正在收尾…</string>
-    <string name="audio_staged_label">录好了，还没收下</string>
+    <string name="audio_staged_label">录好了 %1$s，还没收下</string>
     <string name="audio_commit">收下</string>
     <string name="audio_re_record">重录</string>
     <string name="audio_delete">删除录音</string>
