@@ -76,6 +76,8 @@ fun WordLensApp(
     onUnmark: (String) -> Unit = {},
     /** 长按「回看」页签：随机漫步回某一天。 */
     onRandomWalk: () -> Unit = {},
+    /** 月历选某一天。 */
+    onPickDay: (String?) -> Unit = {},
     /** 一次性提示（发音没出声之类）。空就什么都不显示。 */
     notice: String? = null,
     onDismissNotice: () -> Unit = {},
@@ -156,6 +158,7 @@ fun WordLensApp(
                         selection = selection,
                         onOpenEntry = onOpenEntry,
                         onSpeak = onLookbackSpeak,
+                        onPickDay = onPickDay,
                         modifier = Modifier.fillMaxSize(),
                     )
 
