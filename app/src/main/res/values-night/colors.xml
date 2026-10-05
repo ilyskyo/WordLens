@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  深色模式下的桌面小组件配色。
+
+  小组件不是 Compose，读不到 `WordLensTheme`，所以深色这套只能靠资源限定符接上：
+  值取自 ui/theme/Color.kt 的 NightPaper / NightInkSoft / Coral。
+  没有这个文件的话，那块卡片在深色桌面上会是一块刺眼的白纸（对比 16.46:1 的差值
+  就体现在「你的桌面是暗的，而它不是」）。
+-->
+<resources>
+    <!--
+      窗口底色。深色模式的整套配色在 Compose 那边（ui/theme/Color.kt 的 NightBase），
+      但 XML 这一层读不到它：启动画面的底、windowBackground、小组件的底都取自这里。
+      没有这几条的话，冷启动会先亮一整块奶油白再切黑——那是「App 还没醒」的白闪，
+      不是转场。#1A1512 就是 Color.kt 里的 NightBase，两处必须是同一个值。
+    -->
+    <color name="wl_background">#FF1A1512</color>
+
+    <color name="widget_background">#FF241E1A</color>
+    <color name="widget_label">#FFD3C2B8</color>
+    <color name="widget_count">#FFFF8A65</color>
+</resources>

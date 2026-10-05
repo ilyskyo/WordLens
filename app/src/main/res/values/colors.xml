@@ -2,4 +2,22 @@
 <resources>
     <color name="wl_background">#FFFBF7</color>
     <color name="wl_ic_launcher_background">#FFE8DCCB</color>
+
+    <!--
+      桌面小组件的颜色。
+
+      小组件是 RemoteViews，走不了 Compose 主题，只能靠资源限定符跟随深色模式，
+      所以这一组是整套「纸感」配色在 XML 里的手抄：值取自 ui/theme/Color.kt
+      （Paper / CocoaSoft / CoralDeep，深色那组在 values-night/colors.xml）。
+      改那边记得改这里——反过来说，这里刻意只留三个读数，抄得越少越不容易漂。
+
+      对比度实测（WCAG）：
+        浅色 标签 #5C4A40 / 底 #FFFDFB = 8.25:1
+        浅色 读数 #C74E2E / 底 #FFFDFB = 4.54:1（34sp 粗体算大字号，门槛 3:1）
+        深色 标签 #D3C2B8 / 底 #241E1A = 9.55:1
+        深色 读数 #FF8A65 / 底 #241E1A = 7.11:1
+    -->
+    <color name="widget_background">#FFFFFDFB</color>
+    <color name="widget_label">#FF5C4A40</color>
+    <color name="widget_count">#FFC74E2E</color>
 </resources>
