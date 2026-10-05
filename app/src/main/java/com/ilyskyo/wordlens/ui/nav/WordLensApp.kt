@@ -80,6 +80,7 @@ fun WordLensApp(
     onRandomWalk: () -> Unit = {},
     /** 月历选某一天。 */
     onPickDay: (String?) -> Unit = {},
+    onLoadOlder: () -> Unit = {},
     /** 一次性提示（发音没出声之类）。空就什么都不显示。 */
     notice: Notice? = null,
     onDismissNotice: () -> Unit = {},
@@ -165,6 +166,7 @@ fun WordLensApp(
                         onOpenEntry = onOpenEntry,
                         onSpeak = onLookbackSpeak,
                         onPickDay = onPickDay,
+                        onLoadOlder = onLoadOlder,
                         modifier = Modifier.fillMaxSize(),
                     )
 

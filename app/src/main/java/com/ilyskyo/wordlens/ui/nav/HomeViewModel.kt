@@ -116,12 +116,22 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     /** 日历选中的那一天。null = 不筛。放在 VM 里，转屏与去详情页再回来都不会丢。 */
     private val _dayFilter = MutableStateFlow<String?>(null)
 
+    /**
+     * 时间轴解码到这里为止的上限，滚到底之后按「载入更早」往上加。
+     *
+     * 加上限而不是「按偏移翻页」：日记是会变的（删一条、导一批、筛一天），偏移式分页在数据变化后
+     * 要么把同一条显示两次、要么整段跳过；而「本次会话最多解码到第 N 条」这一个数，
+     * 无论中间怎么删怎么筛，都只可能重解已经解过的，不会漏也不会重。
+     */
+    private val timelineLimit = MutableStateFlow(TIMELINE_LIMIT)
+
     val lookback: StateFlow<LookbackUiState> = combine(
         container.diary.document,
         container.lexicon.index,
         settingsFlow,
         _dayFilter,
-    ) { diary, lexicon, settings, dayFilter -> buildLookback(diary, lexicon, settings, dayFilter) }
+        timelineLimit,
+    ) { diary, lexicon, settings, dayFilter, limit -> buildLookback(diary, lexicon, settings, dayFilter, limit) }
         // 照片解码是这批流里唯一的重活，放到 Default 上，别占主线程。
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LookbackUiState())
@@ -415,6 +425,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     /** 月历点某一天 = 只看那一天；再点一次已选中的那天（或「显示全部」）取消。 */
     fun onPickDay(dayKey: String?) {
         _dayFilter.update { if (dayKey == it) null else dayKey }
+    }
+
+    /** 载入更早的记录。解码仍然在 Default 线程，且每次只多 [TIMELINE_PAGE] 张。 */
+    fun onLoadOlder() {
+        timelineLimit.update { it + TIMELINE_PAGE }
     }
 
     /**
@@ -875,14 +890,15 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         lexicon: LexiconIndex,
         settings: AppSettings,
         dayFilter: String?,
+        limit: Int,
     ): LookbackUiState {
         val today = LocalDate.now().toString()
         val allDays = diary.entries.map { it.dayKey }.toSet()
         // 先筛再解码：筛到某一天之后没必要把另外几十张的位图都解一遍。
-        val shown = diary.entries
+        val matching = diary.entries
             .filter { dayFilter == null || it.dayKey == dayFilter }
             .sortedByDescending { it.takenAt }
-            .take(TIMELINE_LIMIT)
+        val shown = matching.take(limit)
         val cards = shown.map { entry ->
             EntryCard(
                 entry = entry,
@@ -908,6 +924,10 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             todayCount = diary.entries.count { it.dayKey == today },
             selectedDay = dayFilter,
             daysWithEntries = allDays,
+            // 这个数决定列表末尾那一句「更早的还有多少条」。少了它，滚到第 40 条就是一片空白，
+            // 而用户没有任何办法知道是自己记完了还是界面没显示——静默截断一份日记，
+            // 读起来跟「记录丢了」一模一样。
+            olderCount = matching.size - shown.size,
         )
     }
 
@@ -1025,6 +1045,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
          * 换来的是「往上滚的时候不用等」。滚过 40 张之后再往上，本来就需要重新解码。
          */
         private const val TIMELINE_LIMIT = 40
+
+        /**
+         * 「载入更早」一次加多少。与首屏同量：一次点击就该多出一整屏可以滚的内容，
+         * 而不是让人反复按同一个按钮——每按一次都是 40 张照片的重解。
+         */
+        private const val TIMELINE_PAGE = 40
 
         /** 时间轴缩略图的长边。640 而不是 768：卡片在屏幕上最大也就 380dp，2.5 倍余量足够。 */
         private const val MAX_ENTRY_PX = 640

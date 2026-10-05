@@ -87,6 +87,12 @@ data class LookbackUiState(
     val selectedDay: String? = null,
     /** 有记录的日期集合，喂给月历画小红点。**不受筛选影响**，否则选完一天之后月历就只剩一个点。 */
     val daysWithEntries: Set<String> = emptySet(),
+    /**
+     * 还没显示出来的更早记录条数。时间轴只解码最近若干张（见 `HomeViewModel.TIMELINE_LIMIT`），
+     * 这个数就是「被留在解码窗口之外的那部分」，界面上必须说出来：
+     * 滚到列表末尾而一片空白，用户分不清是日记到头了还是记录丢了。
+     */
+    val olderCount: Int = 0,
 )
 
 /**
@@ -167,6 +173,8 @@ fun LookbackScreen(
     onSpeak: (EntryCard) -> Unit = {},
     /** 月历点选某一天；传 null 取消筛选。 */
     onPickDay: (String?) -> Unit = {},
+    /** 载入更早的记录。时间轴只解码最近一批，滚到底时这一句决定还有没有下一步可走。 */
+    onLoadOlder: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var calendarOpen by remember { mutableStateOf(false) }
@@ -276,6 +284,23 @@ fun LookbackScreen(
                         },
                         onLongPress = { selection.onLongPress(card.entry.id) },
                         onSpeak = { onSpeak(card) },
+                    )
+                }
+            }
+            if (state.olderCount > 0) {
+                // 用 `key` 而不是匿名 item：这一条出现/消失会改变列表尾部结构，没有 key 的话
+                // LazyColumn 会把它的重组算到最后一张卡头上，滚到底那一下看起来像卡片自己闪了一下。
+                item(key = "older") {
+                    OutlinedAction(
+                        text = stringResource(R.string.lookback_load_older, state.olderCount),
+                        onClick = onLoadOlder,
+                        modifier = Modifier
+                            .padding(
+                                start = Space.lg,
+                                end = Space.lg,
+                                top = Space.xs,
+                                bottom = Space.md,
+                        ),
                     )
                 }
             }

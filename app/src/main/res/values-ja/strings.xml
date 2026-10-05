@@ -251,6 +251,7 @@
     <string name="settings_meaning_label">意味（母語）</string>
     <string name="settings_word_add">加える</string>
     <string name="settings_word_remove_desc">この項目を削除</string>
+    <string name="lookback_load_older">もっと前の記録が %1$d 件 · 読み込む</string>
     <string name="notice_word_added">「%1$s」を辞書に加えました</string>
     <string name="notice_word_removed">削除しました</string>
     <string name="notice_word_failed">書き込めませんでした。辞書ファイルが読めない状態のようです</string>

@@ -371,6 +371,7 @@ private fun HomeScene(
         notice = notice,
         onDismissNotice = onDismissNotice,
         onPickDay = home::onPickDay,
+        onLoadOlder = home::onLoadOlder,
         lookbackState = lookback,
         selection = TimelineSelection(
             selection = selectedIds,

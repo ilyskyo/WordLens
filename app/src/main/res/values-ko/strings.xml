@@ -251,6 +251,7 @@
     <string name="settings_meaning_label">뜻 (제 모국어)</string>
     <string name="settings_word_add">추가하기</string>
     <string name="settings_word_remove_desc">이 항목 삭제</string>
+    <string name="lookback_load_older">이전의 기록 %1$d개 · 불러오기</string>
     <string name="notice_word_added">%1$s을(를) 사전에 넣었어요</string>
     <string name="notice_word_removed">삭제했어요</string>
     <string name="notice_word_failed">저장되지 않았어요. 사전 파일을 읽을 수 없는 상태인 것 같아요</string>
