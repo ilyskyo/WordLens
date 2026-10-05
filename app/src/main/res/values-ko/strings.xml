@@ -130,8 +130,8 @@
     <string name="settings_palette_muted">차분</string>
     <!-- 设置：隐私 -->
     <string name="settings_privacy_section">개인정보</string>
-    <string name="settings_redact">업로드 전 사진 정보 제거</string>
-    <string name="settings_redact_hint">사진을 클라우드 인식에 보내기 전에 EXIF와 촬영 위치를 지워요. 끄면 원본 그대로가 전송돼요.</string>
+    <string name="settings_privacy_reencode">사진은 다시 인코딩된 형태로만 클라우드 인식에 전달돼요: EXIF와 촬영 위치는 그 과정에서 사라지고, 이건 스위치가 아니라 코드 구조로 보장돼요.</string>
+    <string name="settings_privacy_backup">사진은 클라우드 백업에 들어가지 않아요(올라가는 건 단어 카드와 일기 텍스트뿐이에요). 내보내기나 공유 입구도 없어요. 기기 간 이전에서는 일기 전체가 함께 넘어가요.</string>
     <!-- 复习：四档评级与间隔读数 -->
     <string name="review_again">잊었어요</string>
     <string name="review_hard">어려워요</string>

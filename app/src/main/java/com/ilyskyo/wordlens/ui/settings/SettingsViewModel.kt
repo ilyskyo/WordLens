@@ -58,14 +58,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun onRatingPalette(palette: RatingPalette) = write { setRatingPalette(palette) }
 
-    fun onRedactBeforeUpload(enabled: Boolean) = write { setRedactBeforeUpload(enabled) }
-
-    /**
-     * 开关只写设置，不直接叫调度器干活。
-     *
-     * `AppContainer` 订阅了设置流并负责把 WorkManager 的排期对齐过去，所以这里多调一次
-     * 就会有两个写者——那正是「改了设置但排期没变」这类 bug 的产地。
-     */
     /** 装好的 TTS 引擎名。空列表意味着只有系统默认引擎。 */
     val engines: StateFlow<List<String>> = container.speaker.engines
 
@@ -121,6 +113,12 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * 开关只写设置，不直接叫调度器干活。
+     *
+     * `AppContainer` 订阅了设置流并负责把 WorkManager 的排期对齐过去，所以这里多调一次
+     * 就会有两个写者——那正是「改了设置但排期没变」这类 bug 的产地。
+     */
     fun onReminderEnabled(enabled: Boolean) = write { setReminder(enabled) }
 
     fun onReminderMinuteOfDay(minute: Int) = write { setReminderMinuteOfDay(minute) }

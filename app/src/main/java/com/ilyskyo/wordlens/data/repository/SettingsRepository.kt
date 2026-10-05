@@ -48,9 +48,6 @@ data class AppSettings(
     val cloudEnabled: Boolean = false,
     val cloudModel: String = DEFAULT_CLOUD_MODEL,
     val cloudApiKey: String = "",
-
-    /** Strip the EXIF/location metadata before anything is sent to a vision API. */
-    val redactBeforeUpload: Boolean = true,
 ) {
     /** True when the cloud backend is both switched on and actually usable. */
     val cloudReady: Boolean get() = cloudEnabled && cloudApiKey.isNotBlank()
@@ -100,7 +97,6 @@ class SettingsRepository(private val context: Context) {
             cloudEnabled = prefs[Keys.CLOUD_ON] ?: false,
             cloudModel = prefs[Keys.CLOUD_MODEL] ?: AppSettings.DEFAULT_CLOUD_MODEL,
             cloudApiKey = prefs[Keys.CLOUD_KEY] ?: "",
-            redactBeforeUpload = prefs[Keys.REDACT] ?: true,
         )
     }
 
@@ -128,8 +124,6 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setCloudApiKey(key: String) = put(Keys.CLOUD_KEY, key.trim())
 
-    suspend fun setRedactBeforeUpload(enabled: Boolean) = put(Keys.REDACT, enabled)
-
     /** Forget the key without touching anything else. */
     suspend fun clearCloudApiKey() = context.dataStore.edit { it.remove(Keys.CLOUD_KEY) }
 
@@ -151,7 +145,13 @@ class SettingsRepository(private val context: Context) {
         val CLOUD_ON = booleanPreferencesKey("cloud_enabled")
         val CLOUD_MODEL = stringPreferencesKey("cloud_model")
         val CLOUD_KEY = stringPreferencesKey("cloud_api_key")
-        val REDACT = booleanPreferencesKey("redact_before_upload")
+
+        // 这里曾经有一个 `redact_before_upload`：上传前剥 EXIF 的开关。
+        // 它被删掉了，因为没有任何代码读它——`CloudVisionEngine.encodeImage` 发出去的字节是
+        // `Bitmap.compress` 重新编码出来的，本来就不含 EXIF，「照片不带着坐标出门」是结构性的，
+        // 不是开关决定的。一个拨了什么都不发生的开关，比没有这个开关更糟：它会让人以为
+        // 关掉之后原图就会出门，而那恰恰是它做不到的事。旧用户 DataStore 里那个键会一直留着，
+        // 没有读它的人，也就不需要迁移。
     }
 
     companion object {

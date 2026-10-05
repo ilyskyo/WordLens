@@ -147,8 +147,8 @@
     <string name="settings_palette_muted">柔和</string>
     <!-- 设置：隐私 -->
     <string name="settings_privacy_section">隐私</string>
-    <string name="settings_redact">上传前剥离照片信息</string>
-    <string name="settings_redact_hint">把照片交给云端识别之前，去掉 EXIF 与拍摄位置。关掉之后，原文件会原样发送。</string>
+    <string name="settings_privacy_reencode">照片只会以重新编码的形式交给云端识别：EXIF 与拍摄位置在编码那一步就没了，这是代码结构保证的，不是开关。</string>
+    <string name="settings_privacy_backup">照片不进云备份（上云的只有词卡与日记文本），也没有导出或分享入口；面对面换机时会整本带走。</string>
     <!-- 复习：四档评级与间隔读数 -->
     <string name="review_again">忘了</string>
     <string name="review_hard">困难</string>

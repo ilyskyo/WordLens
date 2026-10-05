@@ -130,8 +130,8 @@
     <string name="settings_palette_muted">Muted</string>
     <!-- 设置：隐私 -->
     <string name="settings_privacy_section">Privacy</string>
-    <string name="settings_redact">Strip photo metadata before upload</string>
-    <string name="settings_redact_hint">Removes EXIF and the capture location before a photo is sent to a vision API. Turn this off and the original file goes out as-is.</string>
+    <string name="settings_privacy_reencode">A photo reaches a cloud vision API only as a re-encoded image: EXIF and the capture location are gone in that step, which the code guarantees rather than a switch.</string>
+    <string name="settings_privacy_backup">Photos are not part of the cloud backup (only word cards and diary text go up) and there is no export or share entry point. A device-to-device transfer takes the whole diary with them.</string>
     <!-- 复习：四档评级与间隔读数 -->
     <string name="review_again">Forgot</string>
     <string name="review_hard">Hard</string>

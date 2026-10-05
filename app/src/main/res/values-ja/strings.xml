@@ -130,8 +130,8 @@
     <string name="settings_palette_muted">控えめ</string>
     <!-- 设置：隐私 -->
     <string name="settings_privacy_section">プライバシー</string>
-    <string name="settings_redact">送信前に写真の情報を取り除く</string>
-    <string name="settings_redact_hint">写真をクラウドの認識に渡す前に、EXIF と撮影位置を削除します。オフにすると元の写真がそのまま送られます。</string>
+    <string name="settings_privacy_reencode">写真は再エンコードされた状態でしかクラウドの認識に渡りません：EXIFと撮影位置はその段階で失われるもので、スイッチではなくコードの仕組みで保証されています。</string>
+    <string name="settings_privacy_backup">写真はクラウドバックアップに含まれません（上がるのは単語カードと日記のテキストだけ）。エクスポートや共有の入口もありません。端末間の移行では日記ごと引き継がれます。</string>
     <!-- 复习：四档评级与间隔读数 -->
     <string name="review_again">忘れた</string>
     <string name="review_hard">難しい</string>

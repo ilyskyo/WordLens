@@ -73,7 +73,12 @@ import com.ilyskyo.wordlens.ui.theme.tones
  * ## 这里只放「真的会改变行为」的开关
  *
  * 每一项都能指到一个消费方：语言与方向 → 卡片渲染与排期；保持率 → `Fsrs`；评级配色 → 主题；
- * 云端与脱敏 → 识别与上传路径。拨了没反应的开关比没有开关更糟，它教用户不信任这一整页。
+ * 云端 → 识别与上传路径。拨了没反应的开关比没有开关更糟，它教用户不信任这一整页。
+ *
+ * 「隐私」那一节因此**没有开关**，只有一句写死的事实陈述：照片交给云端识别时是重新编码过的
+ * 位图，EXIF 与拍摄位置在那一步就没了。写成开关的话，它只能有两种状态——真的能关掉（等于
+ * 给用户一个把位置发出去的选项，违背产品立场）或者关不掉（等于说谎）。两种都不可接受，
+ * 所以这一节只陈述现状，现状由代码结构保证。
  */
 @Composable
 fun SettingsScreen(
@@ -84,7 +89,6 @@ fun SettingsScreen(
     onDirection: (StudyDirection) -> Unit = {},
     onRetention: (Double) -> Unit = {},
     onRatingPalette: (RatingPalette) -> Unit = {},
-    onRedactBeforeUpload: (Boolean) -> Unit = {},
     onReminderEnabled: (Boolean) -> Unit = {},
     onReminderMinuteOfDay: (Int) -> Unit = {},
     engines: List<String> = emptyList(),
@@ -201,10 +205,7 @@ fun SettingsScreen(
 
                 DataSection(onImport = onImport)
 
-                PrivacySection(
-                    redact = state.redactBeforeUpload,
-                    onRedact = onRedactBeforeUpload,
-                )
+                PrivacySection()
             }
         }
     }
@@ -540,26 +541,37 @@ private fun DataSection(onImport: (android.net.Uri) -> Unit) {
 
 private const val SEPARATOR = "  ·  "
 
+/**
+ * 隐私那一节：只有两行陈述，没有开关。
+ *
+ * 这里原本是一个「上传前剥离照片信息」的开关，而没有任何代码读它——发出去的是
+ * `CloudVisionEngine.encodeImage` 里 `Bitmap.compress` 重新编码出来的位图，本来就不含 EXIF，
+ * 开关拨到哪都一样。原文案还写着「关掉之后，原文件会原样发送」：那是一句关于代码的承诺，
+ * 而代码做不到。删掉开关，把真实的那两件事写在这里。
+ */
 @Composable
-private fun PrivacySection(redact: Boolean, onRedact: (Boolean) -> Unit) {
+private fun PrivacySection() {
     Section(title = stringResource(R.string.settings_privacy_section)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.settings_redact),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Switch(checked = redact, onCheckedChange = onRedact)
-        }
+        PrivacyFact(stringResource(R.string.settings_privacy_reencode))
+        PrivacyFact(stringResource(R.string.settings_privacy_backup))
+    }
+}
+
+@Composable
+private fun PrivacyFact(text: String, modifier: Modifier = Modifier) {
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
+        // 前面挂一个点，不是为了好看：两句话并排时需要一个「这是两条独立的事实」的视觉断点，
+        // 否则它们会读成一段话的两行。
         Text(
-            text = stringResource(R.string.settings_redact_hint),
+            text = "·",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
         )
     }
 }
