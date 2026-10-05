@@ -19,6 +19,7 @@ import com.ilyskyo.wordlens.data.repository.SettingsRepository
 import com.ilyskyo.wordlens.data.store.JsonDocument
 import com.ilyskyo.wordlens.speech.Speaker
 import com.ilyskyo.wordlens.srs.Fsrs
+import com.ilyskyo.wordlens.vision.PhotoEntryPipeline
 import com.ilyskyo.wordlens.vision.VisionRepository
 import com.ilyskyo.wordlens.vision.detection.EfficientDetector
 import kotlinx.coroutines.CoroutineScope
@@ -96,6 +97,26 @@ class AppContainer(context: Context) {
     val speaker = Speaker(appContext)
 
     val vision = VisionRepository(appContext, applicationScope, lexicon, settings)
+
+    /**
+     * 「一张照片 → 一条日记条目」的流水线，快门与相册导入共用这一个实例。
+     *
+     * 放在容器里而不是各个 ViewModel 里各建一个，是这条设计的全部意义：两个入口如果
+     * 各自 new 一份，落盘规则（贴纸文件名、EntryObject 用哪个坐标系、卡片上的场景字段）
+     * 就有两份可以互相落后的对象。这里连**实例**也只有一个。
+     */
+    val photoPipeline = PhotoEntryPipeline(
+        entryPhotoDir = entryPhotoDir,
+        stickerDir = stickerDir,
+        vision = vision,
+        lexicon = lexicon,
+        diary = diary,
+        deck = deck,
+        // 传「怎么拿到检测器」而不是检测器本身：它现在可能正卡在 RetryGate 的冷却窗口里。
+        // 每次跑流水线都重新问一次门，导入这条路才有第二次机会；缓存住那个 null 就是
+        // 把上面注释里写过的老 bug 再犯一遍。
+        detector = { detectorOrNull() },
+    )
 
     /**
      * COCO 物体检测器（取景页词片的来源），取不到就是 null——取景页降级为无词片。

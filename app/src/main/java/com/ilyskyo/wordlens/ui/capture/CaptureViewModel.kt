@@ -4,6 +4,7 @@
 package com.ilyskyo.wordlens.ui.capture
 
 import android.graphics.Bitmap
+import android.net.Uri
 import android.util.Log
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
@@ -17,26 +18,23 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.core.AppContainer
-import com.ilyskyo.wordlens.data.model.CardOrigin
 import com.ilyskyo.wordlens.data.model.Entry
-import com.ilyskyo.wordlens.data.model.EntryObject
 import com.ilyskyo.wordlens.data.model.EntrySource
-import com.ilyskyo.wordlens.data.model.Lang
 import com.ilyskyo.wordlens.data.model.LexiconEntry
 import com.ilyskyo.wordlens.data.model.LexiconIndex
-import com.ilyskyo.wordlens.data.model.OverlayLayer
 import com.ilyskyo.wordlens.data.model.SceneGuess
-import com.ilyskyo.wordlens.data.model.WordCard
 import com.ilyskyo.wordlens.data.repository.AppSettings
 import com.ilyskyo.wordlens.vision.AmbienceScorer
+import com.ilyskyo.wordlens.vision.PhotoEntryPipeline
 import com.ilyskyo.wordlens.vision.SceneClassifier
 import com.ilyskyo.wordlens.vision.ShotClassifier
 import com.ilyskyo.wordlens.vision.camera.CameraFocusController
-import com.ilyskyo.wordlens.vision.camera.CameraFocusMath
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.NormBox
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.SensorCrop
+import com.ilyskyo.wordlens.vision.camera.GalleryPhoto
 import com.ilyskyo.wordlens.vision.camera.OverlayGeometry
 import com.ilyskyo.wordlens.vision.camera.PhotoDecoder
+import com.ilyskyo.wordlens.vision.camera.PhotoTiming
 import com.ilyskyo.wordlens.vision.camera.YuvFrames
 import com.ilyskyo.wordlens.vision.detection.DetectedObject
 import com.ilyskyo.wordlens.vision.detection.dedupeOverlapping
@@ -50,15 +48,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * 取景页的控制器：检测循环、点词片推镜头、快门落库。
+ * 取景页的控制器：检测循环、点词片推镜头、快门落库、相册导入。
  *
  * ## 落库二分（产品骨架，别改）
  *
@@ -66,6 +62,9 @@ import kotlin.coroutines.resumeWithException
  * - 选了物品 → 抠贴纸、建词卡（进「记住」），**并且**这条记录仍然生成 Entry（照片与词片
  *   位置一起进「回看」）——贴纸属于卡片，瞬间属于日记。
  * - 没选 → 只存整张照片与全部词片标注进「回看」，不产生任何卡。
+ *
+ * 相册导入是同一个二分的第三种来源：没有点选这一步，于是由置信度替用户选那一个物品
+ * （见 [PhotoEntryPipeline.Cutout.Best]），其余一切走同一条流水线。
  *
  * ## 分析流坐标
  *
@@ -83,8 +82,14 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
     )
 
     sealed interface Event {
-        /** 已落库，取景页可以关闭。savedCard=false 表示走的是「整张照片进回看」。 */
-        data class Saved(val entryId: String, val savedCard: Boolean) : Event
+        /**
+         * 已落库，取景页可以关闭。savedCard=false 表示走的是「整张照片进回看」。
+         *
+         * [notice] 是**随保存一起走**的一句话：照片确实存下了，但这次有东西没成
+         * （检测器不在、照片里没认出东西）。它必须在关闭之后由主页那层的提示通道说出来——
+         * 取景页自己的 NoticeHost 随场景一起拆掉，在那里开口等于什么都没讲。
+         */
+        data class Saved(val entryId: String, val savedCard: Boolean, val notice: String? = null) : Event
         data class Failed(val message: String) : Event
 
         /**
@@ -125,16 +130,14 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
     private var lastScene = SceneGuess(null, 0f)
     private var lastAmbience: List<String> = emptyList()
 
-    /** 快门后 staged 的结果，等用户按「保存」才落库；retake 整块丢弃并清理文件。 */
-    private data class Staged(
-        val entryId: String,
-        val photoFile: String,
-        val stickerFile: String?,
-        val card: WordCard?,
-        val entry: Entry,
-    )
-
-    private var staged: Staged? = null
+    /**
+     * 快门后 staged 的流水线产物，等用户按「保存」才入库；retake 整块丢弃并清理文件。
+     *
+     * 直接存 [PhotoEntryPipeline.Output] 而不是把 entry/card/文件名再拆出来复述一遍：
+     * 复述一次就多一处会和流水线对不上的地方，而「重拍之后磁盘上少一个文件」这种差异
+     * 只有翻文件才看得见。
+     */
+    private var staged: PhotoEntryPipeline.Output? = null
 
     // ── 相机生命周期 ─────────────────────────────────────────────────────────
 
@@ -346,7 +349,46 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         onChipSelect(null)
     }
 
-    // ── 快门 ────────────────────────────────────────────────────────────────
+    // ── 快门与相册导入：两个入口，一条流水线 ─────────────────────────────────
+
+    /**
+     * 把取景页实时检测的那批物体交给流水线；抠哪一个由 [cutout] 决定。
+     *
+     * `rotationDegrees` 传的是**传感器旋转角**而不是照片的 EXIF 角：词片框归一化在传感器
+     * 坐标系里，转正后的位图就是「显示图」，要换算的正是这个角度。两者只有一种情况会
+     * 不一致——分析帧之后、快门之前把手机转了向，那时 EXIF 才是真相。真机上要盯的就是这一条。
+     */
+    private fun shutterRequest(
+        entryId: String,
+        photoFile: File,
+        cutout: PhotoEntryPipeline.Cutout,
+    ): PhotoEntryPipeline.Request {
+        val settings = settingsFlow.value
+        return PhotoEntryPipeline.Request(
+            entryId = entryId,
+            photoFile = photoFile,
+            takenAt = System.currentTimeMillis(),
+            rotationDegrees = rotationDegrees,
+            targetLanguage = settings.targetLanguage,
+            nativeLanguage = settings.nativeLanguage,
+            analysis = PhotoEntryPipeline.Analysis.Live(
+                subjects = live.map { it.toSubject() },
+                scene = lastScene,
+                ambience = lastAmbience,
+            ),
+            cutout = cutout,
+            detectedBy = EntrySource.ON_DEVICE,
+        )
+    }
+
+    /** 取景页的词片就是流水线眼里的一个物体：同一份数据，两种用途。 */
+    private fun LiveObject.toSubject() = PhotoEntryPipeline.Subject(
+        id = chip.key,
+        word = chip.word,
+        entry = lexiconEntry,
+        score = score,
+        box = chip.box,
+    )
 
     fun onShutter() {
         val capture = imageCapture ?: return
@@ -359,14 +401,19 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             try {
                 capture.savePhoto(photoFile)
+                val cutout = if (selected == null) {
+                    PhotoEntryPipeline.Cutout.None
+                } else {
+                    PhotoEntryPipeline.Cutout.Keyed(selected.chip.key)
+                }
+                val output = container.photoPipeline.run(shutterRequest(entryId, photoFile, cutout))
                 if (selected == null) {
-                    // 场景路径：判帧、建 Entry，直接落库并关闭。
-                    val entry = buildEntry(entryId, photoFile.name, selected = null, stickerFile = null)
-                    container.diary.addEntry(entry)
+                    // 场景路径：判帧结果已经在 Live 里，流水线不解码，直接落库并关闭。
+                    container.photoPipeline.commit(output)
                     _ui.update { it.copy(analysing = false) }
                     _event.value = Event.Saved(entryId, savedCard = false)
                 } else {
-                    stageObjectShot(entryId, photoFile, selected)
+                    stageObjectShot(output, selected)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "shutter failed", e)
@@ -376,153 +423,139 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** 抠图阶段的一次性产物：给 view 显示的贴纸位图 + 给落盘的 PNG 字节。 */
-    private data class CutResult(val sticker: Bitmap?, val png: ByteArray?) {
-        override fun equals(other: Any?): Boolean = this === other
-        override fun hashCode(): Int = System.identityHashCode(this)
-    }
-
-    private suspend fun stageObjectShot(entryId: String, photoFile: File, selected: LiveObject) {
-        val cut: CutResult = withContext(Dispatchers.Default) {
-            val upright = decodeUpright(photoFile)
-            if (upright == null) {
-                CutResult(null, null)
-            } else {
-                val bitmap = upright.bitmap
-                // 词片框归一化在传感器坐标系里；先换算到这张**转正后的显示图**，再取中心做点选。
-                val imageBox = CameraFocusMath.imageBoxFromSensorNorm(selected.chip.box, upright.rotationDegrees)
-                val sticker = segmentSticker(bitmap, imageBox)
-                bitmap.recycle()
-                CutResult(sticker, sticker?.let { encodePng(it) })
-            }
+    private fun stageObjectShot(output: PhotoEntryPipeline.Output, selected: LiveObject) {
+        if (PhotoEntryPipeline.Failure.StickerUnavailable in output.failures) {
+            _event.value = Event.StickerFailed(textOf(R.string.capture_sticker_failed))
         }
-        if (cut.sticker == null) {
-            _event.value = Event.StickerFailed(container.appContext.getString(R.string.capture_sticker_failed))
-        }
-
-        val stickerName = if (cut.png != null) "st-$entryId.png" else null
-        if (stickerName != null && cut.png != null) {
-            val png = cut.png
-            runCatching {
-                // 同一张贴纸两处各存一份：WordCard 以 stickers/ 为根、EntryObject 以 entries/
-                // 为根——它们的删除语义不同，卡片要能活得比单条日记久。PNG 小，副本可接受。
-                FileOutputStream(File(container.stickerDir, stickerName)).use { out -> out.write(png) }
-                FileOutputStream(File(container.entryPhotoDir, stickerName)).use { out -> out.write(png) }
-            }
-        }
-
-        val settings = settingsFlow.value
-        val card = selected.lexiconEntry?.let { entry ->
-            container.cardFrom(entry, settings.targetLanguage, settings.nativeLanguage, EntrySource.ON_DEVICE)
-                ?.copy(
-                    id = WordCard.newId(),
-                    origin = CardOrigin.STICKER,
-                    stickerPath = stickerName,
-                    originalPhotoPath = photoFile.name,
-                    sceneId = lastScene.kind?.id,
-                    sceneLabel = lastScene.kind?.label?.get(settings.nativeLanguage.tag)
-                        ?: lastScene.kind?.label?.values?.firstOrNull(),
-                    sceneEmoji = lastScene.kind?.emoji,
-                )
-        }
-
-        val entry = buildEntry(entryId, photoFile.name, selected, stickerName)
-        staged = Staged(entryId, photoFile.name, stickerName, card, entry)
-
+        staged = output
+        val card = output.card
         _ui.update {
             it.copy(
                 analysing = false,
-                sticker = cut.sticker,
+                sticker = output.sticker,
                 headword = card?.headword ?: selected.chip.word,
                 ipa = card?.ipa,
-                gloss = card?.gloss(settings.nativeLanguage),
+                gloss = card?.gloss(settingsFlow.value.nativeLanguage),
             )
         }
     }
 
     /**
-     * 拿一张**已经裁好、背景透明**的贴纸。坐标系由后端负责，这里不换算——
-     * 之前正是这一层拿原图像素尺度的矩形去裁工作尺度的位图，越界异常被吞掉后贴纸永远是空的。
+     * 相册导入：把选中的那张照片走**完整**流水线，与拍照同一条路。
      *
-     * 选后端的顺序按「谁能给出 cutout」，不是按「谁是 automatic」：`automatic ?: manual`
-     * 在装了 Play 服务的机器上正好选中那个当时不给 cutout 的实现，而本来能出图的那条路被跳过。
+     * ## 为什么先拷文件而不是直接读 URI
+     *
+     * 见 [GalleryPhoto]：一次性授权上的文件撑不起一本要翻三年的日记。
+     *
+     * ## 为什么这里重新跑一次检测
+     *
+     * 取景器那套实时检测对这张照片一无所知——它看的是镜头前面的场景，不是相册里的文件。
+     * 所以由流水线在转正后的位图上现检（[PhotoEntryPipeline.Analysis.Photo]），
+     * 检测、判场景、算氛围、抠贴纸用的是同一张位图，全程只解一次。
      */
-    private suspend fun segmentSticker(bitmap: Bitmap, imageBox: NormBox): Bitmap? {
-        val ordered = container.vision.segmenters.value.sortedBy { if (it.automatic) 0 else 1 }
-        if (ordered.isEmpty()) {
-            Log.w(TAG, "no segmentation backend available on this device")
-            return null
+    /**
+     * 拷完文件、进流水线之前先取好的三样。
+     *
+     * 三个都要读磁盘（EXIF 头、方向角），所以一次放进 IO 派发器里取完：
+     * 分散到流水线前后各读一次，等于把同一段 JPEG 头解析两遍，还各自占一次主线程序列。
+     */
+    private data class Imported(val file: File, val takenAt: Long, val exifDegrees: Int)
+
+    fun onImportPhoto(uri: Uri) {
+        if (_ui.value.analysing) return
+        val entryId = Entry.newId()
+        val photoFile = File(container.entryPhotoDir, "$entryId.jpg")
+        _ui.update { it.copy(analysing = true, importing = true) }
+        viewModelScope.launch {
+            try {
+                val settings = settingsFlow.value
+                val prepared = withContext(Dispatchers.IO) {
+                    val picked = GalleryPhoto.import(container.appContext.contentResolver, uri, photoFile)
+                        ?: return@withContext null
+                    Imported(
+                        file = picked.file,
+                        // 拍摄时刻来自照片本身，不是「现在」：见 PhotoTiming。
+                        takenAt = PhotoTiming.takenAtOf(
+                            exifDateTimeOriginal = GalleryPhoto.dateTimeOriginal(picked.file),
+                            lastModifiedMs = picked.lastModifiedMs,
+                            nowMs = System.currentTimeMillis(),
+                        ),
+                        // 这张照片没有传感器，转正角度就是它自己的 EXIF 角；流水线解码用的、
+                        // 详情页长回词用的都是同一个取值，所以 sensor 与显示图之间的往返是精确的。
+                        exifDegrees = PhotoDecoder.exifDegrees(picked.file),
+                    )
+                }
+                if (prepared == null) {
+                    // 连文件都没拿到：什么都不存，但必须说——静默的没有反应最容易被当成按钮坏了。
+                    _event.value = Event.Notice(textOf(R.string.import_unreadable))
+                    return@launch
+                }
+                val output = container.photoPipeline.run(
+                    PhotoEntryPipeline.Request(
+                        entryId = entryId,
+                        photoFile = prepared.file,
+                        takenAt = prepared.takenAt,
+                        rotationDegrees = prepared.exifDegrees,
+                        targetLanguage = settings.targetLanguage,
+                        nativeLanguage = settings.nativeLanguage,
+                        analysis = PhotoEntryPipeline.Analysis.Photo,
+                        cutout = PhotoEntryPipeline.Cutout.Best,
+                        detectedBy = EntrySource.ON_DEVICE,
+                    ),
+                )
+                if (PhotoEntryPipeline.Failure.PhotoUnreadable in output.failures) {
+                    // 解不出位图 = 认不出词、裁不出贴纸，而时间轴与详情页同样解不出这张文件。
+                    // 存下一条只有坏照片的记录比不存更糟：删掉拷贝，把话说清楚。
+                    container.photoPipeline.discard(output)
+                    _event.value = Event.Notice(textOf(R.string.import_unreadable))
+                    return@launch
+                }
+                container.photoPipeline.commit(output)
+                _event.value = Event.Saved(entryId, savedCard = output.card != null, notice = importNotice(output))
+            } catch (e: Exception) {
+                Log.e(TAG, "gallery import failed", e)
+                // 半途而废的文件不能留下：一条没人引用的照片比一次失败的导入更难发现。
+                runCatching { photoFile.delete() }
+                _event.value = Event.Failed(textOf(R.string.import_unreadable))
+            } finally {
+                _ui.update { it.copy(analysing = false, importing = false) }
+            }
         }
-        val tap = imageBox.centerX to imageBox.centerY
-        for (backend in ordered) {
-            val result = runCatching { backend.segment(bitmap, if (backend.automatic) null else tap) }
-                .onFailure { Log.w(TAG, "segmenter ${backend.displayName} threw", it) }
-                .getOrNull()
-            result?.cutout?.let { return it }
-            Log.w(TAG, "segmenter ${backend.displayName} produced no cutout")
-        }
-        return null
     }
 
-    /** 只编码不缩放：白描边由覆盖层与时间轴画，不在这里烧进图里。 */
-    private fun encodePng(bitmap: Bitmap): ByteArray? = runCatching {
-        ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
-    }.onFailure { Log.w(TAG, "PNG encode failed for sticker", it) }.getOrNull()
+    /**
+     * 导入的降级说明。这些都不是「失败」——照片**已经存进日记了**，只是这次少了一部分。
+     *
+     * 顺序有意义：检测器不在的时候物体必然是空的，先说原因（它现在给不出检测）比说现象
+     * （这张照片里没认出东西）有用得多，后者听起来像是照片的问题。
+     */
+    private fun importNotice(output: PhotoEntryPipeline.Output): String? = when {
+        PhotoEntryPipeline.Failure.DetectorUnavailable in output.failures ->
+            textOf(R.string.import_no_detection)
 
-    private fun buildEntry(
-        entryId: String,
-        photoFile: String,
-        selected: LiveObject?,
-        stickerFile: String?,
-    ): Entry {
-        val objects = live.map { obj ->
-            EntryObject(
-                id = obj.chip.key,
-                word = obj.chip.word,
-                lexiconEntryId = obj.lexiconEntry?.id,
-                score = obj.score,
-                left = obj.chip.box.left,
-                top = obj.chip.box.top,
-                right = obj.chip.box.right,
-                bottom = obj.chip.box.bottom,
-                stickerPath = if (selected != null && obj.chip.key == selected.chip.key) stickerFile else null,
-                layer = OverlayLayer.ITEM,
-            )
-        }
-        return Entry(
-            id = entryId,
-            photoPath = photoFile,
-            takenAt = System.currentTimeMillis(),
-            kind = lastScene.kind?.id,
-            kindLabel = lastScene.kind?.label ?: emptyMap(),
-            ambience = lastAmbience,
-            objects = objects,
-            // 「没选物品」时全部词片都算被婉拒——留着才能回答「当时它看到了什么」。
-            declinedWords = if (selected == null) live.map { it.chip.word } else emptyList(),
-            detectedBy = EntrySource.ON_DEVICE,
-        )
+        output.entry.objects.isEmpty() -> textOf(R.string.import_no_objects)
+
+        // 贴纸没抠成但词卡照常入库，这句取景页已经在用：同一种取舍，同一句话。
+        output.card != null && PhotoEntryPipeline.Failure.StickerUnavailable in output.failures ->
+            textOf(R.string.capture_sticker_failed)
+
+        else -> null
     }
+
+    private fun textOf(resId: Int): String = container.appContext.getString(resId)
 
     /** 结果页「保存」：卡片进 deck，Entry 进 diary，然后关闭取景页。 */
     fun onSave() {
         val s = staged ?: return
         viewModelScope.launch {
-            s.card?.let { container.deck.add(it) }
-            container.diary.addEntry(s.entry)
+            container.photoPipeline.commit(s)
             staged = null
-            _event.value = Event.Saved(s.entryId, savedCard = s.card != null)
+            _event.value = Event.Saved(s.entry.id, savedCard = s.card != null)
         }
     }
 
     fun onRetake() {
-        staged?.let { s ->
-            // 放弃这一步：把已经写盘的照片与贴纸删掉，不留孤儿文件。
-            runCatching { File(container.entryPhotoDir, s.photoFile).delete() }
-            s.stickerFile?.let {
-                runCatching { File(container.stickerDir, it).delete() }
-                runCatching { File(container.entryPhotoDir, it).delete() }
-            }
-        }
+        staged?.let { container.photoPipeline.discard(it) }
         staged = null
         _ui.update { it.copy(analysing = false, sticker = null, headword = null, ipa = null, gloss = null) }
     }
@@ -578,20 +611,6 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         _event.value = null
     }
 
-    // ── 照片解码 ────────────────────────────────────────────────────────────
-
-    private data class UprightPhoto(val bitmap: Bitmap, val rotationDegrees: Int)
-
-    /**
-     * 解码并按 EXIF 转正，交给 [PhotoDecoder]（时间轴与详情页用的是同一个解码器，照片才不会一处正一处歪）。
-     *
-     * 坐标映射用的是**传感器旋转角**而不是 EXIF 角：词片的框归一化在传感器坐标系里，转正后的位图
-     * 就是「显示图」，`imageBoxFromSensorNorm` 要换算的正是这个角度。两者只有一种情况会不一致——
-     * 分析帧之后、快门之前把手机转了向，那时 EXIF 才是真相。真机上要盯的就是这一条。
-     */
-    private fun decodeUpright(file: File): UprightPhoto? =
-        PhotoDecoder.decodeUpright(file, MAX_PHOTO_PX)?.let { UprightPhoto(it.bitmap, rotationDegrees) }
-
     private suspend fun ImageCapture.savePhoto(file: File) =
         suspendCancellableCoroutine { cont ->
             val options = ImageCapture.OutputFileOptions.Builder(file).build()
@@ -612,20 +631,8 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
 
     private companion object {
         const val TAG = "CaptureVM"
-
-        /**
-         * 抠图用的最大边长。
-         *
-         * 这个数是跟着「贴纸是从这张图里**裁出来**的一块」定的，不是跟着屏幕定的：
-         * 一个物体在 2560 宽的源图里占 30% 就是 ~768px，在 1280 的源图里只有 ~384px，
-         * 而界面上一颗 240dp 的贴纸框在 3x 屏上正是 720px——384 就得放大近一倍，
-         * 边缘会明显糊掉。die-cut 贴纸是这个产品的招牌，不值得为省一次解码牺牲它。
-         *
-         * 它同时是一道**上限**而不是「解全图」：两个分割后端各自还要往 1024/512 工作尺寸降采样，
-         * 所以再高就只是多占内存。4032×3024 的传感器输出在这里会被正确降到 2560，
-         * 而修掉两步降采样之前它压根不会降（`inSampleSize` 卡在 1，一张 48MB 的位图）。
-         */
-        const val MAX_PHOTO_PX = 2560
+        // 解码尺寸（MAX_PHOTO_PX）跟着流水线走，不在这里重复一个数：
+        // 两处同一个常量的下场是「改了一处、另一处的贴纸质量悄悄变了」。
     }
 }
 

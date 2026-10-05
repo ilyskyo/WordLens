@@ -5,6 +5,7 @@
 <resources>
     <string name="app_name">WordLens</string>
     <string name="widget_due_label">Due today</string>
+    <string name="widget_description">Shows how many words are due today. Tap it to go straight to the review queue.</string>
 
     <string name="tab_capture">Capture</string>
     <string name="home_search">Search and filter</string>
@@ -66,6 +67,13 @@
     <string name="capture_speak">Play pronunciation</string>
     <string name="capture_shot_object">Object</string>
     <string name="capture_shot_scene">Scene</string>
+
+    <!-- 相册导入：与拍照同一条流水线，所以提示只讲这次少了什么 -->
+    <string name="capture_import">Import from gallery</string>
+    <string name="capture_importing">Reading that photo · detection and cut-out run the same way as a shot</string>
+    <string name="import_unreadable">That photo could not be read, so nothing was saved</string>
+    <string name="import_no_detection">This device cannot run detection right now — the photo went into Moments whole, with no words on it</string>
+    <string name="import_no_objects">Nothing was recognized in that photo — it went into Moments as a whole picture</string>
 
     <string name="nomatch_title">I can not name this one</string>
     <string name="nomatch_body">The model only saw the labels above. Write the word yourself and it goes into your dictionary.</string>

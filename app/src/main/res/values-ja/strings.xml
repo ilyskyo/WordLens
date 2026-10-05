@@ -5,6 +5,7 @@
 <resources>
     <string name="app_name">WordLens</string>
     <string name="widget_due_label">今日の復習</string>
+    <string name="widget_description">今日復習する語の数を表示します。タップすると復習へ直接移動します。</string>
 
     <string name="tab_capture">撮影</string>
     <string name="home_search">検索と絞り込み</string>
@@ -66,6 +67,13 @@
     <string name="capture_speak">発音</string>
     <string name="capture_shot_object">単一物体</string>
     <string name="capture_shot_scene">風景</string>
+
+    <!-- 相册导入：撮影と同じ手順なので、出るのは「今回何が欠けた」の一言だけ -->
+    <string name="capture_import">アルバムから読み込む</string>
+    <string name="capture_importing">この写真を読み込んでいます · 認識と切り抜きは撮影と同じ手順です</string>
+    <string name="import_unreadable">この写真は読み込めませんでした。記録には保存されていません</string>
+    <string name="import_no_detection">今この端末では認識ができないため、写真そのままを記録に保存しました。言葉は付きません</string>
+    <string name="import_no_objects">この写真からは何も見つかりませんでした。写真全体を記録に保存しました</string>
 
     <string name="nomatch_title">この単語はまだわかりません</string>
     <string name="nomatch_body">モデルが見つけたのは上の言葉だけ。自分で書き込めば辞書に保存されます。</string>

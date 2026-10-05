@@ -316,6 +316,17 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         _dayFilter.update { if (dayKey == it) null else dayKey }
     }
 
+    /**
+     * 把一句话投递到主页这条会自己消失的提示层。
+     *
+     * 存在的理由很具体：相册导入完成后取景页就关掉了，而「照片存下了、但这次没认出词」
+     * 正是**那一刻之后**才需要说的一句话——取景页自己的 NoticeHost 随场景一起被拆掉，
+     * 在那里开口等于什么都没说。复用同一条 notice 通路，而不是再造一个「跨页提示」的状态。
+     */
+    fun showNotice(message: String) {
+        _notice.value = message
+    }
+
     fun acknowledgeNotice() {
         _notice.value = null
     }

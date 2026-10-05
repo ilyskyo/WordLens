@@ -325,5 +325,59 @@ object WordLensIcons {
         }.build()
     }
 
+    /**
+     * 相册：一张带山形与太阳的相框。
+     *
+     * 只**描边**不填色，且用与 Camera 机身同款的圆角矩形几何——填实的色块在暗取景画面上
+     * 会比快门还抢眼，而这一颗只是「另一个来源」，不是主角。
+     */
+    val Gallery: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Gallery",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            // 相框：顺时针一圈，四角各一段半径 2 的弧
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(5f, 4.5f)
+                horizontalLineTo(19f)
+                arcToRelative(2f, 2f, 0f, false, true, 2f, 2f)
+                verticalLineTo(17.5f)
+                arcToRelative(2f, 2f, 0f, false, true, -2f, 2f)
+                horizontalLineTo(5f)
+                arcToRelative(2f, 2f, 0f, false, true, -2f, -2f)
+                verticalLineTo(6.5f)
+                arcToRelative(2f, 2f, 0f, false, true, 2f, -2f)
+                close()
+            }
+            // 太阳：与 Settings 中心孔同一个画法（两段半弧拼一整圈）
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(8.4f, 8.4f)
+                arcToRelative(1.5f, 1.5f, 0f, false, true, 0f, 3f)
+                arcToRelative(1.5f, 1.5f, 0f, false, true, 0f, -3f)
+                close()
+            }
+            // 山：一道折线就够了，它读起来是「一张照片」而不是「一个矩形」
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(5.5f, 16.5f)
+                lineTo(9.5f, 12.5f)
+                lineTo(12f, 15f)
+                lineTo(14.5f, 12f)
+                lineTo(18.5f, 16.5f)
+            }
+        }.build()
+    }
+
 
 }

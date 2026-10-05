@@ -7,6 +7,9 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
@@ -185,6 +188,8 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
                             container = container,
                             onDismiss = { pop(stack, home) },
                             onOpenSettings = { stack.add(Page.Settings) },
+                            // 导入完成之后取景页就没了，那句「这次少了一部分」必须说在主页这层。
+                            onReportNotice = home::showNotice,
                         )
 
                         Page.Search -> SearchHost(
@@ -356,6 +361,7 @@ private fun CaptureHost(
     container: AppContainer,
     onDismiss: () -> Unit,
     onOpenSettings: () -> Unit,
+    onReportNotice: (String) -> Unit,
 ) {
     val vm: CaptureViewModel = viewModel(factory = captureViewModelFactory(container))
     val state by vm.ui.collectAsStateWithLifecycle()
@@ -364,10 +370,22 @@ private fun CaptureHost(
     // 用应用自己的提示层，消息与消失都由这一层负责。
     var notice by remember { mutableStateOf<String?>(null) }
 
+    // 相册入口用系统的照片选择器：挑几张就授权几张，不需要任何存储权限，
+    // 也就不会出现「一个 READ_MEDIA_IMAGES 换来整个相册」这种与本产品的立场相反的事。
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        // null 是用户按了返回键。这不是失败，不该报任何东西——他没选，就是不想记这一张。
+        if (uri != null) vm.onImportPhoto(uri)
+    }
+
     LaunchedEffect(event) {
         when (val e = event) {
             is CaptureViewModel.Event.Saved -> {
                 vm.acknowledgeEvent()
+                // 先投递再关页：这条提示要说给「关掉取景页之后的那个界面」，
+                // 顺序反过来它就会随场景一起被拆掉。
+                e.notice?.let(onReportNotice)
                 onDismiss()
             }
 
@@ -402,6 +420,11 @@ private fun CaptureHost(
             onClose = onDismiss,
             onOpenSettings = onOpenSettings,
             onShutter = vm::onShutter,
+            onImportFromGallery = {
+                importLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
             onRetake = vm::onRetake,
             onSave = vm::onSave,
             onSpeak = vm::onSpeak,

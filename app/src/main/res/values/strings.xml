@@ -5,6 +5,7 @@
 <resources>
     <string name="app_name">见词</string>
     <string name="widget_due_label">今日待复习</string>
+    <string name="widget_description">显示今天还剩几个要复习的词，点它直接进入复习。</string>
 
     <!-- 底部两个常驻动作 -->
     <string name="tab_capture">拍照</string>
@@ -80,6 +81,13 @@
     <string name="capture_speak">播放发音</string>
     <string name="capture_shot_object">单物体</string>
     <string name="capture_shot_scene">场景</string>
+
+    <!-- 相册导入：走的是拍照那一条流水线，所以提示只讲「这一次少了什么」 -->
+    <string name="capture_import">从相册导入</string>
+    <string name="capture_importing">正在读这张照片 · 检测与抠图照常跑完整条流水线</string>
+    <string name="import_unreadable">这张照片读不出来，没有存进日记</string>
+    <string name="import_no_detection">这台设备现在给不出检测：照片已整张存进「回看」，只是没长出词</string>
+    <string name="import_no_objects">这张照片里没认出任何东西，整张存进「回看」了</string>
 
     <!-- 识别为空时的诚实提示 -->
     <string name="nomatch_title">这个词我还认不出来</string>

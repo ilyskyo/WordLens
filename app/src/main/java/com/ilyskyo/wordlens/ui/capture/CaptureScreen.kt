@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -87,6 +89,13 @@ import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.SensorCrop
  */
 data class CaptureUiState(
     val analysing: Boolean = false,
+    /**
+     * 正在处理相册里的那张照片。
+     *
+     * 单独一个布尔而不是复用 [analysing]：快门与分析共用 `analysing`，而这一颗按钮需要
+     * 知道自己那件事在不在跑，才能把图标换成进度环、把上面那句话说成「正在读这张照片」。
+     */
+    val importing: Boolean = false,
     /** 抠图结果。null 表示还在取景或分析中。 */
     val sticker: Bitmap? = null,
     val headword: String? = null,
@@ -126,6 +135,8 @@ fun CaptureScreen(
     state: CaptureUiState = CaptureUiState(),
     onClose: () -> Unit = {},
     onShutter: () -> Unit = {},
+    /** 从相册挑一张照片，走与快门同一条流水线。选择器由调用方持有（要 Activity 结果回调）。 */
+    onImportFromGallery: () -> Unit = {},
     onRetake: () -> Unit = {},
     onSave: () -> Unit = {},
     onSpeak: () -> Unit = {},
@@ -221,6 +232,7 @@ fun CaptureScreen(
                 state = state,
                 bottomInset = bottomInset,
                 onShutter = onShutter,
+                onImportFromGallery = onImportFromGallery,
                 onTapSubject = onTapSubject,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
@@ -379,6 +391,7 @@ private fun CaptureBottomControls(
     state: CaptureUiState,
     bottomInset: PaddingValues,
     onShutter: () -> Unit,
+    onImportFromGallery: () -> Unit,
     onTapSubject: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -399,6 +412,8 @@ private fun CaptureBottomControls(
         // 这条二分是整个产品的骨架，不该让用户猜。
         val selectedWord = state.chips.firstOrNull { it.key == state.selectedChipKey }?.word
         val hint = when {
+            // 导入在跑的时候这句话优先：那一刻用户唯一想知道的就是「这一下有没有在动」。
+            state.importing -> stringResource(R.string.capture_importing)
             selectedWord != null -> stringResource(R.string.capture_selected_hint, selectedWord)
             state.chips.isNotEmpty() -> stringResource(R.string.capture_scene_hint)
             state.shotKind == ShotKind.UNCLEAR && !state.analysing ->
@@ -417,7 +432,7 @@ private fun CaptureBottomControls(
                     .then(
                         // 没有任何词片时才把提示本身做成按钮（走手动抠主流）；
                         // 有词片时选择靠点词片完成，提示只是陈述。
-                        if (selectedWord == null && state.chips.isEmpty()) {
+                        if (selectedWord == null && state.chips.isEmpty() && !state.importing) {
                             Modifier.pressable(onClick = onTapSubject)
                         } else {
                             Modifier
@@ -426,7 +441,75 @@ private fun CaptureBottomControls(
                     .padding(horizontal = Space.md, vertical = Space.sm),
             )
         }
-        ShutterButton(enabled = !state.analysing, onClick = onShutter)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 左边垫的空白**正好等于右边那颗按钮**：这样中间那块的重心就是屏幕的重心，
+            // 快门仍然在正中央。相册入口是同一个动作的另一个来源，不该把主角挤离位置。
+            Spacer(Modifier.size(IMPORT_BUTTON))
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                ShutterButton(enabled = !state.analysing, onClick = onShutter)
+            }
+            GalleryImportButton(
+                enabled = !state.analysing,
+                importing = state.importing,
+                onClick = onImportFromGallery,
+            )
+        }
+    }
+}
+
+/**
+ * 相册入口。
+ *
+ * 造型**照抄快门**（描边 + 半透明底 + `pressable(Scale.Small)` + 进度环），只小一档：
+ * 这一条上没有任何阴影，加一颗带阴影的按钮会比快门还抢眼；而它值得和快门同一套手感语言，
+ * 因为按下去做的是同一件事——把这一刻记下来，只是照片来自相册而不是镜头。
+ *
+ * 没有波纹：主题装的 `NoIndication` 已经全局关掉，这里也不重新引一次。
+ */
+@Composable
+private fun GalleryImportButton(
+    enabled: Boolean,
+    importing: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(IMPORT_BUTTON)
+            .clip(CircleShape)
+            .background(Color(0x4D000000))
+            .border(
+                width = 2.dp,
+                color = Color.White.copy(alpha = if (enabled) 0.72f else 0.32f),
+                shape = CircleShape,
+            )
+            .pressable(
+                onClick = onClick,
+                enabled = enabled,
+                role = Role.Button,
+                pressedScale = Scale.Small,
+                haptic = Haptic.Pop,
+            )
+            .testTag("import"),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (importing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(IMPORT_BUTTON * 0.52f),
+                color = Color.White,
+                strokeWidth = 2.5.dp,
+            )
+        } else {
+            Icon(
+                imageVector = WordLensIcons.Gallery,
+                contentDescription = stringResource(R.string.capture_import),
+                tint = Color.White.copy(alpha = if (enabled) 0.92f else 0.45f),
+                modifier = Modifier.size(IMPORT_BUTTON * 0.48f),
+            )
+        }
     }
 }
 
@@ -481,6 +564,15 @@ private fun ShutterButton(enabled: Boolean, onClick: () -> Unit, modifier: Modif
 
 private val SHUTTER_OUTER = 72.dp
 private val SHUTTER_INNER = 60.dp
+
+/**
+ * 相册入口的直径。
+ *
+ * 52 而不是 48：48 是触控下限，而这一颗挨着 72dp 的快门，太小的话两者会被读成
+ * 「一个是主、一个是附属说明」——它是并列的另一个来源，不是脚注。
+ * 再大就开始和快门争主次，72 的那一圈是留给快门的。
+ */
+private val IMPORT_BUTTON = 52.dp
 
 /** 识别结果面板：贴纸 + 单词 + 音标 + 释义 + 发音 + 两个动作。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -656,6 +748,26 @@ private fun CaptureViewfinderPreview() {
                     sensorHeight = 3024,
                     rotationDegrees = 90,
                     crop = SensorCrop(0f, 0f, 4032f, 3024f),
+                ),
+            ),
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF6B7B6B, widthDp = 380, heightDp = 720)
+@Composable
+private fun CaptureImportingPreview() {
+    // 导入在跑的那一眼：快门与相册入口同时变成进度环，上面那句话说明此刻在做什么。
+    // 这一屏是「用户会不会以为卡住了」的全部答案，所以它值得单独一个预览。
+    WordLensTheme {
+        CaptureScreen(
+            bottomInset = PaddingValues(0.dp),
+            cameraGranted = true,
+            state = CaptureUiState(
+                analysing = true,
+                importing = true,
+                chips = listOf(
+                    WordChip("cup", "cup", NormBox(0.15f, 0.35f, 0.35f, 0.55f)),
                 ),
             ),
         )
