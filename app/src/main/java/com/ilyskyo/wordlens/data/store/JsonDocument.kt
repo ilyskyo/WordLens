@@ -60,6 +60,15 @@ class JsonDocument<T>(
     /** The same value as [state] without collecting — for widget callbacks and logs. */
     val current: T get() = _state.value
 
+    /**
+     * 磁盘内容读回来过没有。
+     *
+     * 与 [persisting] 一起只在这个类的 `mutex.withLock` 里被写——所以这里没有、也不该有
+     * 「同步读一份」的旁路入口（曾经有一个 `readBlocking()`，声称是给小组件用的，而小组件
+     * 从头到尾没调用过它：它在主线程上绕过锁读文件、再写 `_state`/`loaded`/`persisting`，
+     * 和冷启动那次 `load()` 是两次并发的磁盘读，输的那个会把文档打回旧内容）。
+     * 要在不能挂起的回调里拿数据，就读 [current]——它取的是已经收敛好的那份状态。
+     */
     var loaded: Boolean = false
         private set
 
@@ -115,19 +124,6 @@ class JsonDocument<T>(
             }
             next
         }
-    }
-
-    /**
-     * Synchronous read for callers that cannot suspend (AppWidgetProvider.onUpdate runs on the
-     * main thread with a 30s budget, and blocking a couple of hundred KB of JSON is far cheaper
-     * than spawning a coroutine that outlives the broadcast).
-     */
-    fun readBlocking(): T {
-        if (loaded) return _state.value
-        val parsed = readFromDisk()
-        _state.value = parsed
-        loaded = true
-        return parsed
     }
 
     // ── internals ────────────────────────────────────────────────────────────

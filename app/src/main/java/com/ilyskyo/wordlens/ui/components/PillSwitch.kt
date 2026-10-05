@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -85,7 +85,9 @@ fun PillSwitch(
 
     Box(
         modifier = modifier
-            .height(height)
+            // 是**下限**而不是定值：系统字号放大时轨道要自己长高，否则段的文字会被裁掉半行。
+            // 写成 height() 的话调用方给的 48dp 就成了硬上限，放大字号恰好是最需要它看得清的时候。
+            .heightIn(min = height)
             .softShadow(CircleShape, intensity = 0.35f)
             .background(MaterialTheme.colorScheme.surface, CircleShape)
             .padding(TRACK_INSET),

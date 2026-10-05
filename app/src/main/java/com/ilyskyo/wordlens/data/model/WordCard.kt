@@ -150,8 +150,21 @@ data class WordCard(
     /** Emoji for the originating scene, denormalised for the same reason. */
     val sceneEmoji: String? = null,
 
-    /** Whether the card was cut out as a sticker or collected from a whole scene photo. */
-    val origin: CardOrigin = CardOrigin.STICKER,
+    /**
+     * 这张卡的词是怎么来的。
+     *
+     * 默认是 [CardOrigin.TEXT]：从词典里查一条然后收进牌组（搜索页的收录、取景页的手写）
+     * 是**唯一**不走 `PhotoEntryPipeline` 的建卡路径，而那两条路径压根没有画面。
+     * 之前默认是 STICKER，于是手输的词在磁盘上写着「我是从照片上抠下来的贴纸」——
+     * 今天没有任何界面读这个字段，所以看不出来；但它是一句会一直留在 deck.json 里的假话，
+     * 而第一个真的按来源分组的视图会把它当真话用。
+     *
+     * [CardOrigin.STICKER] 由流水线显式写上（`PhotoEntryPipeline` 里那一处），不靠默认值。
+     * [CardOrigin.SCENE] 暂时没有任何生产者：整张照片那条路进的是日记而不是牌组，
+     * 「氛围词」不生成卡。留着它是因为这是**已落盘的词汇表**，删一个常量就等于改数据格式，
+     * 而这条改动的收益是零。
+     */
+    val origin: CardOrigin = CardOrigin.TEXT,
 
     /** Free-form tags, e.g. `food`, `kitchen`, `street`. */
     val tags: List<String> = emptyList(),

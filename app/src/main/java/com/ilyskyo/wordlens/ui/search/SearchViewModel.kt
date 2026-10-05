@@ -18,11 +18,13 @@ import com.ilyskyo.wordlens.data.model.WordCard
 import com.ilyskyo.wordlens.data.repository.AppSettings
 import com.ilyskyo.wordlens.data.repository.DeckDocument
 import com.ilyskyo.wordlens.data.repository.DiaryDocument
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -71,6 +73,14 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.settings,
         query,
     ) { deck, diary, lexicon, settings, text -> build(deck, diary, lexicon, settings, text) }
+        // `added` 必须是第二个 combine 的**输入**而不是 build 里顺手读的一份值：
+        // 收录成功后，牌组流的变化会先于 `added.value` 写下来到达这里，于是那一格的
+        // 「已收」有没有出现取决于两次写入谁先跑到——而它没有第二次机会被重算。
+        .combine(added) { found, just -> found.copy(justAdded = just) }
+        // 每一次按键都要在 12000 条词典里做线性搜索，再把整本日记扫一遍匹配标题/摘要/关键词/物体。
+        // combine 的变换跑在**下游收集器**的上下文里，而下游是 viewModelScope（Main.immediate）：
+        // 不加这一句就是每敲一个字在主线程扫一遍词典。首页的位图解码早就走同样的路。
+        .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState())
 
     fun onQueryChange(text: String) {
@@ -159,7 +169,7 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
             collected = collected,
             suggestions = suggestions,
             diaryHits = diaryHits,
-            justAdded = added.value,
+            // justAdded 不在这里读：它由上面第二个 combine 贴上来，理由写在那儿。
         )
     }
 

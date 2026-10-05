@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -313,6 +314,11 @@ private fun ReviewCardArea(
     val offsetX = remember { Animatable(0f) }
     var widthPx by remember { mutableStateOf(0f) }
     var menuOpen by remember(card.item.id) { mutableStateOf(false) }
+    // 这张卡已经飞出去了。松手到下一张卡到位之间隔着一次磁盘写（fsync），
+    // 而 `state.current` 是在那次写之后才换的——原来的写法是立刻把 offsetX 归零，
+    // 于是那半秒里屏幕正中显示的恰恰是用户刚刚处置掉的那一张。
+    // 归零本身要留：progress 随之回 0，两侧光晕也一起灭掉；要压掉的只有这张卡的画面。
+    var dismissed by remember(card.item.id) { mutableStateOf(false) }
 
     // -1..1：负数偏向「忘了」，正数偏向「好」。只在需要连续读数的地方用，
     // 跨界这件事本身用 Arm 枚举上报，避免每帧重组。
@@ -322,6 +328,12 @@ private fun ReviewCardArea(
         }
     }
 
+    // `rememberDraggableState` 只在**第一次组合**收下那个 lambda，之后不再换：
+    // 所以手势里绝不能直接读 `armed` 这个参数——那样比较的永远是首帧的 Arm.None，
+    // 于是「拖过阈值又拖回来」这条路径因为 next == 旧的 armed 而被跳过，
+    // 按钮会一直亮着，而卡已经回到中间了。rememberUpdatedState 就是给这种回调用的。
+    val latestArmed = rememberUpdatedState(armed)
+
     val dragState = rememberDraggableState { delta ->
         scope.launch {
             offsetX.snapTo(offsetX.value + delta)
@@ -330,7 +342,7 @@ private fun ReviewCardArea(
                 progress.value >= 1f -> Arm.Good
                 else -> Arm.None
             }
-            if (next != armed) onArmChange(next)
+            if (next != latestArmed.value) onArmChange(next)
         }
     }
 
@@ -362,6 +374,10 @@ private fun ReviewCardArea(
                     .fillMaxWidth()
                     .aspectRatio(FLIP_CARD_ASPECT)
                     .then(
+                        // 已经飞走的那一张，在下一张到位之前不给它任何回到中间的机会。
+                        if (dismissed) Modifier.graphicsLayer { alpha = 0f } else Modifier
+                    )
+                    .then(
                         // 正面连手势都不注册：比「注册了但忽略」更诚实，也不会顺手一滑就吞掉事件。
                         if (state.revealed) {
                             Modifier.draggable(
@@ -379,10 +395,11 @@ private fun ReviewCardArea(
                                         } else {
                                             val flyTo = if (rating == Fsrs.Rating.AGAIN) -widthPx * FLY_OUT else widthPx * FLY_OUT
                                             offsetX.animateTo(flyTo, initialVelocity = velocity, animationSpec = Motion.smooth)
-                                            onGrade(rating)
-                                            // 换卡之后必须复位，否则下一张卡会从屏幕外开始。
-                                            offsetX.snapTo(0f)
+                                            // 飞出去的那一段动画已经播完了，从这里起这张卡不该再出现。
+                                            dismissed = true
                                             onArmChange(Arm.None)
+                                            offsetX.snapTo(0f)
+                                            onGrade(rating)
                                         }
                                     }
                                 },
@@ -1141,7 +1158,14 @@ private const val STAGGER_MS = 80
 private const val HINT_ALPHA_LOW = 0.4f
 private const val HINT_ALPHA_HIGH = 0.8f
 
-private val PILL_HEIGHT = 44.dp
+/**
+ * 材质筛选胶囊的**下限**高度。
+ *
+ * 48dp 不是照抄 iOS 的 44pt：44pt 是 UIKit 的坐标，而 Android 的无障碍底线是 48dp 的可点区域，
+ * 这一排段是复习页唯一的内容切换入口，够得着比矮一点更值钱。
+ * 传给 PillSwitch 的是下限而不是死值：系统字号放大时它会自己长高到容得下 labelLarge 那一行。
+ */
+private val PILL_HEIGHT = 48.dp
 private val PROGRESS_HEIGHT = 4.dp
 
 /**

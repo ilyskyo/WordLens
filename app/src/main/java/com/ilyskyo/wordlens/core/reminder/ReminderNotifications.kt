@@ -22,8 +22,12 @@ import com.ilyskyo.wordlens.R
  *
  * Android 8 起，没有渠道的通知根本发不出去（系统直接丢弃并记一条日志）。这个应用之前只有
  * 桌面小组件、没有任何通知，所以渠道从来没建过——现在要发第一条了，就必须有一个地方
- * 在第一次使用前把它建好，而且要在**任何**发送路径之前。[ReminderScheduler.schedule] 和
- * Application 启动都做这件事，因为渠道创建是幂等的，晚一步就是一次静默失败。
+ * 在第一次使用前把它建好，而且要在**任何**发送路径之前。
+ *
+ * 现在有两个地方建：[ReminderScheduler.sync] 在建排期时建，[showDue] 在发之前兜一次。
+ * 不是 Application 的 `onCreate`——那里没有直接调用，但 `AppContainer.warmUp` 一订阅设置流
+ * 就会走到 `sync`，所以进程起来的第一批工作里就包含了这件事。写成「Application 启动建的」
+ * 会让人去 grep 一个不存在的调用。创建是幂等的，宁可重复建，也不要晚一步变成静默失败。
  *
  * ## 为什么是 IMPORTANCE_LOW
  *
