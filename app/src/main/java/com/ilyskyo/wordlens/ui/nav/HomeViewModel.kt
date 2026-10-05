@@ -629,9 +629,17 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val next = VoiceMemo.transition(take.phase, event) ?: return
         val handle = recorder
         recorder = null
+        if (handle == null) {
+            // 没有录音机可收尾，就说明「那一段」其实不存在。这时候把阶段推到 STAGED 会得到一个
+            // 卡住的界面：读数写「正在收尾…」，而「收下」在时长未知时是灰的（`onCommitTake`
+            // 那头也拿不到 `stagedMs`），唯一还能按的是「丢弃」——等于让用户为了离开一个
+            // 不存在的状态做一次删除决定。清掉它，并说一句，而不是让人自己猜。
+            _take.value = null
+            reportTake(TakeNotice.FAILED)
+            return
+        }
         _take.value = take.copy(phase = next.phase, stagedMs = null)
         next.notice?.let { reportTake(it) }
-        if (handle == null) return
         viewModelScope.launch {
             val ms = withContext(Dispatchers.IO) { handle.finish() }
             // 「那半截不可信」不问阶段：这是收尾这一步对文件的事实判断，而阶段机管的是麦克风的
