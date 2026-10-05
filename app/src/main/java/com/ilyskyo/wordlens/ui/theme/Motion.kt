@@ -4,8 +4,10 @@
 package com.ilyskyo.wordlens.ui.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.unit.IntOffset
 
 /**
  * 全局动效规格。**任何动画只允许引用这里的规格**，屏幕里出现新的 `spring(...)` 或
@@ -27,6 +29,13 @@ object Motion {
 
     /** Float 弹簧的统一停止阈值。1e-4 在 px / 比例 / 角度三种量纲上都不会看见台阶。 */
     private const val FLOAT_THRESHOLD = 1e-4f
+
+    // 五档弹簧的参数只在这里出现一次。IntOffset 版本要从同一组数字构造，
+    // 否则「同一档手感」会因为在两个文件里各写一遍而慢慢分家。
+    private const val SNAPPY_DAMPING = 0.78f
+    private const val SNAPPY_STIFFNESS = 550f
+    private const val SMOOTH_DAMPING = 0.85f
+    private const val SMOOTH_STIFFNESS = 320f
 
     /**
      * 入场缓动：起步快、尾巴长。
@@ -67,8 +76,8 @@ object Motion {
      * 末端只有一点点可以被感知、但不会被误认为「还没停」的过冲。
      */
     val snappy = spring(
-        dampingRatio = 0.78f,
-        stiffness = 550f,
+        dampingRatio = SNAPPY_DAMPING,
+        stiffness = SNAPPY_STIFFNESS,
         visibilityThreshold = FLOAT_THRESHOLD,
     )
 
@@ -79,9 +88,27 @@ object Motion {
      * 0.85 的阻尼保证它不弹——内容弹一下会读成「加载出错重试」。
      */
     val smooth = spring(
-        dampingRatio = 0.85f,
-        stiffness = 320f,
+        dampingRatio = SMOOTH_DAMPING,
+        stiffness = SMOOTH_STIFFNESS,
         visibilityThreshold = FLOAT_THRESHOLD,
+    )
+
+    /**
+     * [smooth] 的 IntOffset 版本，给 `slideInVertically` / `slideOutVertically` 用。
+     *
+     * 这两个 API 要的是 `FiniteAnimationSpec<IntOffset>`，装不进 Float 弹簧。参数必须与
+     * [smooth] 同源：两处各写一份数字，早晚会滑出两种手感，而「两种手感」正是这一整个文件
+     * 存在的理由。IntOffset 是整数像素量纲，不需要 float 的停止阈值。
+     */
+    fun smoothOffset(): SpringSpec<IntOffset> = spring(
+        dampingRatio = SMOOTH_DAMPING,
+        stiffness = SMOOTH_STIFFNESS,
+    )
+
+    /** [snappy] 的 IntOffset 版本（页面位移、卡片翻页一类）。 */
+    fun snappyOffset(): SpringSpec<IntOffset> = spring(
+        dampingRatio = SNAPPY_DAMPING,
+        stiffness = SNAPPY_STIFFNESS,
     )
 
     /**

@@ -77,6 +77,16 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val material: StudyMaterial = StudyMaterial.WORDS_AND_EVENTS,
         val revealed: Boolean = false,
         val done: Int = 0,
+        /**
+         * 本轮里评了「忘了」的张数。
+         *
+         * 完成页那个正确率读数必须说清它是**第一次就答对**的比例：一张卡先看背面再评「好」
+         * 也算对，那样这个数字会一路逼近 100% 而毫无意义。这里只统计 AGAIN，
+         * 因为 FSRS 的四档里只有 AGAIN 表示「没想起来」。
+         */
+        val missed: Int = 0,
+        /** 本轮第一张卡被评的时刻；0 表示还没开始，免得空轮显示「用时 0 秒」。 */
+        val startedAt: Long = 0L,
     )
 
     private val session = MutableStateFlow(Session())
@@ -214,7 +224,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     // ── 回调 ────────────────────────────────────────────────────────────────
 
     fun onMaterialChange(material: StudyMaterial) {
-        session.update { it.copy(material = material, revealed = false, done = 0) }
+        // 换素材就是开始新的一轮：计数、用时与正确率全部归零，
+        // 否则「本轮」会同时统计两件不同的事。
+        session.update { Session(material = material) }
     }
 
     fun onReveal() {
@@ -239,7 +251,14 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             }
             revealedAt = 0L
             // 仓库更新会推动流重算队列，这里只复位翻面与计数。
-            session.update { it.copy(revealed = false, done = it.done + 1) }
+            session.update { current ->
+                current.copy(
+                    revealed = false,
+                    done = current.done + 1,
+                    missed = current.missed + if (rating == Fsrs.Rating.AGAIN) 1 else 0,
+                    startedAt = if (current.startedAt == 0L) now else current.startedAt,
+                )
+            }
             // 桌面上那个数得跟着变。系统刷新最快 30 分钟一次，对一个「还剩几个」的读数没意义。
             DueWidgetProvider.refresh(container.appContext)
         }
@@ -381,6 +400,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             speakEnabled = ttsReady,
             intervals = previewIntervals(head, direction),
             archived = archived,
+            // 卡堆只需要知道「后面还有几张」，不需要知道内容：
+            // 提前把下一张的词露出来会直接毁掉自由回忆这件事，而复习的全部价值就在这里。
+            upcoming = (queue.size - 1).coerceAtLeast(0),
+            sessionSeconds = if (current.startedAt == 0L) 0 else ((now - current.startedAt) / 1000L).toInt(),
+            firstTryAccuracy = if (current.done == 0) 1f else
+                (current.done - current.missed).toFloat() / current.done,
         )
     }
 
