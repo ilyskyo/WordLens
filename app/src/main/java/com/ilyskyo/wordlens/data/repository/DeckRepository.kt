@@ -24,10 +24,20 @@ import java.time.ZoneId
 /** The whole deck in one file: `filesDir/deck.json`. */
 @Serializable
 data class DeckDocument(
-    val schemaVersion: Int = 1,
+    val schemaVersion: Int = CURRENT_SCHEMA,
     val cards: List<WordCard> = emptyList(),
     val log: List<ReviewLog> = emptyList(),
-)
+) {
+    companion object {
+        /**
+         * 这个构建写的格式版本。它唯一的用途是**拒写**：磁盘上的版本比它大，说明这份数据
+         * 是更新的文件格式写的，本构建不该把自己不认识的样子改写回去（见
+         * [com.ilyskyo.wordlens.data.store.JsonDocument]）。不做多代迁移——那需要一份
+         * 迁移表，而现在只有一代。
+         */
+        const val CURRENT_SCHEMA = 1
+    }
+}
 
 /** Counts for the home screen, the widget and the progress ring. */
 data class DeckStats(

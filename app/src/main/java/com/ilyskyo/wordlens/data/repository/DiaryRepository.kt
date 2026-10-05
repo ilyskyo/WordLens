@@ -20,10 +20,15 @@ import java.io.File
 /** 整本日记一个文件：`filesDir/diary.json`。与 deck.json 分开放，两者生命周期完全不同。 */
 @Serializable
 data class DiaryDocument(
-    val schemaVersion: Int = 1,
+    val schemaVersion: Int = CURRENT_SCHEMA,
     val entries: List<Entry> = emptyList(),
     val events: List<EventCard> = emptyList(),
-)
+) {
+    companion object {
+        /** 用途与 DeckDocument.CURRENT_SCHEMA 相同：只用来拒写更新格式的数据，不做迁移。 */
+        const val CURRENT_SCHEMA = 1
+    }
+}
 
 /**
  * 日记与事件卡的唯一持有者。

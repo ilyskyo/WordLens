@@ -59,6 +59,8 @@ class AppContainer(context: Context) {
         serializer = DeckDocument.serializer(),
         scope = applicationScope,
         tag = "DeckDocument",
+        currentSchema = DeckDocument.CURRENT_SCHEMA,
+        schemaOf = DeckDocument::schemaVersion,
     )
 
     val deck = DeckRepository(deckDocument, applicationScope)
@@ -69,6 +71,8 @@ class AppContainer(context: Context) {
         serializer = DiaryDocument.serializer(),
         scope = applicationScope,
         tag = "DiaryDocument",
+        currentSchema = DiaryDocument.CURRENT_SCHEMA,
+        schemaOf = DiaryDocument::schemaVersion,
     )
 
     val diary = DiaryRepository(diaryDocument, entryPhotoDir, applicationScope)
