@@ -577,6 +577,7 @@ private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
     val engines by vm.engines.collectAsStateWithLifecycle()
     val missingLanguages by vm.missingLanguages.collectAsStateWithLifecycle()
     val settingsNotice by vm.notice.collectAsStateWithLifecycle()
+    val userWords by vm.userWords.collectAsStateWithLifecycle()
     Box(modifier = Modifier.fillMaxSize()) {
         SettingsScreen(
             state = state,
@@ -592,6 +593,9 @@ private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
             missingLanguages = missingLanguages,
             onRecheckVoices = vm::reprobeVoices,
             onImport = vm::onImportDeck,
+            userWords = userWords,
+            onAddWord = vm::onAddUserWord,
+            onRemoveWord = vm::onRemoveUserWord,
             onCloudEnabled = vm::onCloudEnabled,
             onCloudModel = vm::onCloudModel,
             onCloudApiKey = vm::onCloudApiKey,

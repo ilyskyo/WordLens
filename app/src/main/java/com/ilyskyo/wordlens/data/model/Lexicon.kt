@@ -115,6 +115,33 @@ data class LexiconEntry(
             source = source,
         )
     }
+
+    companion object {
+        /**
+         * 「词典里还没有这个词」→ 一条用户词条。
+         *
+         * id 写成 `user-<语言>.<规范化的词>`，两个性质都是要用的：**稳定**，所以同一个词第二次
+         * 保存落在同一条上（是覆盖，不是攒出三条只差空格的副本），而删除只需要这一个 id；
+         * **看得出来源**，所以内置那一层与人写的那一层混在一起时，文件里还能一眼分辨。
+         *
+         * 词或释义是空白时返回 null，而不是造一条出去：`headword` 会退化成 id 本身，
+         * 界面上就多出一行写着 `user-en.` 的词。
+         */
+        fun userEntry(word: String, gloss: String, target: Lang, native: Lang): LexiconEntry? {
+            val term = word.trim()
+            val meaning = gloss.trim()
+            if (term.isEmpty() || meaning.isEmpty()) return null
+            val slug = term.lowercase().replace(BLANKS, "-")
+            return LexiconEntry(
+                id = "user-${target.tag}.$slug",
+                words = mapOf(target.tag to term),
+                glosses = mapOf(native.tag to meaning),
+                source = "user",
+            )
+        }
+
+        private val BLANKS = Regex("""\s+""")
+    }
 }
 
 /** On-disk lexicon file. One per source/language grouping; user files merge on top. */

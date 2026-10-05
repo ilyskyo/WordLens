@@ -186,7 +186,7 @@
     <string name="manual_field_label">Write the word</string>
     <string name="manual_add">Add to dictionary</string>
     <string name="manual_added">“%1$s” is now in your dictionary</string>
-    <string name="manual_not_found">“%1$s” is not in the dictionary yet, so it cannot join the review queue</string>
+    <string name="manual_not_found">“%1$s” is not in the dictionary yet, so it cannot join the review queue. Write what it means under Settings → My words</string>
     <!-- 相机权限被永久拒绝 -->
     <string name="capture_open_settings">Open system settings</string>
     <string name="capture_permission_permanently_denied">The system no longer shows the permission dialog. Allow the camera in system settings, then come back.</string>
@@ -248,4 +248,14 @@
     <string name="notice_audio_failed">Nothing was recorded this time; the half-written file was removed</string>
     <string name="notice_audio_take_pending">One clip is still undecided — keep it or discard it first</string>
     <string name="notice_audio_playback_failed">This recording cannot be played; the file may be damaged</string>
+
+    <string name="settings_my_words_section">My words</string>
+    <string name="settings_my_words_empty">Nothing added yet. When the app fails to recognise something, write what it means here and the same word will join the review queue next time.</string>
+    <string name="settings_word_label">Word (the language you are learning)</string>
+    <string name="settings_meaning_label">Meaning (your native language)</string>
+    <string name="settings_word_add">Add it</string>
+    <string name="settings_word_remove_desc">Delete this entry</string>
+    <string name="notice_word_added">“%1$s” is in your dictionary now</string>
+    <string name="notice_word_removed">That entry was deleted</string>
+    <string name="notice_word_failed">That was not written; the dictionary file may be unreadable</string>
 </resources>

@@ -54,10 +54,20 @@ class LexiconRepository(
      *
      * 这里原来写着「surfaced in Settings」——设置页从头到尾没有读它，所以那句话说的是一件
      * 没人做的事。留着这条流仍然是对的（词典文件是用户可以直接改的文本，读不出来必须留痕），
-     * 但接线到 UI 是另一件事：见 user 层的注释，那一整层的入口都还没有。
+     * 但接到界面上是另一件事，还没有做：现在能看见的只有「词条数量」与「这条没写进去」，
+     * 而一份坏掉的内置词典是一份都不进索引的——那需要一句用户看得懂、又不必自己去修的话。
      */
     val loadWarnings: StateFlow<List<String>> get() = _warnings
     private val _warnings = MutableStateFlow<List<String>>(emptyList())
+
+    /**
+     * 用户那一层的条目本身，不含内置那一份。
+     *
+     * 单独留一条流而不是从 `index` 里筛：索引里内置与用户已经合过一层（同 id 时用户覆盖内置），
+     * 从合并结果里已经问不出「哪几条是这个人自己写的」。设置页那一节要列的正只是后者。
+     */
+    val userEntries: StateFlow<List<LexiconEntry>> get() = _userEntries
+    private val _userEntries = MutableStateFlow<List<LexiconEntry>>(emptyList())
 
     fun loadAsync() {
         scope.launch(Dispatchers.IO) { reload() }
@@ -74,6 +84,7 @@ class LexiconRepository(
             } ?: warnings.add("$source could not be parsed")
         }
 
+        val userFound = mutableListOf<LexiconEntry>()
         val userDir = userDir()
         userDir.listFiles { f -> f.isFile && f.name.endsWith(".json") }
             ?.sortedBy { it.name }
@@ -81,10 +92,12 @@ class LexiconRepository(
                 readLexiconFile(file.name, file.readTextOrNullCompat())?.forEach { entry ->
                     // User entries deliberately shadow built-ins with the same id.
                     merged[entry.id] = entry
+                    userFound += entry
                 } ?: warnings.add("${file.name} could not be parsed")
             }
 
         _warnings.value = warnings
+        _userEntries.value = userFound.sortedBy { it.headword.lowercase() }
         val built = LexiconIndex(merged.values.toList())
         _index.value = built
         Log.i(TAG, "Lexicon ready: ${merged.size} entries, ${warnings.size} warning(s)")

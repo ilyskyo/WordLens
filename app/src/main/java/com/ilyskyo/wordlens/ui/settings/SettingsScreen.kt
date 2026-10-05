@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Lang
+import com.ilyskyo.wordlens.data.model.LexiconEntry
 import com.ilyskyo.wordlens.data.model.RatingPalette
 import com.ilyskyo.wordlens.data.model.StudyDirection
 import com.ilyskyo.wordlens.core.reminder.ReminderPlan
@@ -56,6 +57,7 @@ import com.ilyskyo.wordlens.data.repository.AppSettings
 import com.ilyskyo.wordlens.srs.Fsrs
 import com.ilyskyo.wordlens.ui.components.OptionChip
 import com.ilyskyo.wordlens.ui.components.OutlinedAction
+import com.ilyskyo.wordlens.ui.components.PrimaryButton
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.RatingColors
@@ -95,6 +97,9 @@ fun SettingsScreen(
     missingLanguages: List<Lang> = emptyList(),
     onRecheckVoices: () -> Unit = {},
     onImport: (android.net.Uri) -> Unit = {},
+    userWords: List<LexiconEntry> = emptyList(),
+    onAddWord: (word: String, gloss: String) -> Unit = { _, _ -> },
+    onRemoveWord: (id: String) -> Unit = {},
     onCloudEnabled: (Boolean) -> Unit = {},
     onCloudModel: (String) -> Unit = {},
     onCloudApiKey: (String) -> Unit = {},
@@ -204,6 +209,12 @@ fun SettingsScreen(
                 )
 
                 DataSection(onImport = onImport)
+
+                MyWordsSection(
+                    words = userWords,
+                    onAdd = onAddWord,
+                    onRemove = onRemoveWord,
+                )
 
                 PrivacySection()
             }
@@ -540,6 +551,84 @@ private fun DataSection(onImport: (android.net.Uri) -> Unit) {
 }
 
 private const val SEPARATOR = "  ·  "
+
+/**
+ * 「我的词条」：把设备认不出的那个词变成一次录入。
+ *
+ * 这一节的分量不在表单，在它后面那句是真的：写进去之后 `LexiconRepository.reload` 把它并进索引，
+ * 取景页手输同一个词就不再撞 `manual_not_found`。词典文件本来就是一个人可以打开、diff、分享的
+ * 纯文本（§8.6），所以这里不需要「导出」这个动作，也不该造一个。
+ *
+ * 两个框都填了才按得下去：`LexiconEntry.userEntry` 对空白返回 null，而「按下没反应」是这个项目
+ * 里最不能出现的一种失败。
+ */
+@Composable
+private fun MyWordsSection(
+    words: List<LexiconEntry>,
+    onAdd: (word: String, gloss: String) -> Unit,
+    onRemove: (id: String) -> Unit,
+) {
+    var word by remember { mutableStateOf("") }
+    var meaning by remember { mutableStateOf("") }
+    Section(title = stringResource(R.string.settings_my_words_section)) {
+        if (words.isEmpty()) {
+            Text(
+                text = stringResource(R.string.settings_my_words_empty),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            words.forEach { entry ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Space.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = entry.headword, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            // 取「有的那一条」而不是按母语键取：同一条可能先为别的语言补过释义。
+                            text = entry.glosses.values.firstOrNull { it.isNotBlank() }.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = { onRemove(entry.id) }) {
+                        Icon(
+                            imageVector = WordLensIcons.Close,
+                            contentDescription = stringResource(R.string.settings_word_remove_desc),
+                        )
+                    }
+                }
+            }
+        }
+        OutlinedTextField(
+            value = word,
+            onValueChange = { word = it },
+            label = { Text(stringResource(R.string.settings_word_label)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = meaning,
+            onValueChange = { meaning = it },
+            label = { Text(stringResource(R.string.settings_meaning_label)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        PrimaryButton(
+            text = stringResource(R.string.settings_word_add),
+            onClick = {
+                onAdd(word, meaning)
+                // 清空而不是留着：留着的话再按一次是把同一个词又写一遍（同 id 是覆盖），
+                // 看上去像「加了两次」，而刚按下的人无从分辨。
+                word = ""
+                meaning = ""
+            },
+            enabled = word.isNotBlank() && meaning.isNotBlank(),
+        )
+    }
+}
 
 /**
  * 隐私那一节：只有两行陈述，没有开关。

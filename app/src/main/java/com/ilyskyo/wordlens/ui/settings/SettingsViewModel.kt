@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ilyskyo.wordlens.core.AppContainer
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Lang
+import com.ilyskyo.wordlens.data.model.LexiconEntry
 import com.ilyskyo.wordlens.data.repository.decodeDeck
 import com.ilyskyo.wordlens.data.model.RatingPalette
 import com.ilyskyo.wordlens.data.model.StudyDirection
@@ -80,6 +81,53 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun emit(message: String) {
         _notice.value = Notice(message, noticeSeq.incrementAndGet())
+    }
+
+    /** 用户自己补的那几条（`filesDir/lexicon/user-*.json`），不含内置那一份。 */
+    val userWords: StateFlow<List<LexiconEntry>> = container.lexicon.userEntries
+
+    /**
+     * 让「我不认识这个词」变成一条走得通的路。
+     *
+     * 这条链本来到 `manual_not_found` 就断了：取景页认不出那个东西，用户手写下来，App 说
+     * 「词典里还没有它，暂时不能进复习队列」——然后什么都不能做。而设备端识别的诚实边界本来
+     * 就在词典上而不是模型上：内置那份不认识的东西，加一条进去下次就认识了。说明书里那一层
+     * 用户词典文件（可读、可 diff、可分享）从落地起就没有任何调用方，这一节是它欠的入口。
+     */
+    fun onAddUserWord(word: String, gloss: String) {
+        val settings = state.value
+        val entry = LexiconEntry.userEntry(word, gloss, settings.targetLanguage, settings.nativeLanguage)
+        // 空白进不到这里：那颗按钮在两个框都填之前是灰的。真返回 null 只可能是这一层被
+        // 别的调用方复用时的误用，那是一条要写进日志的编程错误，不是一句该对用户说的话。
+        if (entry == null) return
+        viewModelScope.launch {
+            if (container.lexicon.saveUserEntry(entry)) {
+                emit(container.appContext.getString(R.string.notice_word_added, entry.headword))
+            } else {
+                emit(container.appContext.getString(R.string.notice_word_failed))
+            }
+        }
+    }
+
+    /**
+     * 删一条用户词条。
+     *
+     * 内置那些删不掉，只会被同 id 的用户条目盖住，而这一节列出的本来就只有用户自己写的那几条。
+     * 返回 false 的两种原因（文件读不出来、这条不在用户层里）用户能做的动作是同一个：先看一眼
+     * 文件，所以共用一句。
+     */
+    fun onRemoveUserWord(id: String) {
+        viewModelScope.launch {
+            emit(
+                container.appContext.getString(
+                    if (container.lexicon.deleteUserEntry(id)) {
+                        R.string.notice_word_removed
+                    } else {
+                        R.string.notice_word_failed
+                    },
+                ),
+            )
+        }
     }
 
     fun acknowledgeNotice() {

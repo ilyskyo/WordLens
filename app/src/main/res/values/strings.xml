@@ -199,7 +199,7 @@
     <string name="manual_field_label">写下这个词</string>
     <string name="manual_add">收进词典</string>
     <string name="manual_added">「%1$s」已进你的词典</string>
-    <string name="manual_not_found">词典里还没有「%1$s」，暂时不能进复习队列</string>
+    <string name="manual_not_found">词典里还没有「%1$s」，暂时不能进复习队列。可以在设置 → 我的词条 里补上它的意思</string>
     <!-- 相机权限被永久拒绝 -->
     <string name="capture_open_settings">去设置里打开</string>
     <string name="capture_permission_permanently_denied">系统已经不再弹出授权框。请在系统设置里允许相机权限，然后回到这里。</string>
@@ -262,4 +262,15 @@
     <string name="notice_audio_failed">这次没录上，写了一半的文件已经清掉</string>
     <string name="notice_audio_take_pending">还有一段没处理完的声音，先收下或丢弃它</string>
     <string name="notice_audio_playback_failed">这段声音放不出来，可能是文件坏了</string>
+
+    <!-- 用户词典层：让「我不认识这个词」变成一次录入，而不是一句尽头。 -->
+    <string name="settings_my_words_section">我的词条</string>
+    <string name="settings_my_words_empty">还没有你补的词条。App 认不出某个东西时，把它的意思写在这里，下次同一个词就能进复习队列。</string>
+    <string name="settings_word_label">词（要学的那门语言）</string>
+    <string name="settings_meaning_label">意思（你的母语）</string>
+    <string name="settings_word_add">加进去</string>
+    <string name="settings_word_remove_desc">删掉这条</string>
+    <string name="notice_word_added">「%1$s」已经加进词典</string>
+    <string name="notice_word_removed">已经删掉</string>
+    <string name="notice_word_failed">这条没写进去，词典文件可能正读不出来</string>
 </resources>

@@ -182,7 +182,7 @@
     <string name="manual_field_label">単語を書く</string>
     <string name="manual_add">辞書に加える</string>
     <string name="manual_added">「%1$s」を辞書に加えました</string>
-    <string name="manual_not_found">「%1$s」は辞書にないため、復習队列に入れられません</string>
+    <string name="manual_not_found">「%1$s」は辞書にないため、復習リストに入れられません。設定 → 自分のワード帳 に意味を書けます</string>
     <!-- 相机权限被永久拒绝 -->
     <string name="capture_open_settings">設定で許可する</string>
     <string name="capture_permission_permanently_denied">システムが許可ダイアログを表示しなくなりました。システム設定でカメラを許可してから戻ってください。</string>
@@ -244,4 +244,14 @@
     <string name="notice_audio_failed">録れなかったので、書きかけのファイルは消しました</string>
     <string name="notice_audio_take_pending">保存するか決まっていない音声があります。先に保存か棄てを選んでください</string>
     <string name="notice_audio_playback_failed">この音声は再生できません。ファイルが壊れているようです</string>
+
+    <string name="settings_my_words_section">自分のワード帳</string>
+    <string name="settings_my_words_empty">まだ何も足していません。App がものを認識できないときは、ここに変更を書けば、同じ言葉は次回から復習队列に入れます。</string>
+    <string name="settings_word_label">単語（習っている言語）</string>
+    <string name="settings_meaning_label">意味（母語）</string>
+    <string name="settings_word_add">加える</string>
+    <string name="settings_word_remove_desc">この項目を削除</string>
+    <string name="notice_word_added">「%1$s」を辞書に加えました</string>
+    <string name="notice_word_removed">削除しました</string>
+    <string name="notice_word_failed">書き込めませんでした。辞書ファイルが読めない状態のようです</string>
 </resources>
