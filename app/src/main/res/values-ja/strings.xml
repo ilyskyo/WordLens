@@ -80,4 +80,13 @@
     <string name="detail_event_hint">あの日の一言を付け足す</string>
     <string name="detail_event_save">書き留める</string>
     <string name="detail_event_count">この項目 %1$d 行を記録済み</string>
+    <string name="search_hint">単語・意味・あの日の言葉を探す</string>
+    <string name="search_collect">収録</string>
+    <string name="search_collected_badge">収録済み</string>
+    <string name="search_section_suggest">辞書にある・まだ未収録</string>
+    <string name="search_section_collected">カードにある</string>
+    <string name="search_section_recent">最近収録した</string>
+    <string name="search_section_diary">記録に出てきた</string>
+    <string name="search_empty_title">見つかりませんでした</string>
+    <string name="search_empty_body">別の言葉で試すか、一枚撮りましょう。言葉は画面から育ちます。</string>
 </resources>

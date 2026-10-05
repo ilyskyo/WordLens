@@ -96,4 +96,14 @@
     <string name="detail_event_hint">补一句当时发生了什么</string>
     <string name="detail_event_save">记下这句</string>
     <string name="detail_event_count">这条已记下 %1$d 句</string>
+    <!-- 搜索 / 添加 -->
+    <string name="search_hint">搜单词、释义，或那一天的关键词</string>
+    <string name="search_collect">收录</string>
+    <string name="search_collected_badge">已收</string>
+    <string name="search_section_suggest">词典里还可以收进来</string>
+    <string name="search_section_collected">牌组里命中</string>
+    <string name="search_section_recent">最近收录</string>
+    <string name="search_section_diary">日记里出现过</string>
+    <string name="search_empty_title">没有匹配的东西</string>
+    <string name="search_empty_body">换个词试试，或者去拍一张——词是从画面里长出来的。</string>
 </resources>

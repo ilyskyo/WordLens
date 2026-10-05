@@ -80,4 +80,13 @@
     <string name="detail_event_hint">그날 있었던 일을 한 줄 더</string>
     <string name="detail_event_save">적어 두기</string>
     <string name="detail_event_count">이 항목에 %1$d줄 적었어요</string>
+    <string name="search_hint">단어·뜻, 또는 그날의 키워드 검색</string>
+    <string name="search_collect">수집</string>
+    <string name="search_collected_badge">수집됨</string>
+    <string name="search_section_suggest">사전에 있지만 아직 모으지 않은</string>
+    <string name="search_section_collected">내 카드에서</string>
+    <string name="search_section_recent">최근 수집</string>
+    <string name="search_section_diary">일기에 나온 적 있는</string>
+    <string name="search_empty_title">일치하는 게 없어요</string>
+    <string name="search_empty_body">다른 단어로 해 보거나 한 장 찍어 보세요. 단어는 화면에서 자라요.</string>
 </resources>

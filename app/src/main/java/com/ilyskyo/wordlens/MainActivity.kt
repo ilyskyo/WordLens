@@ -27,6 +27,8 @@ import com.ilyskyo.wordlens.ui.capture.captureViewModelFactory
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailScreen
 import com.ilyskyo.wordlens.ui.nav.HomeViewModel
 import com.ilyskyo.wordlens.ui.nav.WordLensApp
+import com.ilyskyo.wordlens.ui.search.SearchScreen
+import com.ilyskyo.wordlens.ui.search.SearchViewModel
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 
 class MainActivity : ComponentActivity() {
@@ -38,12 +40,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             WordLensTheme {
                 var showCapture by remember { mutableStateOf(false) }
+                var showSearch by remember { mutableStateOf(false) }
                 val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
                 val lookback by home.lookback.collectAsStateWithLifecycle()
                 val rememberState by home.remember.collectAsStateWithLifecycle()
                 val detail by home.detail.collectAsStateWithLifecycle()
-                // 详情页是浮层而不是路由，所以返回键要自己接：不接的话系统返回会直接退出应用。
+                // 详情页与搜索页都是浮层而不是路由，所以返回键要自己接：不接的话系统返回会直接退出应用。
+                // 两个 BackHandler 的 enabled 互斥，保证同时只有一个生效。
                 androidx.activity.compose.BackHandler(enabled = detail != null, onBack = home::onCloseEntry)
+                androidx.activity.compose.BackHandler(
+                    enabled = detail == null && showSearch,
+                    onBack = { showSearch = false },
+                )
                 Box(Modifier.fillMaxSize()) {
                     WordLensApp(
                         lookbackState = lookback,
@@ -57,7 +65,11 @@ class MainActivity : ComponentActivity() {
                         onLookbackSpeak = home::onEntrySpeak,
                         onOpenEntry = home::onOpenEntry,
                         onCapture = { showCapture = true },
+                        onSearch = { showSearch = true },
                     )
+                    if (showSearch) {
+                        SearchHost(container, onClose = { showSearch = false }, onOpenEntry = home::onOpenEntry)
+                    }
                     if (showCapture) {
                         CaptureHost(container, onDismiss = { showCapture = false })
                     }
@@ -74,6 +86,27 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+/**
+ * 搜索 / 添加页宿主。
+ *
+ * 与取景页同一个理由：它是就地动作，不是导航目的地。VM 挂在这里而不是 HomeViewModel 上，
+ * 是因为搜索状态（输入框里那几个字）应该在离开时清空，不该跟着主页活一辈子。
+ */
+@Composable
+private fun SearchHost(container: AppContainer, onClose: () -> Unit, onOpenEntry: (String) -> Unit) {
+    val vm: SearchViewModel = viewModel(factory = SearchViewModel.factory(container))
+    val state by vm.state.collectAsStateWithLifecycle()
+    SearchScreen(
+        state = state,
+        onQueryChange = vm::onQueryChange,
+        onClose = onClose,
+        onCollect = vm::onCollect,
+        onSpeak = vm::onSpeak,
+        onOpenEntry = onOpenEntry,
+        modifier = Modifier.fillMaxSize(),
+    )
 }
 
 /**

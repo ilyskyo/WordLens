@@ -80,4 +80,13 @@
     <string name="detail_event_hint">Add what happened that day</string>
     <string name="detail_event_save">Write it down</string>
     <string name="detail_event_count">%1$d line written for this entry</string>
+    <string name="search_hint">Search words, meanings, or a word from that day</string>
+    <string name="search_collect">Collect</string>
+    <string name="search_collected_badge">Collected</string>
+    <string name="search_section_suggest">In the dictionary, not collected yet</string>
+    <string name="search_section_collected">In your deck</string>
+    <string name="search_section_recent">Recently collected</string>
+    <string name="search_section_diary">Seen in the diary</string>
+    <string name="search_empty_title">Nothing matches</string>
+    <string name="search_empty_body">Try another word, or go take a shot — words grow out of the picture.</string>
 </resources>

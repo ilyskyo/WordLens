@@ -321,6 +321,7 @@ app/src/main/java/com/ilyskyo/wordlens/
     ├── components/ Common
     ├── nav/       HomeTabBar · HomeViewModel · WordLensApp
     ├── lookback/  时间轴 · 条目详情（词长回原图 + 补一句）
+    ├── search/    搜索 / 添加（SearchScreen · SearchViewModel）
     ├── remember/  复习
     └── capture/   CaptureScreen · CaptureCamera · CaptureViewModel · ViewfinderOverlay
 ```
@@ -343,7 +344,9 @@ app/src/main/java/com/ilyskyo/wordlens/
 - **相机流水线端到端跑通**：`MainActivity.CaptureHost` 把 `PreviewView` 灌进 `CaptureScreen`，
   `CaptureViewModel` 管分析帧、选词片、抠图与落库（取景页每次进入都是一台干净的相机，所以它的
   VM 不挂导航 key）
-- **四语 UI 资源齐了**：`values`（中，默认）+ `values-en` / `values-ja` / `values-ko`，56 条一一对应。
+- **搜索 / 添加页**：一个输入框同时命中牌组、词典与日记，词典命中可一键收录。
+  `EntrySource.MANUAL` 从此有了可达路径——取景页那句「你可以直接把它写下来」现在能兑现了
+- **四语 UI 资源齐了**：`values`（中，默认）+ `values-en` / `values-ja` / `values-ko`，74 条一一对应。
   时段问候、日期标签、氛围标记都改走资源——日期只把「月份短名」交给 CLDR，语序由每种语言自己的字符串决定
 - **「标记已掌握」＋撤销入口**（见 §6.2），数据层与队列层都按它过滤
 - **时间轴按天分组**（今天 / 昨天 / 日期）
@@ -376,13 +379,11 @@ app/src/main/java/com/ilyskyo/wordlens/
 
 | 项 | 备注 |
 |---|---|
-| 真机验证 | 见上面「进行中」，这是发布前唯一的硬门槛 |
-| 详情页真机核对 | 词片压在物体上的位置是坐标链路的终点，也是唯一还没在真机上验过的一段（详见「进行中」） |
+| 真机验证 | 见上面「进行中」，这是发布前唯一的硬门槛。详情页的词片位置是坐标链路的终点，也是最需要先看一眼的一段 |
 | 四语词典 | 只有 `lexicon/en.json`。中/日/韩的词条需要从其他来源补，`LexiconEntry.words` 的结构已经支持多语言 |
 | release 签名 | 签名四项写在 `local.properties`，缺省产物不签名（见 `docs/BUILD.md`）；要发版需要一个长期 keystore |
 | 桌面小组件 | 布局和 receiver 已在 manifest 里，`DueWidgetProvider` 只填了文字，业务未实现 |
 | `PROCESS_TEXT` / `SEND` intent | manifest 里声明了，接收端未实现 |
-| 搜索页 | 底部右圆目前是 `contentDescription` 占位，没有对应界面 |
 
 ### ✅ 已决定：模型文件直接提交
 
