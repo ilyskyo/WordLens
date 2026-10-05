@@ -112,6 +112,7 @@ data class CaptureUiState(
 fun CaptureScreen(
     bottomInset: PaddingValues,
     state: CaptureUiState = CaptureUiState(),
+    onClose: () -> Unit = {},
     onShutter: () -> Unit = {},
     onRetake: () -> Unit = {},
     onSave: () -> Unit = {},
@@ -170,6 +171,7 @@ fun CaptureScreen(
             }
 
             CaptureTopBar(
+                onClose = onClose,
                 onOpenSettings = onOpenSettings,
                 shotKind = state.shotKind,
                 reason = state.shotReason,
@@ -226,6 +228,7 @@ private fun PermissionRationale(onGrant: () -> Unit, modifier: Modifier = Modifi
 
 @Composable
 private fun CaptureTopBar(
+    onClose: () -> Unit,
     onOpenSettings: () -> Unit,
     shotKind: ShotKind,
     reason: String,
@@ -246,11 +249,28 @@ private fun CaptureTopBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color.White,
-            )
+            // 退出与设置分列两侧：取景页是浮在主界面之上的一层，没有返回键就等于把用户
+            // 关在里面——除了按下快门保存之外无路可走。
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Space.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.testTag("close"),
+                ) {
+                    Icon(
+                        imageVector = WordLensIcons.Close,
+                        contentDescription = stringResource(R.string.capture_close),
+                        tint = Color.White,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                )
+            }
             IconButton(
                 onClick = onOpenSettings,
                 modifier = Modifier.testTag("settings"),

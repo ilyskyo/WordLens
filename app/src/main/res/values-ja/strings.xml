@@ -90,4 +90,22 @@
     <string name="search_empty_title">見つかりませんでした</string>
     <string name="search_empty_body">別の言葉で試すか、一枚撮りましょう。言葉は画面から育ちます。</string>
     <string name="capture_sticker_failed">今回はステッカーを作れませんでしたが、単語カードは保存されました</string>
+    <string name="capture_close">ファインダーを閉じる</string>
+    <!-- 设置页 -->
+    <string name="settings_title">設定</string>
+    <string name="settings_learn_language">学んでいる言語</string>
+    <string name="settings_native_language">母語</string>
+    <string name="settings_direction_section">復習の向き</string>
+    <string name="settings_direction_recognize">単語から意味</string>
+    <string name="settings_direction_recall">意味から単語</string>
+    <string name="settings_direction_recognize_hint">表に外国語、裏に母語の意味を出します。</string>
+    <string name="settings_direction_recall_hint">表に母語の意味、裏で外国語を思い出します。見分けるより難しい向きです。</string>
+    <string name="settings_vision_section">認識バックエンド</string>
+    <string name="settings_cloud_switch">自分のキーで雲端認識</string>
+    <string name="settings_cloud_model">モデル名</string>
+    <string name="settings_cloud_key">APIキー</string>
+    <string name="settings_cloud_state_ready">オン：この画像を上のサービスに送ります。</string>
+    <string name="settings_cloud_state_no_key">APIキーが未入力なので雲端認識は動きません。</string>
+    <string name="settings_cloud_key_clear">キーを消す</string>
+    <string name="settings_cloud_note">キーはこの端末の設定ファイルに平文で置きます。暗号化も転送もせず、クラウドバックアップにも入れません。オフにすれば即座に止まります。</string>
 </resources>

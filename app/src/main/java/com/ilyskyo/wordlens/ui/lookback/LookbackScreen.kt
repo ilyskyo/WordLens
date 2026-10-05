@@ -332,56 +332,72 @@ private fun EntryTimelineCard(
             }
 
             // ── 词与文本区 ────────────────────────────────────────────
-            Column(
-                modifier = Modifier.padding(Space.md),
-                verticalArrangement = Arrangement.spacedBy(Space.xs),
-            ) {
-                entry.displayTitle()?.let { title ->
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+            EntryTextBlock(card = card)
+        }
+    }
+}
 
-                entry.summary?.let { summary ->
-                    Text(
-                        text = summary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = SUMMARY_MAX_LINES,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+/**
+ * 卡片上的文字区：标题、摘要，以及长在画面上的词。
+ *
+ * 三者全空时**整段不占位**。留着它会剩下一块 16+16dp 的纯白，而「什么都没点、直接按快门」
+ * 恰恰是这个产品里最完整、也最常见的一个动作——每张卡都带一块空洞，比少一行字糟得多。
+ */
+@Composable
+private fun EntryTextBlock(card: EntryCard, modifier: Modifier = Modifier) {
+    val entry = card.entry
+    val title = entry.displayTitle()
+    val summary = entry.summary?.takeIf { it.isNotBlank() }
+    if (title == null && summary == null && card.words.isEmpty()) return
 
-                if (card.words.isNotEmpty()) {
-                    Text(
-                        text = card.words.joinToString("  ·  ") { it.text },
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    card.words.firstNotNullOfOrNull { it.ipa }?.let { ipa ->
-                        Text(
-                            text = ipa,
-                            style = IpaTextStyle.copy(fontStyle = FontStyle.Italic),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                        )
-                    }
-                    card.words.firstNotNullOfOrNull { it.gloss }?.let { gloss ->
-                        Text(
-                            text = gloss,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
+    Column(
+        modifier = modifier.padding(Space.md),
+        verticalArrangement = Arrangement.spacedBy(Space.xs),
+    ) {
+        title?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        summary?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = SUMMARY_MAX_LINES,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        if (card.words.isNotEmpty()) {
+            Text(
+                text = card.words.joinToString("  ·  ") { it.text },
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            card.words.firstNotNullOfOrNull { it.ipa }?.let { ipa ->
+                Text(
+                    text = ipa,
+                    style = IpaTextStyle.copy(fontStyle = FontStyle.Italic),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+            card.words.firstNotNullOfOrNull { it.gloss }?.let { gloss ->
+                Text(
+                    text = gloss,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

@@ -34,6 +34,8 @@ import com.ilyskyo.wordlens.ui.nav.HomeViewModel
 import com.ilyskyo.wordlens.ui.nav.WordLensApp
 import com.ilyskyo.wordlens.ui.search.SearchScreen
 import com.ilyskyo.wordlens.ui.search.SearchViewModel
+import com.ilyskyo.wordlens.ui.settings.SettingsScreen
+import com.ilyskyo.wordlens.ui.settings.SettingsViewModel
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 
 class MainActivity : ComponentActivity() {
@@ -56,15 +58,21 @@ class MainActivity : ComponentActivity() {
             WordLensTheme {
                 var showCapture by remember { mutableStateOf(false) }
                 var showSearch by remember { mutableStateOf(false) }
+                var showSettings by remember { mutableStateOf(false) }
                 val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
                 val lookback by home.lookback.collectAsStateWithLifecycle()
                 val rememberState by home.remember.collectAsStateWithLifecycle()
                 val detail by home.detail.collectAsStateWithLifecycle()
-                // 详情页与搜索页都是浮层而不是路由，所以返回键要自己接：不接的话系统返回会直接退出应用。
-                // 两个 BackHandler 的 enabled 互斥，保证同时只有一个生效。
+                // 详情页、搜索页、设置页都是浮层而不是路由，所以系统返回键要自己接：
+                // 不接的话一次返回直接退出应用。三者的 enabled 互斥，同时只有一个生效，
+                // 顺序与层叠一致（详情 > 设置 > 搜索）。
                 androidx.activity.compose.BackHandler(enabled = detail != null, onBack = home::onCloseEntry)
                 androidx.activity.compose.BackHandler(
-                    enabled = detail == null && showSearch,
+                    enabled = detail == null && showSettings,
+                    onBack = { showSettings = false },
+                )
+                androidx.activity.compose.BackHandler(
+                    enabled = detail == null && !showSettings && showSearch,
                     onBack = { showSearch = false },
                 )
                 Box(Modifier.fillMaxSize()) {
@@ -87,7 +95,14 @@ class MainActivity : ComponentActivity() {
                         SearchHost(container, onClose = { showSearch = false }, onOpenEntry = home::onOpenEntry)
                     }
                     if (showCapture) {
-                        CaptureHost(container, onDismiss = { showCapture = false })
+                        CaptureHost(
+                            container = container,
+                            onDismiss = { showCapture = false },
+                            onOpenSettings = { showSettings = true },
+                        )
+                    }
+                    if (showSettings) {
+                        SettingsHost(container, onClose = { showSettings = false })
                     }
                     detail?.let { state ->
                         EntryDetailScreen(
@@ -144,6 +159,27 @@ private fun SearchHost(container: AppContainer, onClose: () -> Unit, onOpenEntry
 }
 
 /**
+ * 设置页宿主。取景页的齿轮与主页都可能拉起它，所以它盖在它们之上。
+ */
+@Composable
+private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
+    val vm: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
+    val state by vm.state.collectAsStateWithLifecycle()
+    SettingsScreen(
+        state = state,
+        onClose = onClose,
+        onTargetLanguage = vm::onTargetLanguage,
+        onNativeLanguage = vm::onNativeLanguage,
+        onDirection = vm::onDirection,
+        onCloudEnabled = vm::onCloudEnabled,
+        onCloudModel = vm::onCloudModel,
+        onCloudApiKey = vm::onCloudApiKey,
+        onClearCloudApiKey = vm::onClearCloudApiKey,
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+/**
  * 取景页宿主：全屏浮在主界面之上。
  *
  * 拍照是**就地动作**而不是导航目的地（见 [com.ilyskyo.wordlens.ui.nav.WordLensApp] 的注释），
@@ -151,7 +187,11 @@ private fun SearchHost(container: AppContainer, onClose: () -> Unit, onOpenEntry
  * 相机与一份新的暂存状态，回到主页后再进来不应残留上一次的贴纸。
  */
 @Composable
-private fun CaptureHost(container: AppContainer, onDismiss: () -> Unit) {
+private fun CaptureHost(
+    container: AppContainer,
+    onDismiss: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val vm: CaptureViewModel = viewModel(factory = captureViewModelFactory(container))
     val state by vm.ui.collectAsStateWithLifecycle()
     val event by vm.event.collectAsStateWithLifecycle()
@@ -180,6 +220,9 @@ private fun CaptureHost(container: AppContainer, onDismiss: () -> Unit) {
         // 快门是这页唯一必须够得着的控件：手势条压在它上面就按不到了。
         bottomInset = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         state = state,
+        // 左上角的关闭键：取景页是盖在主页上的一层，不接就等于把用户关在里面。
+        onClose = onDismiss,
+        onOpenSettings = onOpenSettings,
         onShutter = vm::onShutter,
         onRetake = vm::onRetake,
         onSave = vm::onSave,

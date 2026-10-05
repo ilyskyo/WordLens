@@ -90,4 +90,22 @@
     <string name="search_empty_title">Nothing matches</string>
     <string name="search_empty_body">Try another word, or go take a shot — words grow out of the picture.</string>
     <string name="capture_sticker_failed">The sticker could not be cut out this time — the card was still saved</string>
+    <string name="capture_close">Close viewfinder</string>
+    <!-- 设置页 -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_learn_language">Language you are learning</string>
+    <string name="settings_native_language">Your language</string>
+    <string name="settings_direction_section">Review direction</string>
+    <string name="settings_direction_recognize">Word to meaning</string>
+    <string name="settings_direction_recall">Meaning to word</string>
+    <string name="settings_direction_recognize_hint">Front shows the foreign word, back shows the meaning in your language.</string>
+    <string name="settings_direction_recall_hint">Front shows the meaning, and you have to recall the word — harder than recognising it.</string>
+    <string name="settings_vision_section">Recognition backend</string>
+    <string name="settings_cloud_switch">Cloud recognition with your own key</string>
+    <string name="settings_cloud_model">Model name</string>
+    <string name="settings_cloud_key">API key</string>
+    <string name="settings_cloud_state_ready">On: each frame is sent to the service above.</string>
+    <string name="settings_cloud_state_no_key">No API key yet, so cloud recognition stays off.</string>
+    <string name="settings_cloud_key_clear">Clear key</string>
+    <string name="settings_cloud_note">The key is stored in plain text in this device’s settings file — not encrypted, not uploaded, and excluded from cloud backup. Switching off stops it immediately.</string>
 </resources>

@@ -107,4 +107,22 @@
     <string name="search_empty_title">没有匹配的东西</string>
     <string name="search_empty_body">换个词试试，或者去拍一张——词是从画面里长出来的。</string>
     <string name="capture_sticker_failed">这次没能抠出贴纸，词卡照常保存</string>
+    <string name="capture_close">关闭取景</string>
+    <!-- 设置页 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_learn_language">在学的外语</string>
+    <string name="settings_native_language">母语</string>
+    <string name="settings_direction_section">复习方向</string>
+    <string name="settings_direction_recognize">看词想义</string>
+    <string name="settings_direction_recall">看义想词</string>
+    <string name="settings_direction_recognize_hint">卡片正面是外语词，背面是你的母语释义。</string>
+    <string name="settings_direction_recall_hint">卡片正面是母语释义，背面要想起那个外语词——这比认出来难。</string>
+    <string name="settings_vision_section">识别后端</string>
+    <string name="settings_cloud_switch">用自选密钥的云端识别</string>
+    <string name="settings_cloud_model">模型名</string>
+    <string name="settings_cloud_key">API Key</string>
+    <string name="settings_cloud_state_ready">已启用：这一帧会被发送到上面填的服务。</string>
+    <string name="settings_cloud_state_no_key">还没有填 API Key，云端识别不会启用。</string>
+    <string name="settings_cloud_key_clear">清除密钥</string>
+    <string name="settings_cloud_note">密钥以明文存在这台机器的设置文件里，不加密、不上传、也不进云备份；关掉开关即刻失效。</string>
 </resources>
