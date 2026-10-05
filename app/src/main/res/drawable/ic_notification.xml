@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  Copyright (c) 2026 ilyskyo
+  SPDX-License-Identifier: MIT
+-->
+<!--
+  通知栏小图标。系统会把它染成单色剪影，所以这里只画形状，不画颜色层次：
+  一张卡片 + 它后面露出的一条边，读起来是「复习队列」而不是「又一个 App 在喊话」。
+  状态栏图标必须 ≤24dp 且不依赖 alpha 才能在各家 ROM 上都不糊。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,9h13v11H4z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,5h13v3h-2V7H7z" />
+</vector>

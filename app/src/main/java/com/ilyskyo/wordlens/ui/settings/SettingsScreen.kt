@@ -3,6 +3,10 @@
 
 package com.ilyskyo.wordlens.ui.settings
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,7 +21,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -26,21 +32,27 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Lang
 import com.ilyskyo.wordlens.data.model.RatingPalette
 import com.ilyskyo.wordlens.data.model.StudyDirection
+import com.ilyskyo.wordlens.core.reminder.ReminderPlan
 import com.ilyskyo.wordlens.data.repository.AppSettings
 import com.ilyskyo.wordlens.srs.Fsrs
 import com.ilyskyo.wordlens.ui.components.OptionChip
@@ -49,6 +61,7 @@ import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.RatingColors
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 import com.ilyskyo.wordlens.ui.theme.hues
+import com.ilyskyo.wordlens.ui.theme.pressable
 import com.ilyskyo.wordlens.ui.theme.tones
 
 /**
@@ -72,6 +85,8 @@ fun SettingsScreen(
     onRetention: (Double) -> Unit = {},
     onRatingPalette: (RatingPalette) -> Unit = {},
     onRedactBeforeUpload: (Boolean) -> Unit = {},
+    onReminderEnabled: (Boolean) -> Unit = {},
+    onReminderMinuteOfDay: (Int) -> Unit = {},
     onCloudEnabled: (Boolean) -> Unit = {},
     onCloudModel: (String) -> Unit = {},
     onCloudApiKey: (String) -> Unit = {},
@@ -165,6 +180,13 @@ fun SettingsScreen(
                     onCloudModel = onCloudModel,
                     onCloudApiKey = onCloudApiKey,
                     onClearCloudApiKey = onClearCloudApiKey,
+                )
+
+                ReminderSection(
+                    enabled = state.reminderEnabled,
+                    minuteOfDay = state.reminderMinuteOfDay,
+                    onEnabled = onReminderEnabled,
+                    onMinuteOfDay = onReminderMinuteOfDay,
                 )
 
                 PrivacySection(
@@ -304,6 +326,136 @@ private fun SwatchRow(colors: RatingColors) {
             ) {}
         }
     }
+}
+
+/**
+ * 每日复习提醒。
+ *
+ * 开关与时间**只写设置**；排期由 `AppContainer` 订阅设置流去做。两处都能写就会变成
+ * 「改了设置但排期没跟上」，那是这个项目里最难查的一类不一致。
+ *
+ * 通知权限是**在用户拨开开关的那一刻**才请求的。清单里早就声明了 POST_NOTIFICATIONS，
+ * 在没有实现的时候索要权限，等于让隐私声明里的权限列表变成谎话。
+ */
+@Composable
+private fun ReminderSection(
+    enabled: Boolean,
+    minuteOfDay: Int,
+    onEnabled: (Boolean) -> Unit,
+    onMinuteOfDay: (Int) -> Unit,
+) {
+    val context = LocalContext.current
+    // 读系统的真实状态，而不是自己记一个布尔：用户可能从通知设置里关掉了这个应用，
+    // 只有 NotificationManagerCompat 知道此刻到底能不能发出去。
+    var allowed by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> allowed = granted }
+    var pickerOpen by remember { mutableStateOf(false) }
+
+    Section(title = stringResource(R.string.settings_reminder_section)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.settings_reminder_switch),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(
+                checked = enabled,
+                onCheckedChange = { next ->
+                    onEnabled(next)
+                    if (next && !allowed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        allowed = NotificationManagerCompat.from(context).areNotificationsEnabled()
+                    }
+                },
+            )
+        }
+
+        if (enabled) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pressable(onClick = { pickerOpen = true })
+                    .padding(vertical = Space.sm),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_reminder_time),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = ReminderPlan.formatMinuteOfDay(minuteOfDay),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+
+        // 只在真的有问题时才说问题：一条「通知未开启」常驻在已经正常工作的人面前，
+        // 只会让他们以为这个功能坏了。
+        if (enabled && !allowed) {
+            Text(
+                text = stringResource(R.string.settings_reminder_blocked),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        Text(
+            text = stringResource(R.string.settings_reminder_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    if (pickerOpen) {
+        ReminderTimeDialog(
+            minuteOfDay = minuteOfDay,
+            onDismiss = { pickerOpen = false },
+            onConfirm = { minute ->
+                onMinuteOfDay(minute)
+                pickerOpen = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun ReminderTimeDialog(
+    minuteOfDay: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit,
+) {
+    val state = rememberTimePickerState(
+        initialHour = minuteOfDay / 60,
+        initialMinute = minuteOfDay % 60,
+        // 四种语言都按 24 小时制呈现：AM/PM 在 CJK 里读起来是外来词，而「下午 8 点」
+        // 又要在脑子里换算一次。
+        is24Hour = true,
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_reminder_time)) },
+        text = { TimePicker(state = state) },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(state.hour * 60 + state.minute) }) {
+                Text(stringResource(R.string.capture_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.selection_cancel))
+            }
+        },
+    )
 }
 
 @Composable

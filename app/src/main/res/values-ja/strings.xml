@@ -156,4 +156,15 @@
     <plurals name="review_interval_years">
         <item quantity="other">%1$d年</item>
     </plurals>
+    <!-- 设置：每日提醒 -->
+    <string name="settings_reminder_section">毎日のリマインド</string>
+    <string name="settings_reminder_switch">復習をリマインド</string>
+    <string name="settings_reminder_time">リマインド時刻</string>
+    <string name="settings_reminder_hint">指定の時刻付近に届きますが、十数分前後することがあります。正確な時刻のためにアラーム権限は要求しません。</string>
+    <string name="settings_reminder_blocked">このアプリの通知がオフなので、リマインドは表示されません。</string>
+    <!-- 通知 -->
+    <string name="notification_channel_reminder">復習のリマインド</string>
+    <string name="notification_channel_reminder_desc">1日1回、今日残っている復習の枚数をお知らせ</string>
+    <string name="notification_due_title">今日、復習が%1$d枚残っています</string>
+    <string name="notification_due_body">WordLens を開いて、長期記憶に留めましょう</string>
 </resources>

@@ -173,4 +173,15 @@
     <plurals name="review_interval_years">
         <item quantity="other">%1$d 年</item>
     </plurals>
+    <!-- 设置：每日提醒 -->
+    <string name="settings_reminder_section">每日提醒</string>
+    <string name="settings_reminder_switch">提醒我复习</string>
+    <string name="settings_reminder_time">提醒时间</string>
+    <string name="settings_reminder_hint">系统会在指定时间附近送达，可能早或晚十几分钟。为了不打断你，我们不会为「准点」去申请闹钟权限。</string>
+    <string name="settings_reminder_blocked">这台设备上的通知还没打开，提醒不会出现。</string>
+    <!-- 通知 -->
+    <string name="notification_channel_reminder">复习提醒</string>
+    <string name="notification_channel_reminder_desc">每天一次，告诉你今天还剩几张要复习</string>
+    <string name="notification_due_title">今天还有 %1$d 张要复习</string>
+    <string name="notification_due_body">打开见词，把它们收进长期记忆</string>
 </resources>

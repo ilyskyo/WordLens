@@ -14,6 +14,7 @@ import com.ilyskyo.wordlens.data.repository.DeckRepository
 import com.ilyskyo.wordlens.data.repository.DiaryDocument
 import com.ilyskyo.wordlens.data.repository.DiaryRepository
 import com.ilyskyo.wordlens.data.repository.LexiconRepository
+import com.ilyskyo.wordlens.core.reminder.ReminderScheduler
 import com.ilyskyo.wordlens.data.repository.SettingsRepository
 import com.ilyskyo.wordlens.data.store.JsonDocument
 import com.ilyskyo.wordlens.speech.Speaker
@@ -168,7 +169,28 @@ class AppContainer(context: Context) {
         // 词表是一份小 JSON，冷启动就该在：取景页第一次出词前它必须就绪。
         vision.loadTaxonomy()
         applyRetentionFromSettings()
+        applyReminderFromSettings()
     }
+
+    /**
+     * 每日提醒的排期，与设置里那两项**始终一致**。
+     *
+     * 关键是这条通路只有一处：设置页只写 DataStore，不直接叫调度器干活。这样
+     * 「改了设置但没重排」「启动时排期已经被系统清掉」这两类问题都不会存在——
+     * 任何一次设置流变化都会把排期重新对齐一遍，冷启动也会。
+     */
+    private fun applyReminderFromSettings() {
+        applicationScope.launch {
+            settings.settings
+                .map { it.reminderEnabled to it.reminderMinuteOfDay }
+                .distinctUntilChanged()
+                .collect { (enabled, minuteOfDay) ->
+                    reminderScheduler.sync(enabled, minuteOfDay)
+                }
+        }
+    }
+
+    val reminderScheduler = ReminderScheduler(appContext)
 
     /**
      * 用户选的目标保持率 → 排期器。

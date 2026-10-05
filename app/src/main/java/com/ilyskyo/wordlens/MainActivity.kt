@@ -415,6 +415,8 @@ private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
         onRetention = vm::onRetention,
         onRatingPalette = vm::onRatingPalette,
         onRedactBeforeUpload = vm::onRedactBeforeUpload,
+        onReminderEnabled = vm::onReminderEnabled,
+        onReminderMinuteOfDay = vm::onReminderMinuteOfDay,
         onCloudEnabled = vm::onCloudEnabled,
         onCloudModel = vm::onCloudModel,
         onCloudApiKey = vm::onCloudApiKey,

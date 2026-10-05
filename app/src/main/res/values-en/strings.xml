@@ -160,4 +160,15 @@
         <item quantity="one">%1$d year</item>
         <item quantity="other">%1$d years</item>
     </plurals>
+    <!-- 设置：每日提醒 -->
+    <string name="settings_reminder_section">Daily reminder</string>
+    <string name="settings_reminder_switch">Remind me to review</string>
+    <string name="settings_reminder_time">Reminder time</string>
+    <string name="settings_reminder_hint">It arrives near this time, sometimes tens of minutes early or late. We do not ask for alarm permissions to force an exact moment.</string>
+    <string name="settings_reminder_blocked">Notifications are off for this app, so reminders will not appear.</string>
+    <!-- 通知 -->
+    <string name="notification_channel_reminder">Review reminders</string>
+    <string name="notification_channel_reminder_desc">Once a day: how many cards are still waiting</string>
+    <string name="notification_due_title">%1$d cards are due today</string>
+    <string name="notification_due_body">Open WordLens and file them into long-term memory</string>
 </resources>
