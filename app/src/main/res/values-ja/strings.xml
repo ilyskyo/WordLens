@@ -30,6 +30,8 @@
     <string name="mood_busy">せわしない</string>
     <string name="mood_ordinary">いつもの</string>
 
+    <string name="day_today">今日</string>
+    <string name="day_yesterday">昨日</string>
     <string name="lookback_today_count">今日は %1$d 枚</string>
     <string name="lookback_empty_title">まだ何も記録していません</string>
     <string name="lookback_empty_body">カメラを何に向けてもいい。言葉が浮かんだら、その一枚を保存します。</string>

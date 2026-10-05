@@ -30,6 +30,8 @@
     <string name="mood_busy">바쁨</string>
     <string name="mood_ordinary">평범함</string>
 
+    <string name="day_today">오늘</string>
+    <string name="day_yesterday">어제</string>
     <string name="lookback_today_count">오늘 %1$d개의 순간</string>
     <string name="lookback_empty_title">아직 기록이 없어요</string>
     <string name="lookback_empty_body">카메라를 아무거나 향해 보세요. 단어가 떠오르면 그 장면을 저장합니다.</string>

@@ -36,6 +36,8 @@
     <string name="mood_ordinary">平常</string>
 
     <!-- 回看页 -->
+    <string name="day_today">今天</string>
+    <string name="day_yesterday">昨天</string>
     <string name="lookback_today_count">今天记录了 %1$d 个瞬间</string>
     <string name="lookback_empty_title">还没有任何记录</string>
     <string name="lookback_empty_body">举起相机对着任意东西，识别完成后可以直接存下这一帧。</string>

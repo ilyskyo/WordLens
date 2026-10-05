@@ -56,9 +56,18 @@ import java.time.format.TextStyle
 
 /** 回看页状态。 */
 data class LookbackUiState(
-    val entries: List<EntryCard> = emptyList(),
+    /** 按天倒序分组。组内也是倒序，所以最新一条永远在屏幕最上方。 */
+    val groups: List<DayGroup> = emptyList(),
     val todayCount: Int = 0,
 )
+
+/**
+ * 时间轴上的一天。
+ *
+ * [label] 是已经在仓库层本地化好的标题（今天 / 昨天 / 具体日期）。分组键 [day] 用 ISO
+ * 日期而不是标签文本，因为标签会随语言变，而 `key` 变了会让 LazyColumn 整列重建。
+ */
+data class DayGroup(val day: String, val label: String, val cards: List<EntryCard>)
 
 /**
  * 时间轴上的一张卡片。
@@ -107,7 +116,7 @@ fun LookbackScreen(
     onSpeak: (EntryCard) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    if (state.entries.isEmpty()) {
+    if (state.groups.isEmpty()) {
         Box(modifier = modifier.fillMaxSize()) {
             EmptyState(
                 emoji = "\uD83D\uDCF7",
@@ -132,10 +141,29 @@ fun LookbackScreen(
         item(key = "greeting") {
             Greeting(todayCount = state.todayCount, modifier = Modifier.padding(bottom = Space.sm))
         }
-        items(state.entries, key = { it.entry.id }) { card ->
-            TimelineRow(card = card, onOpen = { onOpenEntry(card.entry.id) }, onSpeak = { onSpeak(card) })
+        state.groups.forEach { group ->
+            // 分组头压在当天第一张卡上方：翻时间轴时「哪天」比「几点」更重要。
+            item(key = "day-${group.day}") {
+                DayHeader(group.label)
+            }
+            items(group.cards, key = { it.entry.id }) { card ->
+                TimelineRow(card = card, onOpen = { onOpenEntry(card.entry.id) }, onSpeak = { onSpeak(card) })
+            }
         }
     }
+}
+
+/** 一天的分组标题。挂在时间轴线的外侧，不与卡片抢注意力。 */
+@Composable
+private fun DayHeader(label: String, modifier: Modifier = Modifier) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = Space.sm, start = TIMELINE_WIDTH + Space.sm),
+    )
 }
 
 @Composable
@@ -414,6 +442,22 @@ internal fun formatDay(epochMillis: Long, context: Context): String {
 }
 
 /**
+ * 时间轴的分组标题：今天 / 昨天 / 具体日期。
+ *
+ * 翻日记时「哪天」比「几点」更重要，而昨天那天的日期数字其实不携带信息——所以前两天
+ * 直接用相对说法，第三条起才回到 `formatDay`。
+ */
+internal fun dayLabel(epochMillis: Long, context: Context): String {
+    val date = Instant.ofEpochMilli(epochMillis).atZone(ZONE).toLocalDate()
+    val today = LocalDate.now(ZONE)
+    return when (date) {
+        today -> context.getString(R.string.day_today)
+        today.minusDays(1) -> context.getString(R.string.day_yesterday)
+        else -> formatDay(epochMillis, context)
+    }
+}
+
+/**
  * 贴纸的固定倾角。
  *
  * 同一张照片在时间轴与详情页必须是同一个角度，否则切换页面时它会「转一下」。
@@ -438,29 +482,41 @@ private fun LookbackPreview() {
             bottomInset = PaddingValues(0.dp),
             state = LookbackUiState(
                 todayCount = 2,
-                entries = listOf(
-                    EntryCard(
-                        entry = Entry(
-                            id = "aaa1",
-                            photoPath = "a.jpg",
-                            takenAt = Instant.now().minusSeconds(3600).toEpochMilli(),
-                            title = "楼下那家面馆",
-                            summary = "汤头很清亮，第二次来还是点了同样的面。",
-                            keywords = listOf("broth", "noodle"),
-                            mood = EntryMood.QUIET,
-                        ),
-                        words = listOf(
-                            CardWord("broth", "/br\u0258\u03B8/", "汤"),
-                            CardWord("noodle", "/ˈnuːdl/", "面条"),
+                groups = listOf(
+                    DayGroup(
+                        day = "2026-10-05",
+                        label = "今天",
+                        cards = listOf(
+                            EntryCard(
+                                entry = Entry(
+                                    id = "aaa1",
+                                    photoPath = "a.jpg",
+                                    takenAt = Instant.now().minusSeconds(3600).toEpochMilli(),
+                                    title = "楼下那家面馆",
+                                    summary = "汤头很清亮，第二次来还是点了同样的面。",
+                                    keywords = listOf("broth", "noodle"),
+                                    mood = EntryMood.QUIET,
+                                ),
+                                words = listOf(
+                                    CardWord("broth", "/br\u0258\u03B8/", "汤"),
+                                    CardWord("noodle", "/ˈnuːdl/", "面条"),
+                                ),
+                            ),
                         ),
                     ),
-                    EntryCard(
-                        entry = Entry(
-                            id = "bbb2",
-                            photoPath = "b.jpg",
-                            takenAt = Instant.now().minusSeconds(86400 * 3).toEpochMilli(),
+                    DayGroup(
+                        day = "2026-10-02",
+                        label = "10月2日",
+                        cards = listOf(
+                            EntryCard(
+                                entry = Entry(
+                                    id = "bbb2",
+                                    photoPath = "b.jpg",
+                                    takenAt = Instant.now().minusSeconds(86400 * 3).toEpochMilli(),
+                                ),
+                                words = listOf(CardWord("counter", null, "柜台")),
+                            ),
                         ),
-                        words = listOf(CardWord("counter", null, "柜台")),
                     ),
                 ),
             ),

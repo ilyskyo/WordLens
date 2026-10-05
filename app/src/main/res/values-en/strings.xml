@@ -30,6 +30,8 @@
     <string name="mood_busy">Rushed</string>
     <string name="mood_ordinary">Ordinary</string>
 
+    <string name="day_today">Today</string>
+    <string name="day_yesterday">Yesterday</string>
     <string name="lookback_today_count">%1$d moments today</string>
     <string name="lookback_empty_title">Nothing recorded yet</string>
     <string name="lookback_empty_body">Point the camera at anything. When the words appear, save the frame.</string>

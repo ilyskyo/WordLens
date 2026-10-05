@@ -30,6 +30,8 @@ import com.ilyskyo.wordlens.srs.Fsrs
 import com.ilyskyo.wordlens.ui.lookback.CardWord
 import com.ilyskyo.wordlens.ui.lookback.EntryCard
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
+import com.ilyskyo.wordlens.ui.lookback.DayGroup
+import com.ilyskyo.wordlens.ui.lookback.dayLabel
 import com.ilyskyo.wordlens.ui.lookback.formatDay
 import com.ilyskyo.wordlens.ui.remember.RememberCard
 import com.ilyskyo.wordlens.ui.remember.RememberUiState
@@ -291,22 +293,33 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     ): LookbackUiState {
         val today = LocalDate.now().toString()
         val shown = diary.entries.sortedByDescending { it.takenAt }.take(TIMELINE_LIMIT)
+        val cards = shown.map { entry ->
+            EntryCard(
+                entry = entry,
+                photo = decodeSampled(File(container.entryPhotoDir, entry.photoPath), MAX_ENTRY_PX),
+                sticker = entry.objects
+                    .firstOrNull { it.stickerPath != null }
+                    ?.let { decodeSampled(File(container.entryPhotoDir, it.stickerPath!!), MAX_CARD_PX) },
+                words = entry.objects
+                    .filter { it.layer == OverlayLayer.ITEM }
+                    .map { cardWordFor(it, lexicon, settings) },
+            )
+        }
+        // 输入已经按时间倒序，groupBy 保序，所以分组天与组内卡片都是「新的在上」。
+        val groups = cards
+            .groupBy { dayKeyOf(it.entry.takenAt) }
+            .map { (day, groupCards) ->
+                DayGroup(day, dayLabel(groupCards.first().entry.takenAt, container.appContext), groupCards)
+            }
         return LookbackUiState(
-            entries = shown.map { entry ->
-                EntryCard(
-                    entry = entry,
-                    photo = decodeSampled(File(container.entryPhotoDir, entry.photoPath), MAX_ENTRY_PX),
-                    sticker = entry.objects
-                        .firstOrNull { it.stickerPath != null }
-                        ?.let { decodeSampled(File(container.entryPhotoDir, it.stickerPath!!), MAX_CARD_PX) },
-                    words = entry.objects
-                        .filter { it.layer == OverlayLayer.ITEM }
-                        .map { cardWordFor(it, lexicon, settings) },
-                )
-            },
+            groups = groups,
             todayCount = diary.entries.count { it.dayKey == today },
         )
     }
+
+    /** 分组键用 ISO 日期。标签会随语言变，键不会。 */
+    private fun dayKeyOf(epochMillis: Long): String =
+        java.time.Instant.ofEpochMilli(epochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
 
     /** 把存进日记的展示词回填成词典的音标与释义。词典里没有就只显示词本身。 */
     private fun cardWordFor(
