@@ -3,6 +3,8 @@
 
 package com.ilyskyo.wordlens.data.model
 
+import androidx.annotation.StringRes
+import com.ilyskyo.wordlens.R
 import kotlinx.serialization.Serializable
 
 /**
@@ -172,15 +174,15 @@ data class EntryObject(
  * 需要的是 6-10 个互不重叠、随便勾一个都成立的选项。多一个就开始稀释，多一个的边际
  * 价值低于零。
  */
-enum class EntryMood(val key: String, val zh: String, val en: String, val emoji: String) {
-    QUIET("quiet", "安静", "quiet", "🤫"),
-    WARM("warm", "温暖", "warm", "🧸"),
-    CROWDED("crowded", "拥挤", "crowded", "🫧"),
-    MESSY("messy", "潦草", "messy", "🌀"),
-    BRIGHT("bright", "明亮", "bright", "☀️"),
-    GREY("grey", "阴天", "grey", "☁️"),
-    BUSY("busy", "忙乱", "busy", "⏳"),
-    ORDINARY("ordinary", "平常", "ordinary", "🌱"),
+enum class EntryMood(val key: String, @StringRes val labelRes: Int, val emoji: String) {
+    QUIET("quiet", R.string.mood_quiet, "🤫"),
+    WARM("warm", R.string.mood_warm, "🧸"),
+    CROWDED("crowded", R.string.mood_crowded, "🫧"),
+    MESSY("messy", R.string.mood_messy, "🌀"),
+    BRIGHT("bright", R.string.mood_bright, "☀️"),
+    GREY("grey", R.string.mood_grey, "☁️"),
+    BUSY("busy", R.string.mood_busy, "⏳"),
+    ORDINARY("ordinary", R.string.mood_ordinary, "🌱"),
     ;
 
     companion object {
@@ -233,6 +235,13 @@ data class SceneTaxonomy(
 
     val size: Int get() = scenes.size
 }
+
+/** `assets/scenes/ambience.json` 的文件外壳。单独一层而不是裸数组：给 schemaVersion 留位。 */
+@Serializable
+data class AmbienceFile(
+    val schemaVersion: Int = 1,
+    val ambience: List<AmbienceWord> = emptyList(),
+)
 
 /**
  * 一个氛围词。

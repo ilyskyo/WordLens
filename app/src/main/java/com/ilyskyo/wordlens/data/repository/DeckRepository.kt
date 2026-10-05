@@ -173,14 +173,18 @@ class DeckRepository(
 
     // ── queries ──────────────────────────────────────────────────────────────
 
-    /** Cards due (or new) in [direction]. */
+    /** Cards due (or new) in [direction]. Manually mastered cards have left the deck. */
     fun dueCards(
         direction: StudyDirection,
         now: Long = System.currentTimeMillis(),
         includeNew: Boolean = true,
     ): List<WordCard> = doc.current.cards.filter { card ->
-        val state = card.state(direction)
-        if (state == null) includeNew else now >= state.due
+        if (card.mastered) {
+            false
+        } else {
+            val state = card.state(direction)
+            if (state == null) includeNew else now >= state.due
+        }
     }
 
     fun card(id: String): WordCard? = doc.current.cards.firstOrNull { it.id == id }
@@ -195,6 +199,8 @@ class DeckRepository(
         for (card in doc.current.cards) {
             val s = card.state(direction)
             when {
+                // 用户自己判定「已掌握」，算学会，不再占用到期数。
+                card.mastered -> mature++
                 s == null -> fresh++
                 now >= s.due -> due++
                 s.n < MATURITY_REVIEW_COUNT -> learning++

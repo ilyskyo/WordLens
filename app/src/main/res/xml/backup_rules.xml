@@ -1,10 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?><!--
+  Copyright (c) 2026 ilyskyo
+  SPDX-License-Identifier: MIT
+-->
 <full-backup-content>
-    <!-- Vocabulary data is plain JSON in filesDir; back it up so a device swap keeps progress. -->
+    <!--
+      白名单：只有两个 JSON 日记/牌组文件上云。
+      一旦写了 <include>，Android 就只备份列出的路径，其余一律不传——
+      photos / entries / stickers / datastore 都不在名单里。
+      设置文件里是用户自己填的云端 API Key（明文存 DataStore，见产品说明书 §8.5），
+      它的边界是「不出设备」；Google 备份会把它送到服务端，所以排除。
+      照片同理：这本日记的价值建立在「它只在我的机器上」（§8.4）。
+    -->
     <include
         domain="file"
-        path="." />
-    <exclude
-        domain="sharedpref"
-        path="." />
+        path="deck.json" />
+    <include
+        domain="file"
+        path="diary.json" />
 </full-backup-content>

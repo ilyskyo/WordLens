@@ -3,6 +3,8 @@
 
 package com.ilyskyo.wordlens.ui.lookback
 
+import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -49,8 +52,7 @@ import com.ilyskyo.wordlens.ui.theme.stickerCorner
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import java.time.format.TextStyle
 
 /** 回看页状态。 */
 data class LookbackUiState(
@@ -76,6 +78,8 @@ data class CardWord(
     val text: String,
     val ipa: String? = null,
     val gloss: String? = null,
+    /** 该词实际所属语言（BCP-47 短 tag），发音按钮要用它选 TTS locale。 */
+    val languageTag: String? = null,
 )
 
 /**
@@ -143,7 +147,7 @@ private fun Greeting(todayCount: Int, modifier: Modifier = Modifier) {
     ) {
         Column {
             Text(
-                text = stringResource(R.string.lookback_greeting, timeOfDayGreeting()),
+                text = stringResource(timeOfDayGreeting().labelRes()),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -269,7 +273,7 @@ private fun EntryTimelineCard(
                         .padding(Space.sm),
                 ) {
                     Text(
-                        text = formatDay(entry.takenAt),
+                        text = formatDay(entry.takenAt, LocalContext.current),
                         style = MaterialTheme.typography.labelSmall,
                         color = androidx.compose.ui.graphics.Color.White,
                         modifier = Modifier.padding(horizontal = Space.sm, vertical = Space.xs),
@@ -357,7 +361,7 @@ private fun MoodBadge(mood: EntryMood, modifier: Modifier = Modifier) {
         modifier = modifier.padding(Space.sm),
     ) {
         Text(
-            text = "${mood.emoji} ${mood.zh}",
+            text = "${mood.emoji} ${stringResource(mood.labelRes)}",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = Space.sm, vertical = Space.xs),
@@ -369,27 +373,43 @@ private fun MoodBadge(mood: EntryMood, modifier: Modifier = Modifier) {
 
 private val ZONE: ZoneId get() = ZoneId.systemDefault()
 
-private fun DateTimeFormatter.withZone(zone: ZoneId) = withZone(zone)
+/** 一天里的五个时段。选哪一段是逻辑，怎么念出来是资源——分开才能跟着系统语言走。 */
+internal enum class DayGreeting { MORNING, NOON, AFTERNOON, EVENING, LATE_NIGHT }
 
 /** 问候语按时段选，不查网络也不要定位。 */
-internal fun timeOfDayGreeting(now: java.time.Instant = Instant.now()): String {
+internal fun timeOfDayGreeting(now: Instant = Instant.now()): DayGreeting {
     return when (now.atZone(ZONE).hour) {
-        in 5..10 -> "早上好"
-        in 11..13 -> "中午好"
-        in 14..17 -> "下午好"
-        in 18..22 -> "晚上好"
-        else -> "夜深了"
+        in 5..10 -> DayGreeting.MORNING
+        in 11..13 -> DayGreeting.NOON
+        in 14..17 -> DayGreeting.AFTERNOON
+        in 18..22 -> DayGreeting.EVENING
+        else -> DayGreeting.LATE_NIGHT
     }
 }
 
-/** `3月5日`；跨年时带上年份。 */
-internal fun formatDay(epochMillis: Long): String {
+@StringRes
+internal fun DayGreeting.labelRes(): Int = when (this) {
+    DayGreeting.MORNING -> R.string.greeting_morning
+    DayGreeting.NOON -> R.string.greeting_noon
+    DayGreeting.AFTERNOON -> R.string.greeting_afternoon
+    DayGreeting.EVENING -> R.string.greeting_evening
+    DayGreeting.LATE_NIGHT -> R.string.greeting_late_night
+}
+
+/**
+ * 条目的日期标签：今年内省略年份，跨年才带上。
+ *
+ * 月份名走 CLDR（`Month.getDisplayName`），日期的**排列顺序**交给字符串资源：
+ * 中文是「10月5日」，英文是「Oct 5」，韩文是「10월 5일」——同一份代码，四种语序。
+ */
+internal fun formatDay(epochMillis: Long, context: Context): String {
     val date = Instant.ofEpochMilli(epochMillis).atZone(ZONE).toLocalDate()
-    val sameYear = date.year == LocalDate.now(ZONE).year
-    return if (sameYear) {
-        "${date.monthValue}月${date.dayOfMonth}日"
+    val locale = context.resources.configuration.locales[0]
+    val month = date.month.getDisplayName(TextStyle.SHORT, locale)
+    return if (date.year == LocalDate.now(ZONE).year) {
+        context.getString(R.string.date_in_year, month, date.dayOfMonth)
     } else {
-        "${date.year}年${date.monthValue}月${date.dayOfMonth}日"
+        context.getString(R.string.date_with_year, month, date.dayOfMonth, date.year)
     }
 }
 

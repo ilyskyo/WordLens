@@ -6,12 +6,19 @@ import android.content.Context
 import android.util.Log
 import android.widget.RemoteViews
 import com.ilyskyo.wordlens.R
+import com.ilyskyo.wordlens.WordLensApplication
+import kotlinx.coroutines.launch
 
 /**
  * Home-screen widget showing how many cards are due today.
  *
- * Milestone 1 keeps this deliberately dumb: it renders a placeholder. The deck repository
- * lands in milestone 3 and the count becomes real there.
+ * The count is read through the app's [com.ilyskyo.wordlens.core.AppContainer] rather than a
+ * second copy of the repositories: deck.json must have exactly one writer-process view of
+ * itself, and the widget lives in that same process anyway.
+ *
+ * [AppWidgetProvider.onUpdate] is not suspend, so the first frame renders 0 and the real
+ * number replaces it as soon as DataStore answers with the study direction. A stale-by-
+ * milliseconds count is honest; a duplicate repository would not be.
  */
 class DueWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(
@@ -19,14 +26,23 @@ class DueWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray,
     ) {
+        val container = (context.applicationContext as? WordLensApplication)?.container
         for (id in appWidgetIds) {
-            val views = RemoteViews(context.packageName, R.layout.widget_due).apply {
-                setTextViewText(R.id.widget_due_count, "0")
-                setTextViewText(R.id.widget_due_title, context.getString(R.string.widget_due_label))
+            render(context, appWidgetManager, id, due = 0)
+            container?.applicationScope?.launch {
+                val due = runCatching { container.dueCount() }.getOrDefault(0)
+                render(context, appWidgetManager, id, due)
             }
-            appWidgetManager.updateAppWidget(id, views)
         }
         Log.d(TAG, "onUpdate: ${appWidgetIds.size} widget(s)")
+    }
+
+    private fun render(context: Context, manager: AppWidgetManager, widgetId: Int, due: Int) {
+        val views = RemoteViews(context.packageName, R.layout.widget_due).apply {
+            setTextViewText(R.id.widget_due_count, due.toString())
+            setTextViewText(R.id.widget_due_title, context.getString(R.string.widget_due_label))
+        }
+        manager.updateAppWidget(widgetId, views)
     }
 
     private companion object {

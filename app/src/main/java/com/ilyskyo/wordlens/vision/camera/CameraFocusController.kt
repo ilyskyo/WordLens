@@ -118,6 +118,22 @@ class CameraFocusController internal constructor(
     val isUsable: Boolean get() = camera2Control != null && sensorWidth > 0 && sensorHeight > 0
 
     /**
+     * 覆盖层换算需要的当前裁切区快照（传感器像素）。
+     *
+     * `CameraX 的 zoomState` 不暴露裁切矩形（理由见文件头），而词片映射必须知道裁切区；
+     * 唯一的可信来源就是我们自己下发的 [lastCrop]。null 表示相机还在原生全视野。
+     */
+    fun currentCropSnapshot(): SensorCrop? = lastCrop?.let {
+        SensorCrop(it.left.toFloat(), it.top.toFloat(), it.right.toFloat(), it.bottom.toFloat())
+    }
+
+    /** 传感器有效阵列尺寸，覆盖层的 CameraFrame 要用。 */
+    val sensorSize: Pair<Int, Int> get() = sensorWidth to sensorHeight
+
+    /** 传感器旋转角（90/180/270）。 */
+    val sensorRotation: Int get() = rotationDegrees
+
+    /**
      * 把镜头推到 [request] 指定的物体上。
      *
      * @param viewAspect 取景控件的宽高比。传错会让推近程度不对，必须实时取。

@@ -21,6 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ilyskyo.wordlens.data.model.StudyMaterial
+import com.ilyskyo.wordlens.srs.Fsrs
+import com.ilyskyo.wordlens.ui.lookback.EntryCard
 import com.ilyskyo.wordlens.ui.lookback.LookbackScreen
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
 import com.ilyskyo.wordlens.ui.remember.RememberScreen
@@ -50,6 +53,13 @@ fun WordLensApp(
     onCapture: () -> Unit = {},
     onSearch: () -> Unit = {},
     onOpenEntry: (String) -> Unit = {},
+    onLookbackSpeak: (EntryCard) -> Unit = {},
+    onMaterialChange: (StudyMaterial) -> Unit = {},
+    onReveal: () -> Unit = {},
+    onGrade: (Fsrs.Rating) -> Unit = {},
+    onReviewSpeak: () -> Unit = {},
+    onMarkMastered: () -> Unit = {},
+    onUnmark: (String) -> Unit = {},
 ) {
     var tab by remember { mutableStateOf(HomeTab.LOOKBACK) }
 
@@ -88,12 +98,19 @@ fun WordLensApp(
                         bottomInset = PaddingValues(bottom = BOTTOM_INSET),
                         state = lookbackState,
                         onOpenEntry = onOpenEntry,
+                        onSpeak = onLookbackSpeak,
                         modifier = Modifier.fillMaxSize(),
                     )
 
                     HomeTab.REMEMBER -> RememberScreen(
                         bottomInset = PaddingValues(bottom = BOTTOM_INSET),
                         state = rememberState,
+                        onMaterialChange = onMaterialChange,
+                        onReveal = onReveal,
+                        onGrade = onGrade,
+                        onSpeak = onReviewSpeak,
+                        onMarkMastered = onMarkMastered,
+                        onUnmark = onUnmark,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

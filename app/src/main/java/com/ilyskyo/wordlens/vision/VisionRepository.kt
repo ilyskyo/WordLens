@@ -6,6 +6,8 @@ package com.ilyskyo.wordlens.vision
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
+import com.ilyskyo.wordlens.data.model.AmbienceFile
+import com.ilyskyo.wordlens.data.model.AmbienceWord
 import com.ilyskyo.wordlens.data.model.Lang
 import com.ilyskyo.wordlens.data.model.LexiconEntry
 import com.ilyskyo.wordlens.data.model.LexiconMatch
@@ -81,9 +83,23 @@ class VisionRepository(
             com.ilyskyo.wordlens.data.store.WordLensJson.instance
                 .decodeFromString(SceneTaxonomy.serializer(), text)
         }.onSuccess {
-            _taxonomy.value = it
-            Log.i(TAG, "Loaded ${it.size} scene kinds")
+            _taxonomy.value = it.copy(ambience = loadAmbience())
+            Log.i(TAG, "Loaded ${it.size} scene kinds, ${_taxonomy.value.ambience.size} ambience words")
         }.onFailure { Log.e(TAG, "Failed to parse scene taxonomy", it) }
+    }
+
+    /**
+     * 氛围词表单独一个文件：场景靠检测器标签对齐（可自动化），氛围词靠人工编辑（不可对齐），
+     * 两者的维护方式完全不同，合并发生在内存里而不是文件里。
+     */
+    private fun loadAmbience(): List<AmbienceWord> {
+        val text = runCatching {
+            context.assets.open("scenes/ambience.json").use { it.readBytes().toString(Charsets.UTF_8) }
+        }.getOrNull() ?: return emptyList()
+        return runCatching {
+            com.ilyskyo.wordlens.data.store.WordLensJson.instance
+                .decodeFromString(AmbienceFile.serializer(), text).ambience
+        }.onFailure { Log.e(TAG, "Failed to parse ambience.json", it) }.getOrNull().orEmpty()
     }
 
     /**

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  Copyright (c) 2026 ilyskyo
+  SPDX-License-Identifier: MIT
+-->
+<resources>
+    <string name="app_name">WordLens</string>
+    <string name="widget_due_label">오늘 복습</string>
+
+    <string name="tab_capture">촬영</string>
+    <string name="home_search">검색과 필터</string>
+
+    <string name="home_tab_lookback">기록</string>
+    <string name="home_tab_remember">기억</string>
+
+    <string name="greeting_morning">좋은 아침</string>
+    <string name="greeting_noon">좋은 낮</string>
+    <string name="greeting_afternoon">좋은 오후</string>
+    <string name="greeting_evening">좋은 저녁</string>
+    <string name="greeting_late_night">새벽이 깊어요</string>
+
+    <string name="date_in_year">%1$s %2$d일</string>
+    <string name="date_with_year">%3$d년 %1$s %2$d일</string>
+
+    <string name="mood_quiet">조용함</string>
+    <string name="mood_warm">따뜻함</string>
+    <string name="mood_crowded">북적임</string>
+    <string name="mood_messy">어수선함</string>
+    <string name="mood_bright">밝음</string>
+    <string name="mood_grey">흐림</string>
+    <string name="mood_busy">바쁨</string>
+    <string name="mood_ordinary">평범함</string>
+
+    <string name="lookback_today_count">오늘 %1$d개의 순간</string>
+    <string name="lookback_empty_title">아직 기록이 없어요</string>
+    <string name="lookback_empty_body">카메라를 아무거나 향해 보세요. 단어가 떠오르면 그 장면을 저장합니다.</string>
+
+    <string name="study_both">단어와 사건</string>
+    <string name="study_words">단어</string>
+    <string name="study_events">사건</string>
+
+    <string name="review_progress">오늘 %1$d/%2$d</string>
+    <string name="review_fuzzy">가물가물</string>
+    <string name="review_got_it">기억났어</string>
+    <string name="review_flip_hint">탭하면 뜻 · 길게 누르면 추가 동작</string>
+    <string name="review_event_prompt">그날 무슨 일이 있었을까?</string>
+    <string name="review_done_title">오늘 몫은 여기까지</string>
+    <string name="review_done_body">%1$d일 연속이에요. 내일 또 봐요.</string>
+    <string name="review_empty_title">지금 돌아올 단어는 없어요</string>
+    <string name="review_empty_body">먼저 몇 장 찍어 보세요. 복습 시점이 되면 다시 부를게요.</string>
+
+    <string name="review_mark_mastered">익혔다고 표시</string>
+    <string name="review_unmaster">표시 해제</string>
+    <string name="review_archived_count">%1$d장 숨김</string>
+    <string name="review_archived_title">숨긴 카드</string>
+    <string name="review_archived_close">닫기</string>
+
+    <string name="review_verify_source">AI가 정리했어요. 찍은 내용과 비교해 주세요</string>
+
+    <string name="capture_settings">설정</string>
+    <string name="capture_retake">다시 찍기</string>
+    <string name="capture_save">스티커 저장</string>
+    <string name="capture_permission_needed">물체를 인식하려면 카메라 권한이 필요해요</string>
+    <string name="capture_grant">권한 주기</string>
+    <string name="capture_tap_subject">화면의 물체를 탭해서 오려내요</string>
+    <string name="capture_selected_hint">「%1$s」 선택됨 · 셔터는 스티커를 「기억」에 저장해요</string>
+    <string name="capture_scene_hint">물체 미선택 · 셔터는 사진 전체를 「기록」에 저장해요</string>
+    <string name="capture_speak">발음 듣기</string>
+    <string name="capture_shot_object">단일 물체</string>
+    <string name="capture_shot_scene">풍경</string>
+
+    <string name="nomatch_title">이 단어는 아직 모르겠어요</string>
+    <string name="nomatch_body">모델이 본 것은 위의 단어뿐이에요. 직접 적어 넣으면 사전에 저장돼요.</string>
+    <string name="nomatch_labels_seen">모델이 본 단어</string>
+</resources>

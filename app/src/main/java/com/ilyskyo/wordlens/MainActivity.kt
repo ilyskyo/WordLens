@@ -1,10 +1,30 @@
 package com.ilyskyo.wordlens
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ilyskyo.wordlens.core.AppContainer
+import com.ilyskyo.wordlens.ui.capture.CaptureCamera
+import com.ilyskyo.wordlens.ui.capture.CaptureScreen
+import com.ilyskyo.wordlens.ui.capture.CaptureViewModel
+import com.ilyskyo.wordlens.ui.capture.captureViewModelFactory
+import com.ilyskyo.wordlens.ui.nav.HomeViewModel
 import com.ilyskyo.wordlens.ui.nav.WordLensApp
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 
@@ -13,10 +33,73 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val container = (application as WordLensApplication).container
         setContent {
             WordLensTheme {
-                WordLensApp()
+                var showCapture by remember { mutableStateOf(false) }
+                val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
+                val lookback by home.lookback.collectAsStateWithLifecycle()
+                val rememberState by home.remember.collectAsStateWithLifecycle()
+                Box(Modifier.fillMaxSize()) {
+                    WordLensApp(
+                        lookbackState = lookback,
+                        rememberState = rememberState,
+                        onMaterialChange = home::onMaterialChange,
+                        onReveal = home::onReveal,
+                        onGrade = home::onGrade,
+                        onReviewSpeak = home::onSpeak,
+                    onMarkMastered = home::onMarkMastered,
+                    onUnmark = home::onUnmark,
+                        onLookbackSpeak = home::onEntrySpeak,
+                        onCapture = { showCapture = true },
+                    )
+                    if (showCapture) {
+                        CaptureHost(container, onDismiss = { showCapture = false })
+                    }
+                }
             }
         }
     }
+}
+
+/**
+ * 取景页宿主：全屏浮在主界面之上。
+ *
+ * 拍照是**就地动作**而不是导航目的地（见 [com.ilyskyo.wordlens.ui.nav.WordLensApp] 的注释），
+ * 所以这里用组合内条件渲染而不是 NavHost。ViewModel 不挂 key：每次进入都想要一台干净的
+ * 相机与一份新的暂存状态，回到主页后再进来不应残留上一次的贴纸。
+ */
+@Composable
+private fun CaptureHost(container: AppContainer, onDismiss: () -> Unit) {
+    val vm: CaptureViewModel = viewModel(factory = captureViewModelFactory(container))
+    val state by vm.ui.collectAsStateWithLifecycle()
+    val event by vm.event.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    androidx.compose.runtime.LaunchedEffect(event) {
+        when (val e = event) {
+            is CaptureViewModel.Event.Saved -> {
+                vm.acknowledgeEvent()
+                onDismiss()
+            }
+            is CaptureViewModel.Event.Failed -> {
+                vm.acknowledgeEvent()
+                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+            }
+            null -> Unit
+        }
+    }
+
+    CaptureScreen(
+        bottomInset = PaddingValues(0.dp),
+        state = state,
+        onShutter = vm::onShutter,
+        onRetake = vm::onRetake,
+        onSave = vm::onSave,
+        onSpeak = vm::onSpeak,
+        onTapSubject = vm::onTapSubject,
+        onChipSelect = vm::onChipSelect,
+        modifier = Modifier.fillMaxSize(),
+        previewContent = { CaptureCamera(vm) },
+    )
 }

@@ -215,6 +215,29 @@ object OverlayGeometry {
     private fun normalizeDegrees(deg: Int): Int = ((deg % 360) + 360) % 360
 
     /**
+     * 把**分析流画面**里的归一化框换算回整幅传感器的归一化框。
+     *
+     * ImageAnalysis 的帧只包含当前裁切区域（变焦之后传感器不再全量出图），检测器在帧内
+     * 归一化的坐标直接拿去映射会整体跑偏。这一函数就是那条偏移的逆运算。
+     */
+    fun frameBoxToSensorNorm(
+        box: NormBox,
+        crop: SensorCrop,
+        sensorWidth: Int,
+        sensorHeight: Int,
+    ): NormBox {
+        require(sensorWidth > 0 && sensorHeight > 0) { "sensor size must be positive" }
+        fun mapX(frameX: Float): Float = (crop.left + frameX * crop.width) / sensorWidth
+        fun mapY(frameY: Float): Float = (crop.top + frameY * crop.height) / sensorHeight
+        return NormBox(
+            left = mapX(box.left).coerceIn(0f, 1f),
+            top = mapY(box.top).coerceIn(0f, 1f),
+            right = mapX(box.right).coerceIn(0f, 1f),
+            bottom = mapY(box.bottom).coerceIn(0f, 1f),
+        )
+    }
+
+    /**
      * 词片锚点：放在物体框的哪个位置。
      *
      * 默认锚在框的**上方**，而不是中心。原因是中心会被物体本身挡住——透明贴纸还好，

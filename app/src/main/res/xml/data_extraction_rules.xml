@@ -1,14 +1,28 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?><!--
+  Copyright (c) 2026 ilyskyo
+  SPDX-License-Identifier: MIT
+-->
 <data-extraction-rules>
     <cloud-backup>
+        <!--
+          云端只带文字：牌组 + 日记 JSON。
+          photos / entries / stickers 不上云——Android 的默认云备份不是端到端加密，
+          而照片里可能是家、孩子、证件（产品说明书 §8.4）。
+          datastore 里的设置同样排除，里面有用户自己填的云端 API Key（§8.5）。
+          代价是换机后旧条目只有文字没有原图，这是刻意选择，不是遗漏。
+        -->
         <include
             domain="file"
-            path="." />
-        <exclude
-            domain="sharedpref"
-            path="." />
+            path="deck.json" />
+        <include
+            domain="file"
+            path="diary.json" />
     </cloud-backup>
     <device-transfer>
+        <!--
+          面对面迁移是端到端加密的，而且是用户主动换机那一刻发生的动作，
+          所以整本日记（含照片）原样带过去。
+        -->
         <include
             domain="file"
             path="." />

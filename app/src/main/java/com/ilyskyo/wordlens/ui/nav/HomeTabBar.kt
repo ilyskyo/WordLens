@@ -3,6 +3,7 @@
 
 package com.ilyskyo.wordlens.ui.nav
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -31,12 +32,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
@@ -47,9 +51,9 @@ import com.ilyskyo.wordlens.ui.theme.WordLensTheme
  * 「拍照」与「搜索」不在这里——它们是常驻动作而不是目的地，把它们塞进标签组会让用户
  * 以为点进去会到一个页面，而它们其实是「就地执行」的操作。
  */
-enum class HomeTab(val route: String, val label: String, val icon: ImageVector) {
-    LOOKBACK("lookback", "回看", WordLensIcons.Grid),
-    REMEMBER("remember", "记住", WordLensIcons.StackedCards),
+enum class HomeTab(val route: String, @StringRes val labelRes: Int, val icon: ImageVector) {
+    LOOKBACK("lookback", R.string.home_tab_lookback, WordLensIcons.Grid),
+    REMEMBER("remember", R.string.home_tab_remember, WordLensIcons.StackedCards),
 }
 
 /**
@@ -133,6 +137,8 @@ private fun TabItem(
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "indicatorWidth",
     )
+    // 标签文本在 compose 作用域里取，clearAndSetSemantics 的 lambda 不是 composable。
+    val label = stringResource(tab.labelRes)
 
     Row(
         modifier = modifier
@@ -144,7 +150,7 @@ private fun TabItem(
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             // 合并语义：读屏念一次「记住，标签页，已选中」，而不是把图标与文字分开念。
             .clearAndSetSemantics {
-                contentDescription = tab.label
+                contentDescription = label
                 this.selected = selected
                 this.role = Role.Tab
             },
@@ -160,7 +166,7 @@ private fun TabItem(
                 .scale(iconScale),
         )
         Text(
-            text = tab.label,
+            text = label,
             style = MaterialTheme.typography.labelLarge,
             color = content,
             maxLines = 1,
@@ -200,14 +206,14 @@ fun HomeBottomActions(
         ) {
             FloatingAction(
                 icon = WordLensIcons.Camera,
-                contentDescription = "拍照",
+                contentDescription = stringResource(R.string.tab_capture),
                 container = MaterialTheme.colorScheme.primary,
                 content = MaterialTheme.colorScheme.onPrimary,
                 onClick = onCapture,
             )
             FloatingAction(
                 icon = WordLensIcons.Search,
-                contentDescription = "搜索",
+                contentDescription = stringResource(R.string.home_search),
                 container = MaterialTheme.colorScheme.surface,
                 content = MaterialTheme.colorScheme.onSurface,
                 onClick = onSearch,

@@ -37,6 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +65,8 @@ import com.ilyskyo.wordlens.ui.theme.BottomSheetShape
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
+import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.NormBox
+import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.SensorCrop
 
 /**
  * 拍照页状态。
@@ -76,11 +81,19 @@ data class CaptureUiState(
     val headword: String? = null,
     val ipa: String? = null,
     val gloss: String? = null,
-    /** 判帧结果，驱动顶部提示与是否要求「先点一下主体」。 */
+    /** 判帧结果。现在只驱动覆盖层的视觉权重，不再是模式门。 */
     val shotKind: ShotKind = ShotKind.UNCLEAR,
     val shotReason: String = "",
     /** 模型原始标签。识别不到词时也要展示：用户看到具体标签才知道该输什么。 */
     val rawLabels: List<String> = emptyList(),
+    /** 取景中的物品词片（检测器产出，已换算到传感器坐标）。 */
+    val chips: List<WordChip> = emptyList(),
+    /** 氛围词候选，数量按 [shotKind] 截断。 */
+    val ambience: List<String> = emptyList(),
+    /** 当前选中的词片 key；null 表示用户没点任何东西——按快门就存整张照片进「回看」。 */
+    val selectedChipKey: String? = null,
+    /** 取景几何快照。null 表示相机还没就绪（无权限 / 绑定中），此时不画覆盖层。 */
+    val cameraFrame: CameraFrame? = null,
 )
 
 /**
@@ -104,16 +117,24 @@ fun CaptureScreen(
     onSpeak: () -> Unit = {},
     onTapSubject: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    /** 点词片：传 null 表示取消选中。调用方通常同时把镜头推过去（CameraFocusController）。 */
+    onChipSelect: (String?) -> Unit = {},
+    /** null = 自己查 Context。Preview 里查不到运行时权限，传 true 才能看到取景态。 */
+    cameraGranted: Boolean? = null,
     modifier: Modifier = Modifier,
     previewContent: @Composable () -> Unit = {},
 ) {
     val context = LocalContext.current
+    // 用户答完授权弹窗后，Compose 不会因为权限变了而重组——必须自己制造一次状态变化。
+    // 拿这个 tick 参与 granted 的计算，比在 onResume 里重读更可靠（对话框回调不一定走 onResume）。
+    var permissionTick by remember { mutableIntStateOf(0) }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { /* 权限结果由调用方在 onResume 里重新读取 */ },
+        onResult = { permissionTick++ },
     )
-    val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-        PackageManager.PERMISSION_GRANTED
+    val granted = cameraGranted ?: (permissionTick >= 0 &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+        PackageManager.PERMISSION_GRANTED)
 
     Box(modifier = modifier) {
         if (!granted) {
@@ -132,6 +153,19 @@ fun CaptureScreen(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 previewContent()
+
+                // 词片与氛围词浮在预览之上。分析中不画：那一刻用户该看结果而不是继续选。
+                val frame = state.cameraFrame
+                if (frame != null && !state.analysing && state.sticker == null) {
+                    ViewfinderOverlay(
+                        chips = state.chips,
+                        ambience = state.ambience,
+                        frame = frame,
+                        shotKind = state.shotKind,
+                        selectedKey = state.selectedChipKey,
+                        onSelect = onChipSelect,
+                    )
+                }
             }
 
             CaptureTopBar(
@@ -142,11 +176,10 @@ fun CaptureScreen(
             )
 
             CaptureBottomControls(
-                analysing = state.analysing,
+                state = state,
                 bottomInset = bottomInset,
                 onShutter = onShutter,
                 onTapSubject = onTapSubject,
-                shotKind = state.shotKind,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
@@ -264,11 +297,10 @@ private fun ShotKindChip(kind: ShotKind, reason: String, modifier: Modifier = Mo
 
 @Composable
 private fun CaptureBottomControls(
-    analysing: Boolean,
+    state: CaptureUiState,
     bottomInset: PaddingValues,
     onShutter: () -> Unit,
     onTapSubject: () -> Unit,
-    shotKind: ShotKind,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -284,21 +316,38 @@ private fun CaptureBottomControls(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Space.md),
     ) {
-        // 判帧不明确时先让用户点一下主体：这一步同时完成分割与判帧。
-        if (shotKind == ShotKind.UNCLEAR && !analysing) {
+        // 快门上方一句话讲清「按下去会发生什么」：选了物品存进「记住」，没选存整张进「回看」。
+        // 这条二分是整个产品的骨架，不该让用户猜。
+        val selectedWord = state.chips.firstOrNull { it.key == state.selectedChipKey }?.word
+        val hint = when {
+            selectedWord != null -> stringResource(R.string.capture_selected_hint, selectedWord)
+            state.chips.isNotEmpty() -> stringResource(R.string.capture_scene_hint)
+            state.shotKind == ShotKind.UNCLEAR && !state.analysing ->
+                stringResource(R.string.capture_tap_subject)
+            else -> null
+        }
+        if (hint != null) {
             Text(
-                text = stringResource(R.string.capture_tap_subject),
+                text = hint,
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(Color(0x66000000))
-                    .clickable(onClick = onTapSubject)
+                    .then(
+                        // 没有任何词片时才把提示本身做成按钮（走手动抠主流）；
+                        // 有词片时选择靠点词片完成，提示只是陈述。
+                        if (selectedWord == null && state.chips.isEmpty()) {
+                            Modifier.clickable(onClick = onTapSubject)
+                        } else {
+                            Modifier
+                        },
+                    )
                     .padding(horizontal = Space.md, vertical = Space.sm),
             )
         }
-        ShutterButton(enabled = !analysing, onClick = onShutter)
+        ShutterButton(enabled = !state.analysing, onClick = onShutter)
     }
 }
 
@@ -477,6 +526,33 @@ private fun CapturePermissionPreview() {
 
 @Preview(showBackground = true, backgroundColor = 0xFF6B7B6B, widthDp = 380, heightDp = 720)
 @Composable
+private fun CaptureViewfinderPreview() {
+    WordLensTheme {
+        CaptureScreen(
+            bottomInset = PaddingValues(0.dp),
+            cameraGranted = true,
+            state = CaptureUiState(
+                shotKind = ShotKind.SCENE,
+                chips = listOf(
+                    WordChip("cup", "cup", NormBox(0.15f, 0.35f, 0.35f, 0.55f)),
+                    WordChip("plant", "plant", NormBox(0.60f, 0.20f, 0.75f, 0.40f)),
+                    WordChip("strange thing", "strange thing", NormBox(0.40f, 0.60f, 0.55f, 0.72f), known = false),
+                ),
+                ambience = listOf("warm", "quiet", "afternoon light", "cozy", "slow"),
+                selectedChipKey = "cup",
+                cameraFrame = CameraFrame(
+                    sensorWidth = 4032,
+                    sensorHeight = 3024,
+                    rotationDegrees = 90,
+                    crop = SensorCrop(0f, 0f, 4032f, 3024f),
+                ),
+            ),
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF6B7B6B, widthDp = 380, heightDp = 720)
+@Composable
 private fun CaptureFoundPreview() {
     WordLensTheme {
         CaptureScreen(
@@ -498,6 +574,7 @@ private fun CaptureNoMatchPreview() {
     WordLensTheme {
         CaptureScreen(
             bottomInset = PaddingValues(0.dp),
+            cameraGranted = true,
             state = CaptureUiState(
                 shotKind = ShotKind.SCENE,
                 shotReason = "The subject is only 1% of the photo.",

@@ -140,6 +140,41 @@ object CameraFocusMath {
         }
     }
 
+    /**
+     * [orientedBox] 的逆：把传感器归一化的点换回**竖持显示图**上的点。
+     *
+     * 抠图分割器吃的是按 EXIF 转正后的照片，而词片框是传感器坐标——把用户选中的物体
+     * 换算成 MagicTouch 的 tap 点必须走这一步。方向写反的后果是「抠了杯子旁边那本书」，
+     * 而且在横屏设备上看起来一切正常。
+     */
+    fun displayPointFromSensorNorm(x: Float, y: Float, rotationDegrees: Int): Pair<Float, Float> {
+        val normalised = ((rotationDegrees % 360) + 360) % 360
+        return when (normalised) {
+            // 正向 sensor = (1 - imgY, imgX)：反解得 img = (sensorY, 1 - sensorX)
+            90 -> y to (1f - x)
+            180 -> (1f - x) to (1f - y)
+            // 正向 sensor = (imgY, 1 - imgX)：反解得 img = (1 - sensorY, sensorX)
+            270 -> (1f - y) to x
+            else -> x to y
+        }
+    }
+
+    /**
+     * 整个框版本的 [displayPointFromSensorNorm]：传感器归一化框 → 竖持显示图归一化框。
+     *
+     * 旋转是轴对齐的，四个角各自反旋后仍是矩形，所以直接交换边界即可。
+     */
+    fun imageBoxFromSensorNorm(box: NormBox, rotationDegrees: Int): NormBox {
+        val normalised = ((rotationDegrees % 360) + 360) % 360
+        return when (normalised) {
+            90 -> NormBox(box.top, 1f - box.right, box.bottom, 1f - box.left)
+            // 180° 的逆与自身相同：正向是 (x,y)->(1-x,1-y)，反解即左=1-sensor右、上=1-sensor下。
+            180 -> NormBox(1f - box.right, 1f - box.bottom, 1f - box.left, 1f - box.top)
+            270 -> NormBox(1f - box.bottom, box.left, 1f - box.top, box.right)
+            else -> box
+        }
+    }
+
     /** 归一化矩形（0..1）。自己的类型，不是 android.graphics.RectF——理由见文件头。 */
     data class NormBox(
         val left: Float,

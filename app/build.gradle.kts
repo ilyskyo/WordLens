@@ -43,11 +43,11 @@ android {
         // zh / en / ja / ko UI strings ship in the app.
         resourceConfigurations += listOf("zh", "en", "ja", "ko")
 
-        // ARM only. MediaPipe and ML Kit each ship ~10-13 MB of native code per ABI, so keeping
-        // x86/x86_64 would add ~52 MB of APK for emulators that are not a target device.
-        // Anyone who needs an emulator build can remove these two lines locally.
+        // 只编 arm64。MediaPipe 和 ML Kit 每个 ABI 带来 ~10-15MB 原生库，
+        // 而 minSdk 26 之后还在跑的机器基本都是 64 位；Google Play 对新应用也要求 64 位。
+        // 需要 x86 模拟器或 32 位旧机的人，本地删掉这一行即可。
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            abiFilters += listOf("arm64-v8a")
         }
     }
 

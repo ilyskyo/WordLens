@@ -161,6 +161,15 @@ data class WordCard(
 
     val source: EntrySource = EntrySource.MANUAL,
 
+    /**
+     * 用户手动「标记已掌握」。为 true 时这张卡彻底退出复习队列。
+     *
+     * 它和评级的 EASY **不是一回事**：EASY 只是「这次记得很牢」，间隔会变长但之后仍要回来；
+     * 已掌握是「以后别再问我」。把两者混成一个按钮，用户会把还没真记住的词归档掉，
+     * 而 FSRS 再也不会提醒他。所以它单独一个字段，入口在长按菜单里。
+     */
+    val mastered: Boolean = false,
+
     val createdAt: Long = System.currentTimeMillis(),
 
     val updatedAt: Long = System.currentTimeMillis(),

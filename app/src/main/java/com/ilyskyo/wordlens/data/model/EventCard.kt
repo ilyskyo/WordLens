@@ -55,6 +55,9 @@ data class EventCard(
 
     val tags: List<String> = emptyList(),
 
+    /** 同 [WordCard.mastered]：手动归档，退出队列，与评级的 EASY 无关。 */
+    val mastered: Boolean = false,
+
     val createdAt: Long = System.currentTimeMillis(),
 
     val updatedAt: Long = System.currentTimeMillis(),

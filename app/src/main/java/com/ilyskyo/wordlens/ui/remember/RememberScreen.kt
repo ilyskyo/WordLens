@@ -11,6 +11,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,16 +27,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +58,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,6 +87,8 @@ data class RememberUiState(
     val speakEnabled: Boolean = true,
     /** 四个评级各自会产生的间隔天数，直接印在按钮上。 */
     val intervals: Map<Fsrs.Rating, Int> = emptyMap(),
+    /** 用户手动「标记已掌握」而移出队列的卡。它们不再被调度，但可以取消。 */
+    val archived: List<ReviewItem> = emptyList(),
 )
 
 /**
@@ -121,6 +133,8 @@ fun RememberScreen(
     onReveal: () -> Unit = {},
     onGrade: (Fsrs.Rating) -> Unit = {},
     onSpeak: () -> Unit = {},
+    onMarkMastered: () -> Unit = {},
+    onUnmark: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -135,6 +149,25 @@ fun RememberScreen(
             onMaterialChange = onMaterialChange,
         )
         state.total.let { RememberProgress(done = state.done, total = it) }
+
+        // 归档是唯一会永久改变队列的动作，所以它必须始终可撤销——入口在进度条下面常驻，
+        // 而不是只在空状态里出现（否则刚归档完、队列还有下一张时就没有反悔的地方）。
+        if (state.archived.isNotEmpty()) {
+            var archivedOpen by remember { mutableStateOf(false) }
+            TextButton(onClick = { archivedOpen = true }) {
+                Text(
+                    text = stringResource(R.string.review_archived_count, state.archived.size),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+            if (archivedOpen) {
+                ArchivedDialog(
+                    items = state.archived,
+                    onUnmark = onUnmark,
+                    onDismiss = { archivedOpen = false },
+                )
+            }
+        }
 
         Box(
             modifier = Modifier
@@ -158,11 +191,26 @@ fun RememberScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(Space.md),
                 ) {
-                    FlipCard(
-                        card = state.current,
-                        revealed = state.revealed,
-                        onClick = onReveal,
-                    )
+                    var menuOpen by remember(state.current.item.id) { mutableStateOf(false) }
+                    Box {
+                        FlipCard(
+                            card = state.current,
+                            revealed = state.revealed,
+                            onClick = onReveal,
+                            onLongClick = { menuOpen = true },
+                        )
+                        // 归档动作只放这里，不进评级按钮行：「别再给我看它」和「我记得很牢」
+                        // 必须在界面上分开，否则用户会把还没记住的词当成学完了。
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.review_mark_mastered)) },
+                                onClick = {
+                                    menuOpen = false
+                                    onMarkMastered()
+                                },
+                            )
+                        }
+                    }
                     if (state.current.item is ReviewItem.Word) {
                         // 只有词汇才有得读；事件是一句话，发音没有意义。
                         SpeakButton(
@@ -258,6 +306,7 @@ private fun FlipCard(
     card: RememberCard,
     revealed: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val rotation = remember(card.item.id) { Animatable(0f) }
@@ -268,7 +317,6 @@ private fun FlipCard(
     val accents = WordLensTheme.accents
 
     Surface(
-        onClick = onClick,
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 8.dp,
@@ -281,6 +329,7 @@ private fun FlipCard(
                 ambientColor = accents.shadowTint,
                 spotColor = accents.shadowTint,
             )
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .graphicsLayer {
                 rotationY = rotation.value
                 cameraDistance = 14f * density
@@ -308,6 +357,62 @@ private fun FlipCard(
             }
         }
     }
+}
+
+/**
+ * 已归档清单：长按「标记已掌握」之后唯一能把卡捞回来的地方。
+ *
+ * 只做两件事——列出来、取消标记。不在这上面做复习或编辑，那是另一个页面该负的责任。
+ */
+@Composable
+private fun ArchivedDialog(
+    items: List<ReviewItem>,
+    onUnmark: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.review_archived_title)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Space.sm),
+            ) {
+                items.forEach { item ->
+                    val label = when (item) {
+                        is ReviewItem.Word -> item.card.headword
+                        is ReviewItem.Event -> item.card.text
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Space.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { onUnmark(item.id) }) {
+                            Text(
+                                text = stringResource(R.string.review_unmaster),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.review_archived_close))
+            }
+        },
+    )
 }
 
 @Composable

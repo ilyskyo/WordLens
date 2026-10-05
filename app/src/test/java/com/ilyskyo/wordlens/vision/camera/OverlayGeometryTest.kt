@@ -44,8 +44,8 @@ class OverlayGeometryTest {
     @Test
     fun `the full frame is centre-cropped to fill the view`() {
         val t = OverlayGeometry.transformFor(view, fullCrop)
-        // FILL_CENTER 永不��黑边：宽高里总有一侧溢出，所以至少一个偏移是负的。
-        assertTrue("offsetX=${t.offsetX} offsetY=${t.offsetY} 至少一侧应为负", t.offsetX < 0f || t.offsetY < 0f)
+        // FILL_CENTER 永不留黑边：偏移只能 <= 0，为正就意味着那一侧出现了黑边。
+        assertTrue("offsetX=${t.offsetX} offsetY=${t.offsetY}", t.offsetX <= 0f && t.offsetY <= 0f)
         // 旋转 90° 后画面变成 3:4，和 3:4 的取景框同比例 -> 两边都不溢出。
         assertEquals(0f, t.offsetX, 0.01f)
         assertEquals(0f, t.offsetY, 0.01f)
@@ -117,25 +117,29 @@ class OverlayGeometryTest {
         assertTrue("shift=$shift 词片应该跟着画面移动", shift > 100f)
     }
 
-    /** 不旋转时，传感器的左上角就应该是取景框的左上角。 */
+    /** 不旋转时，横置传感器画面在竖持取景框里左右溢出，左上角落在画面外。 */
     @Test
     fun `a box at the top-left maps into the top-left of the view`() {
         val rect = OverlayGeometry.map(NormBox(0f, 0f, 0.2f, 0.2f), viewNoRotation, fullCrop)
-        assertEquals(0f, rect.left, 1f)
+        // 竖持取景框 + 不旋转：4:3 画面按高铺满后宽 1920，左右各溢出 420，
+        // 传感器左上角落在画面外左侧——FILL_CENTER 是裁切不是留黑边。
+        assertEquals(-420f, rect.left, 1f)
         assertEquals(0f, rect.top, 1f)
     }
 
     /**
-     * 旋转 90° 时，传感器左上角落在取景框**左下**角。
+     * 旋转 90°（顺时针）时，传感器左上角落在取景框**右上**角。
      *
      * 这条锁的是旋转方向本身：方向搞反了不会崩，只是词片全贴在错误的边上，
      * 而且 90° 和 270° 的错误互为镜像，肉眼很难立刻判断对错。
      */
     @Test
-    fun `rotation ninety sends the sensor top-left to the bottom-left`() {
+    fun `rotation ninety sends the sensor top-left to the top-right`() {
         val rect = OverlayGeometry.map(NormBox(0f, 0f, 0.2f, 0.2f), view, fullCrop)
-        assertEquals(0f, rect.left, 1f)
-        assertEquals(view.viewHeight, rect.bottom, 1f)
+        // CameraX 的 rotationDegrees 是「顺时针旋转多少才正」：顺时针 90° 时
+        // 原图左上角落在新图右上角。这条锁的就是旋转方向本身。
+        assertEquals(view.viewWidth, rect.right, 1f)
+        assertEquals(0f, rect.top, 1f)
     }
 
     @Test

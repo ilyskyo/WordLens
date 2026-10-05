@@ -1,21 +1,41 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?><!--
+  Copyright (c) 2026 ilyskyo
+  SPDX-License-Identifier: MIT
+-->
 <resources>
     <string name="app_name">见词</string>
     <string name="widget_due_label">今日待复习</string>
-    <string name="widget_due_count_zero">今天没有到期的词</string>
 
-    <!-- 底部导航 -->
+    <!-- 底部两个常驻动作 -->
     <string name="tab_capture">拍照</string>
-    <string name="tab_collection">收藏</string>
-    <string name="tab_review">复习</string>
+    <string name="home_search">搜索与筛选</string>
 
     <!-- 主页顶部：回看 / 记住 -->
     <string name="home_tab_lookback">回看</string>
     <string name="home_tab_remember">记住</string>
-    <string name="home_search">搜索与筛选</string>
+
+    <!-- 时段问候：选哪个是逻辑，怎么念是资源 -->
+    <string name="greeting_morning">早上好</string>
+    <string name="greeting_noon">中午好</string>
+    <string name="greeting_afternoon">下午好</string>
+    <string name="greeting_evening">晚上好</string>
+    <string name="greeting_late_night">夜深了</string>
+
+    <!-- 日期。%1$s 是 CLDR 的月份短名，%2$d 是日，%3$d 是年；语序由本资源决定 -->
+    <string name="date_in_year">%1$s%2$d日</string>
+    <string name="date_with_year">%3$d年%1$s%2$d日</string>
+
+    <!-- 氛围标记 -->
+    <string name="mood_quiet">安静</string>
+    <string name="mood_warm">温暖</string>
+    <string name="mood_crowded">拥挤</string>
+    <string name="mood_messy">潦草</string>
+    <string name="mood_bright">明亮</string>
+    <string name="mood_grey">阴天</string>
+    <string name="mood_busy">忙乱</string>
+    <string name="mood_ordinary">平常</string>
 
     <!-- 回看页 -->
-    <string name="lookback_greeting">%1$s</string>
     <string name="lookback_today_count">今天记录了 %1$d 个瞬间</string>
     <string name="lookback_empty_title">还没有任何记录</string>
     <string name="lookback_empty_body">举起相机对着任意东西，识别完成后可以直接存下这一帧。</string>
@@ -25,51 +45,42 @@
     <string name="study_words">词汇</string>
     <string name="study_events">事件</string>
 
-    <!-- 复习动作：review_got_it / review_fuzzy 定义在下面的复习页小节里 -->
-    <string name="review_verify_source">这条由 AI 整理，请对照原文确认</string>
+    <!-- 复习 -->
+    <string name="review_progress">今日复习 %1$d/%2$d</string>
+    <string name="review_fuzzy">模糊</string>
+    <string name="review_got_it">记住了</string>
+    <string name="review_flip_hint">轻点看释义 · 长按可归档</string>
+    <string name="review_event_prompt">那天发生了什么？</string>
+    <string name="review_done_title">今天这批过完了</string>
+    <string name="review_done_body">连续复习 %1$d 天，明天见。</string>
+    <string name="review_empty_title">现在没有到期的词</string>
+    <string name="review_empty_body">先去拍几个，复习队列会在合适的时候把你叫回来。</string>
+
+    <!--
+      归档与评级是两件事：EASY 只是间隔变长，标记已掌握是永久移出队列。
+      所以它单独占一个长按菜单项，并且必须能被撤销。
+    -->
     <string name="review_mark_mastered">标记已掌握</string>
     <string name="review_unmaster">取消标记</string>
+    <string name="review_archived_count">已归档 %1$d 张</string>
+    <string name="review_archived_title">已归档的卡</string>
+    <string name="review_archived_close">关闭</string>
+
+    <!-- AI 生成的内容必须标来源：复习会把它巩固成长期记忆，错了就麻烦了 -->
+    <string name="review_verify_source">这条由 AI 整理，请对照原文确认</string>
 
     <!-- 拍照页 -->
     <string name="capture_settings">设置</string>
-    <string name="capture_shutter">拍照</string>
     <string name="capture_retake">重新拍摄</string>
     <string name="capture_save">保存贴纸</string>
     <string name="capture_permission_needed">需要相机权限才能识别物体</string>
     <string name="capture_grant">去授权</string>
     <string name="capture_tap_subject">点一下画面里的主体，把它抠出来</string>
+    <string name="capture_selected_hint">已选「%1$s」· 快门将保存物品贴纸到「记住」</string>
+    <string name="capture_scene_hint">未选物品 · 快门将保存整张照片到「回看」</string>
     <string name="capture_speak">播放发音</string>
     <string name="capture_shot_object">单物体</string>
     <string name="capture_shot_scene">场景</string>
-
-    <!-- 收藏页 -->
-    <string name="collection_title">我的贴纸</string>
-    <string name="collection_search_hint">搜索单词</string>
-    <string name="collection_filter_all">全部</string>
-    <string name="collection_filter_recent">最近</string>
-    <string name="collection_filter_alpha">按字母</string>
-    <string name="collection_filter_progress">按复习进度</string>
-    <string name="collection_empty_title">拍下第一个物体，开始收集吧</string>
-    <string name="collection_empty_body">对着任意东西按下快门，贴纸会自动长出来。</string>
-    <string name="collection_search_empty_title">没有匹配的单词</string>
-    <string name="collection_search_empty_body">换个关键词试试。</string>
-    <string name="collection_clear_search">清空搜索</string>
-    <string name="collection_action_edit">编辑</string>
-    <string name="collection_action_delete">删除</string>
-    <string name="collection_action_review_now">立即复习</string>
-    <string name="collection_menu_anchor">更多操作</string>
-
-    <!-- 复习页 -->
-    <string name="review_progress">今日复习 %1$d/%2$d</string>
-    <string name="review_fuzzy">模糊</string>
-    <string name="review_got_it">记住了</string>
-    <string name="review_flip_hint">轻点卡片看释义</string>
-    <string name="review_done_title">今天这批过完了</string>
-    <string name="review_done_body">连续复习 %1$d 天，明天见。</string>
-    <string name="review_back">返回收藏</string>
-    <string name="review_empty_title">现在没有到期的词</string>
-    <string name="review_empty_body">先去拍几个，复习队列会在合适的时候把你叫回来。</string>
-    <string name="review_card">复习卡片，轻点翻面</string>
 
     <!-- 识别为空时的诚实提示 -->
     <string name="nomatch_title">这个词我还认不出来</string>
