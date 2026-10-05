@@ -178,6 +178,23 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
         private const val SUGGESTION_LIMIT = 24
         private const val DIARY_LIMIT = 20
 
+        /** 分享进来的文本能当查询的最长长度。一整段文字作为搜索词只会保证「没有结果」。 */
+        private const val MAX_SHARED_QUERY = 80
+
+        /**
+         * 把「别的 App 里选中的那段文字」折成一个可用的查询。
+         *
+         * 只取第一行、掐到 [MAX_SHARED_QUERY]：选区可能是整段摘要，而整段拿去做
+         * `contains` 匹配，词典一定不命中、日记也几乎一定不命中，用户看到的是一句
+         * 「什么都没找到」——那句话在这种情况下是假的，真正没做的是搜索。
+         * 空与全空白返回 null，调用方据此**什么都不做**：静默不开页面，比开一个空页面好。
+         */
+        fun queryFromShared(raw: String?): String? {
+            val firstLine = raw?.lineSequence()?.firstOrNull { it.isNotBlank() }?.trim() ?: return null
+            if (firstLine.isEmpty()) return null
+            return if (firstLine.length <= MAX_SHARED_QUERY) firstLine else firstLine.take(MAX_SHARED_QUERY).trimEnd()
+        }
+
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer { SearchViewModel(container) }
         }

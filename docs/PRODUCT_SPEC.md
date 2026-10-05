@@ -425,7 +425,7 @@ app/src/main/java/com/ilyskyo/wordlens/
 | 真机验证 | 见上面「进行中」，这是发布前唯一的硬门槛。详情页的词片位置是坐标链路的终点，也是最需要先看一眼的一段 |
 | 四语词典 | 只有 `lexicon/en.json`。中/日/韩的词条需要从其他来源补，`LexiconEntry.words` 的结构已经支持多语言 |
 | release 签名 | 签名四项写在 `local.properties`，缺省产物不签名（见 `docs/BUILD.md`）；要发版需要一个长期 keystore |
-| `PROCESS_TEXT` / `SEND` intent | manifest 里声明了，接收端未实现 |
+| 分享进来的**音频/视频** | `SEND` 的 image/* 与 text/plain 两条已经接进导入流水线与搜索页；其余 MIME 类型现在会被挡在 manifest 之外，不是漏实现 |
 
 ### ✅ 已决定：模型文件直接提交
 

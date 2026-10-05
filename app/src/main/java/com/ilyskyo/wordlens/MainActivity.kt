@@ -4,6 +4,7 @@
 package com.ilyskyo.wordlens
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -86,18 +87,31 @@ class MainActivity : ComponentActivity() {
 
     private var tabSequence = 0
 
+    /**
+     * 别的 App 分享进来的文本或图片。
+     *
+     * 和页签请求同一个理由：这些是**一次次的动作**，不是一个当前值。连着分享两次同一段文字
+     * 或同一张图，第二次必须真的再发生一次；存成 String?/Uri? 会被相同值合流掉，
+     * 于是「第二次分享没反应」——而 manifest 早就声明了这两个 intent-filter，
+     * 用户是从系统的分享菜单里进来的，那里没有第二次机会解释为什么没反应。
+     */
+    private var shareSequence = 0
+    private val sharedText = mutableStateOf(SharedQuery())
+    private val sharedImage = mutableStateOf(SharedImage())
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         applyIntent(intent)
+        applyShares(intent)
         val container = (application as WordLensApplication).container
         setContent {
             // 色系必须在第一帧就是用户选的那一套：让按钮先闪一下默认色系，
             // 比色系本身好不好看更值得在意。
             val palette by container.ratingPalette.collectAsStateWithLifecycle()
             WordLensTheme(ratingScheme = palette.hues()) {
-                WordLensRoot(container, tabRequest)
+                WordLensRoot(container, tabRequest, sharedText, sharedImage)
             }
         }
     }
@@ -106,6 +120,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         applyIntent(intent)
+        applyShares(intent)
     }
 
     private fun applyIntent(intent: Intent) {
@@ -117,6 +132,32 @@ class MainActivity : ComponentActivity() {
         intent.removeExtra(EXTRA_OPEN_REMEMBER)
         tabSequence += 1
         tabRequest.value = TabRequest(HomeTab.REMEMBER, tabSequence)
+        return
+    }
+
+    /**
+     * manifest 里那两个分享入口真正的接收端。
+     *
+     * 之前它们只是**声明着**：在别的 App 里选中一段文字，分享菜单里有「见词」，点了之后
+     * 应用打开、什么都没有发生。承诺了没做比不承诺更糟，因为它教会用户「这里的菜单不作数」，
+     * 而这一次他连搜索页都不会打开。
+     */
+    private fun applyShares(intent: Intent) {
+        val text = SearchViewModel.queryFromShared(
+            intent.getStringExtra(Intent.EXTRA_PROCESS_TEXT)
+                ?: intent.getStringExtra(Intent.EXTRA_TEXT),
+        )
+        if (text != null) {
+            shareSequence += 1
+            sharedText.value = SharedQuery(text, shareSequence)
+        }
+        val stream = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+        // 只接图片：filter 声明的就是 image/*，而分享里挂着的类型由发送方说了算，
+        // 非图片的流交给导入那条路只会在解码那一步失败——在这里挡掉比在解码器里挡掉诚实。
+        if (stream != null && intent.type?.startsWith("image/") == true) {
+            shareSequence += 1
+            sharedImage.value = SharedImage(stream, shareSequence)
+        }
     }
 
     companion object {
@@ -135,7 +176,12 @@ class MainActivity : ComponentActivity() {
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun WordLensRoot(container: AppContainer, tabRequest: MutableState<TabRequest>) {
+private fun WordLensRoot(
+    container: AppContainer,
+    tabRequest: MutableState<TabRequest>,
+    sharedText: MutableState<SharedQuery>,
+    sharedImage: MutableState<SharedImage>,
+) {
     // 转屏不许弄丢「你在哪一页」。栈编码成字符串存进 savedState，理由写在 PageStack 的注释里；
     // 这里用不可变的 List 而不是 SnapshotStateList，是因为后者接不进 rememberSaveable 的 Saver。
     var stack by rememberSaveable(stateSaver = PageStack.saver) { mutableStateOf(PageStack.initial) }
@@ -155,6 +201,19 @@ private fun WordLensRoot(container: AppContainer, tabRequest: MutableState<TabRe
     LaunchedEffect(top) {
         val detail = top as? Page.Detail ?: return@LaunchedEffect
         home.ensureEntryShown(detail.entryId)
+    }
+
+    // 从分享菜单进来：直接把对应页面打开，而不是让用户自己找第二次。
+    // 已经在页面上时不再压一层——同一个页面在栈里出现两次，返回键就要多按一次才能出来。
+    LaunchedEffect(sharedText.value) {
+        if (sharedText.value.query != null && top != Page.Search) {
+            stack = PageStack.push(stack, Page.Search)
+        }
+    }
+    LaunchedEffect(sharedImage.value) {
+        if (sharedImage.value.uri != null && top != Page.Capture) {
+            stack = PageStack.push(stack, Page.Capture)
+        }
     }
 
     applyLightStatusBar(darkSurface = top == Page.Capture)
@@ -211,10 +270,12 @@ private fun WordLensRoot(container: AppContainer, tabRequest: MutableState<TabRe
                             // 导入完成之后取景页就没了，那句「这次少了一部分」必须说在主页这层。
                             onReportNotice = home::showNotice,
                             onEntrySaved = home::revealSavedEntry,
+                            sharedImage = sharedImage.value,
                         )
 
                         Page.Search -> SearchHost(
                             container = container,
+                            shared = sharedText.value,
                             onClose = { stack = pop(stack, home) },
                             onOpenEntry = { id -> openEntry(stack, home, id) },
                         )
@@ -229,6 +290,12 @@ private fun WordLensRoot(container: AppContainer, tabRequest: MutableState<TabRe
         }
     }
 }
+
+/** 一次「把这段文字带进搜索」的请求。query 为 null 表示没有请求。 */
+private data class SharedQuery(val query: String? = null, val sequence: Int = 0)
+
+/** 一次「把这张图导进日记」的请求。uri 为 null 表示没有请求。 */
+private data class SharedImage(val uri: Uri? = null, val sequence: Int = 0)
 
 private fun openEntry(stack: List<Page>, home: HomeViewModel, id: String): List<Page> {
     home.onOpenEntry(id)
@@ -359,9 +426,19 @@ private fun DetailScene(home: HomeViewModel, onBack: () -> Unit) {
  * VM 独立于 HomeViewModel：输入框里那几个字应该在离开时清空，不该跟着主页活一辈子。
  */
 @Composable
-private fun SearchHost(container: AppContainer, onClose: () -> Unit, onOpenEntry: (String) -> Unit) {
+private fun SearchHost(
+    container: AppContainer,
+    shared: SharedQuery,
+    onClose: () -> Unit,
+    onOpenEntry: (String) -> Unit,
+) {
     val vm: SearchViewModel = viewModel(factory = SearchViewModel.factory(container))
     val state by vm.state.collectAsStateWithLifecycle()
+
+    // 分享进来的文字就是这次的查询。带序号的请求体保证同一句话分享两次会填两次。
+    LaunchedEffect(shared) {
+        shared.query?.let(vm::onQueryChange)
+    }
     SearchScreen(
         state = state,
         onQueryChange = vm::onQueryChange,
@@ -387,6 +464,8 @@ private fun CaptureHost(
     onReportNotice: (String) -> Unit,
     /** 存好了一条记录之后交给主页它的日期键：主页据此决定要不要放开日历筛选。 */
     onEntrySaved: (String) -> Unit,
+    /** 从别的 App「分享到见词」的那张图片：与相册导入同一条路。 */
+    sharedImage: SharedImage,
 ) {
     val vm: CaptureViewModel = viewModel(factory = captureViewModelFactory(container))
     val state by vm.ui.collectAsStateWithLifecycle()
@@ -402,6 +481,13 @@ private fun CaptureHost(
     ) { uri ->
         // null 是用户按了返回键。这不是失败，不该报任何东西——他没选，就是不想记这一张。
         if (uri != null) vm.onImportPhoto(uri)
+    }
+
+    // 「分享图片给见词」走的就是相册导入那一条路：拷进私有目录、现检、抠图、写成条目。
+    // 分享过来的是一张已经在别人那里的照片，与用户自己挑一张在数据上没有区别，
+    // 所以这里不该出现第二条流水线。
+    LaunchedEffect(sharedImage) {
+        sharedImage.uri?.let(vm::onImportPhoto)
     }
 
     LaunchedEffect(event) {
