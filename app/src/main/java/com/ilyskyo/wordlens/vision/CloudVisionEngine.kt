@@ -8,17 +8,8 @@ import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -43,11 +34,8 @@ import java.util.zip.GZIPInputStream
  *   field, so the GPS coordinate of the user's home is not attached to an outbound image;
  * - nothing is sent automatically. Every call is a deliberate tap.
  *
- * ## Output handling
- *
- * The model is asked for strict JSON but is not trusted to produce it: the reply is parsed
- * defensively and anything unrecognisable degrades to plain-text lines. Models change under you;
- * a vocabulary app should not crash because one started adding a preamble.
+ * Reply parsing lives in [CloudReply] — it is the one place in this chain that reads input it
+ * does not control, and it needs to be testable without a network or a device.
  */
 class CloudVisionEngine(
     private val apiKey: String,
@@ -59,7 +47,16 @@ class CloudVisionEngine(
 
     override val requiresNetwork = true
 
+    /**
+     * 不能出这条请求的理由，按严重程度排。
+     *
+     * 第一条是**密钥的去向**：endpoint 今天是编译期常量，所以这条看着像不会发生；写在这里
+     * 是因为它一旦变成可设置的（这是这个后端最自然的下一步演进），错的那一半就是「用户的 API
+     * Key 与照片以明文离开这台机器」，而那种事没有第二次机会。这里不抛也不重试——只让它
+     * 变成「这个引擎现在不可用」，调用方本来就会回落到设备端。
+     */
     override fun unavailableReason(): String? = when {
+        !endpoint.startsWith("https://") -> "The vision endpoint is not HTTPS."
         apiKey.isBlank() -> "No API key has been entered."
         model.isBlank() -> "No model has been selected."
         else -> null
@@ -112,7 +109,7 @@ class CloudVisionEngine(
         }.toString()
 
         val response = post(body) ?: return@withContext emptyList()
-        parse(response)
+        CloudReply.labels(response)
     }
 
     override fun close() = Unit
@@ -139,6 +136,7 @@ class CloudVisionEngine(
             val text = stream?.let { readMaybeGzip(it, connection.contentEncoding) }.orEmpty()
             if (status !in 200..299) {
                 // Surface the reason: a bare "failed" leaves the user with nothing to act on.
+                // 只截 300 字符是为了给日志一个上限；错误响应体里不会有密钥或图片内容。
                 Log.w(TAG, "HTTP $status: ${text.take(300)}")
                 return null
             }
@@ -187,75 +185,8 @@ class CloudVisionEngine(
         )
     }
 
-    // ── parsing ──────────────────────────────────────────────────────────────
-
-    private fun parse(raw: String): List<RawLabel> {
-        val reply = extractReplyText(raw) ?: return parseLoose(raw)
-        return parseStructured(reply) ?: parseLoose(reply)
-    }
-
-    /** The assistant's text out of a Messages-API envelope. */
-    private fun extractReplyText(raw: String): String? = runCatching {
-        val content = JSON.parseToJsonElement(raw).jsonObject["content"] as? JsonArray ?: return null
-        content.firstNotNullOfOrNull { block ->
-            (block as? JsonObject)?.primitiveText("text")
-        }
-    }.getOrNull()
-
-    private fun parseStructured(text: String): List<RawLabel>? {
-        val words = runCatching {
-            val array = JSON.parseToJsonElement(text.stripFences()).jsonObject["words"] as? JsonArray
-            array ?: return null
-            array
-        }.getOrNull() ?: return null
-
-        val out = mutableListOf<RawLabel>()
-        for (element in words) {
-            val entry = element as? JsonObject ?: continue
-            val headword = entry.primitiveText("headword") ?: entry.primitiveText("word") ?: continue
-            if (headword.isBlank()) continue
-            val confidence = entry.primitiveText("confidence")?.toFloatOrNull() ?: 0.8f
-            val score = confidence.coerceIn(0f, 1f)
-
-            out += RawLabel(headword, score)
-            // Attach the translations as labels too, so a match can land on the entry from any
-            // language the user happens to photograph text in.
-            for (key in TRANSLATION_KEYS) {
-                entry.primitiveText(key)?.let { out += RawLabel(it, score) }
-            }
-            entry.primitiveText("ipa")?.let { out += RawLabel(it, score) }
-        }
-        return out
-            .distinctBy { it.text.lowercase() }
-            .take(MAX_LABELS)
-            .ifEmpty { null }
-    }
-
-    /** Anything the model returns that is not our JSON: read it as one word per line. */
-    private fun parseLoose(text: String): List<RawLabel> = text.lineSequence()
-        .map { it.trim().removePrefix("-").removePrefix("*").removePrefix("•").trim() }
-        .filter { it.isNotEmpty() && it.length <= 40 }
-        .map { RawLabel(it, LOOSE_CONFIDENCE) }
-        .distinctBy { it.text.lowercase() }
-        .take(MAX_LABELS)
-        .toList()
-
-    private fun JsonObject.primitiveText(key: String): String? =
-        (this[key] as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
-
-    /** Models like to wrap JSON in a code fence despite being told not to. */
-    private fun String.stripFences(): String = trim()
-        .removePrefix("```json")
-        .removePrefix("```")
-        .removeSuffix("```")
-        .trim()
-
     companion object {
         private const val TAG = "CloudVision"
-
-        private val JSON = Json { ignoreUnknownKeys = true }
-
-        private val TRANSLATION_KEYS = listOf("zh", "zh-CN", "ja", "ko")
 
         const val DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages"
         const val ANTHROPIC_VERSION = "2023-06-01"
@@ -264,16 +195,16 @@ class CloudVisionEngine(
         const val MAX_EDGE = 1400
         const val JPEG_QUALITY = 82
         const val MAX_TOKENS = 700
-        const val MAX_LABELS = 12
         const val TIMEOUT_MS = 25_000
-
-        /** Lower than on-device output, because unstructured free text is a weaker signal. */
-        const val LOOSE_CONFIDENCE = 0.55f
 
         /**
          * Asks for exactly what a dictionary entry needs — headword, IPA, and the translations
          * in the four shipped languages — so a reply can be used directly instead of being
          * re-interpreted.
+         *
+         * 释义与音标仍然要，但它们不进标签列表（`LexiconIndex` 的索引只认英语词头，见
+         * [CloudReply]）。留着的理由很朴素：本地词典只有 12000 条，模型给的这两个字段是唯一
+         * 一处「不查词典也在手边」的信息，而它们不占标签额度——上限按词掐，不按拍平后的条数。
          */
         const val PROMPT = """
 Name the things visible in this photo, for a vocabulary learner.
