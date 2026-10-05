@@ -82,6 +82,67 @@ class YuvFramesTest {
         assertEquals(155, (pixels[2] shr 16) and 0xFF)
     }
 
+    // ── 空平面：曾经让词片永久消失的那类输入 ────────────────────────────────
+
+    /**
+     * 两个色度平面都是空的：以前这里构造出 `(0, -1)` 的下标区间，`coerceIn` 抛
+     * `IllegalArgumentException`。异常每帧被吞，最终现象是取景页永久没有词片、日志一个字都没有。
+     * 现在按「没有颜色」处理——U/V 的零点是 128，画面退化成灰度，帧还在。
+     */
+    @Test
+    fun `empty chroma planes decode to grey instead of throwing`() {
+        val y = plane(150, 150, 150, 150)
+        val pixels = YuvFrames.toPixels(y, 2, 1, ByteArray(0), ByteArray(0), 2, 2, 2, 2)
+        assertEquals(4, pixels.size)
+        for (p in pixels) {
+            assertEquals("no colour info must leave one luminance channel only",
+                (p shr 16) and 0xFF, p and 0xFF)
+            assertEquals(155, (p shr 16) and 0xFF)
+            assertEquals(155, (p shr 8) and 0xFF)
+        }
+    }
+
+    /** 只有 u 空：v 照常用。缺一半颜色信息不该把另一半也丢掉。 */
+    @Test
+    fun `one empty chroma plane still uses the other`() {
+        val y = plane(150, 150, 150, 150)
+        // uv=0（空平面给的中性）、vv=112 → R=(39932+409*112)>>8=334→255，
+        // G=(39932-23296)>>8=64，B=39932>>8=155。
+        val pixels = YuvFrames.toPixels(y, 2, 1, ByteArray(0), plane(240), 1, 2, 2, 2)
+        assertEquals(255, (pixels[0] shr 16) and 0xFF)
+        assertEquals(64, (pixels[0] shr 8) and 0xFF)
+        assertEquals(155, pixels[0] and 0xFF)
+    }
+
+    /**
+     * 亮度平面为空：整帧没有图像信息，早退成一张中灰。
+     *
+     * 长度必须是 `width * height`——调用方下一步就把它交给 `createBitmap`，
+     * 数组短一个元素那边再抛一次，静默失败只是换了个栈顶。
+     */
+    @Test
+    fun `empty luma plane yields a full frame of neutral pixels`() {
+        val pixels = YuvFrames.toPixels(ByteArray(0), 4, 1, plane(128), plane(128), 2, 2, 3, 2)
+        val neutral = (0xFF shl 24) or (0x80 shl 16) or (0x80 shl 8) or 0x80
+        assertEquals(6, pixels.size)
+        assertTrue("every pixel must be the neutral grey: ${pixels.joinToString()}",
+            pixels.all { it == neutral })
+        // 中灰被 luma 读成「亮度无从判断」，而不是纯黑那种「这帧很暗」——后者会把氛围词
+        // 往 night/dark 推，等于把一次数据缺失解释成了真实的场景证据。
+        val luma = YuvFrames.luma(pixels, step = 1)
+        assertTrue("brightness=${luma.brightness}", luma.brightness > 0.4f && luma.brightness < 0.6f)
+        assertEquals(0f, luma.warmth, 0f)
+    }
+
+    /** 尺寸退化（首帧偶尔给到 0）返回空数组而不是 NegativeArraySizeException。 */
+    @Test
+    fun `zero sized frame returns no pixels without throwing`() {
+        val y = plane(150)
+        assertEquals(0, YuvFrames.toPixels(y, 1, 1, plane(128), plane(128), 1, 1, 0, 4).size)
+        assertEquals(0, YuvFrames.toPixels(y, 1, 1, plane(128), plane(128), 1, 1, 4, 0).size)
+        assertEquals(0, YuvFrames.toPixels(y, 1, 1, plane(128), plane(128), 1, 1, -1, -1).size)
+    }
+
     // ── luma：氛围词的粗信号 ────────────────────────────────────────────────
 
     @Test

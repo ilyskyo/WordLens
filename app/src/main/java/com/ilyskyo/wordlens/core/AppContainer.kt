@@ -4,6 +4,7 @@
 package com.ilyskyo.wordlens.core
 
 import android.content.Context
+import android.util.Log
 import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.data.model.LexiconEntry
 import com.ilyskyo.wordlens.data.model.RatingPalette
@@ -96,12 +97,50 @@ class AppContainer(context: Context) {
     val vision = VisionRepository(appContext, applicationScope, lexicon, settings)
 
     /**
-     * COCO 物体检测器（取景页词片的来源）。
+     * COCO 物体检测器（取景页词片的来源），取不到就是 null——取景页降级为无词片。
      *
-     * lazy 是有意的：模型常驻内存约 4.5 MB，只有真正打开取景页才值得加载；
-     * 从桌面直接进「记住」复习的用户全程不碰它。加载失败是 null——取景页降级为无词片。
+     * 这里原来是 `val detector by lazy { create() }`。`EfficientDetector.create` 失败时
+     * **返回 null 而不是抛**，而 lazy 会把那一次 null 永久缓存：一次瞬时的 TFLite 分配失败
+     * 就让整个进程的词片再也不出现，且没有任何日志说明为什么。
+     *
+     * 现在三件事分开：
+     * - 成功的实例存进 [detectorInstance]。帧回调是 2Hz，每次 miss 都重建等于每两秒
+     *   载一次 4.5MB 模型；
+     * - 失败走 [detectorGate] 的冷却窗口，窗口内直接返回 null，不再空转去载模型；
+     * - 失败日志只打一次。每帧一条 `w` 会把 logcat 刷满，反而把真正的原因埋掉。
+     *
+     * `@Synchronized` 是必须的：这个方法在分析线程（Default）与主线程上都会被读，
+     * 而 [RetryGate] 自己刻意不加锁。
      */
-    val detector: EfficientDetector? by lazy { EfficientDetector.create(appContext) }
+    @Synchronized
+    fun detectorOrNull(nowMs: Long = System.currentTimeMillis()): EfficientDetector? {
+        detectorInstance?.let { return it }
+        if (!detectorGate.allow(nowMs)) return null
+        val created = runCatching { EfficientDetector.create(appContext) }.getOrNull()
+        return if (created != null) {
+            detectorInstance = created
+            detectorGate.reset()
+            detectorFailureLogged = false
+            created
+        } else {
+            detectorGate.recordFailure(nowMs)
+            if (!detectorFailureLogged) {
+                detectorFailureLogged = true
+                Log.w(
+                    TAG,
+                    "object detector unavailable; chips stay off, retry allowed again in " +
+                        "${detectorGate.retryInMs(nowMs)}ms",
+                )
+            }
+            null
+        }
+    }
+
+    private var detectorInstance: EfficientDetector? = null
+
+    private val detectorGate = RetryGate(DETECTOR_RETRY_COOLDOWN_MS)
+
+    private var detectorFailureLogged = false
 
     /**
      * Cards due right now, in whichever direction the user is currently drilling.
@@ -159,4 +198,17 @@ class AppContainer(context: Context) {
         .map { it.ratingPalette }
         .distinctUntilChanged()
         .stateIn(applicationScope, SharingStarted.Eagerly, RatingPalette.WARM)
+
+    private companion object {
+        private const val TAG = "AppContainer"
+
+        /**
+         * 检测器加载失败后的重试冷却：30 秒。
+         *
+         * 模型重建本身只有几十毫秒，所以这个数字不是给「重建」留时间，而是给「系统缓过来」
+         * 留时间（内存压力、别的 App  releasing camera）。太短就是每帧硬撞，太长就等于
+         * 这一场拍摄再也看不见词片。
+         */
+        private const val DETECTOR_RETRY_COOLDOWN_MS = 30_000L
+    }
 }

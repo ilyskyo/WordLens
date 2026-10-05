@@ -27,6 +27,7 @@ import com.ilyskyo.wordlens.data.repository.AppSettings
 import com.ilyskyo.wordlens.data.repository.DeckDocument
 import com.ilyskyo.wordlens.data.repository.DiaryDocument
 import com.ilyskyo.wordlens.srs.Fsrs
+import com.ilyskyo.wordlens.ui.common.ByteLruCache
 import com.ilyskyo.wordlens.ui.lookback.CardWord
 import com.ilyskyo.wordlens.ui.lookback.EntryCard
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
@@ -567,29 +568,42 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     // ── 照片解码 ────────────────────────────────────────────────────────────
 
-    /** 时间轴会反复解码同一批照片；一个小 LRU 就够，滚动才不会掉帧。 */
-    private val bitmapCache = object : LinkedHashMap<String, Bitmap?>(0, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap?>) =
-            size > BITMAP_CACHE_SIZE
-    }
+    /**
+     * 时间轴会反复解码同一批照片，所以要缓存；但缓存必须按**字节**封顶。
+     *
+     * 按条数封顶是原来这里的做法（`size > 24` 之类），而一张 640px 的 ARGB 位图是 1.6MB，
+     * 一张 256px 的贴纸是 0.25MB——同样 24 条，实际占用能差 6 倍。真正会 OOM 的是字节，
+     * 所以上限取「应用堆的 1/4」：再多就会把 Compose 自己的绘制与解码峰值挤到没有余地。
+     */
+    private val bitmapCache = ByteLruCache<String, Bitmap>(
+        maxBytes = Runtime.getRuntime().maxMemory() / 4,
+        sizeOf = { bitmap -> bitmap.byteCount },
+    )
 
     private fun decodeSampled(file: File, maxPx: Int): Bitmap? {
         if (!file.isFile) return null
         val key = "$maxPx:${file.path}"
-        synchronized(bitmapCache) { bitmapCache[key]?.let { return it } }
+        bitmapCache.get(key)?.let { return it }
         // 走 PhotoDecoder 而不是裸 BitmapFactory：CameraX 竖持写出的 JPEG 像素网格是横的，
         // 方向只存在 EXIF 里，而 BitmapFactory 不读 EXIF——不转正的话时间轴上的照片整张躺倒，
         // 且不报任何错。
         val bitmap = PhotoDecoder.decodeUpright(file, maxPx)?.bitmap
-        synchronized(bitmapCache) { bitmapCache[key] = bitmap }
+        // 解码失败**不进缓存**：负缓存会让一次临时的 IO 抖动在剩下的会话里都显示成空白。
+        if (bitmap != null) bitmapCache.put(key, bitmap)
         return bitmap
     }
 
     companion object {
-        /** 时间轴一次最多解码这么多张——更早的历史还在，但不必此刻解码。 */
-        private const val TIMELINE_LIMIT = 80
+        /**
+         * 时间轴一次最多解码这么多张——更早的历史还在，但不必此刻解码。
+         *
+         * 40 而不是 80：这一屏之上最多同时看到三五张，多出来的解码只是把堆吃光，
+         * 换来的是「往上滚的时候不用等」。滚过 40 张之后再往上，本来就需要重新解码。
+         */
+        private const val TIMELINE_LIMIT = 40
 
-        private const val MAX_ENTRY_PX = 768
+        /** 时间轴缩略图的长边。640 而不是 768：卡片在屏幕上最大也就 380dp，2.5 倍余量足够。 */
+        private const val MAX_ENTRY_PX = 640
         private const val MAX_CARD_PX = 256
 
         /** 详情页只有全屏一张图，可以解得比时间轴大得多——词框要压在真实细节上。 */
@@ -597,7 +611,6 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
         /** 随机漫步的去重窗口：连着八次不重复同一天，够打破「刚去过又回来」的错觉。 */
         private const val WALK_MEMORY = 8
-        private const val BITMAP_CACHE_SIZE = 64
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer { HomeViewModel(container) }

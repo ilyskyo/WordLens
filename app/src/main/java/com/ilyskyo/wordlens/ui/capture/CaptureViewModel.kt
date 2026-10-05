@@ -146,7 +146,6 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
             Log.w(TAG, "sensor active array unavailable; chips disabled")
         }
         rotationDegrees = ctrl.sensorRotation
-        container.vision.prepareSegmentation()
         publishFrame()
     }
 
@@ -226,7 +225,7 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
     )
 
     private suspend fun processFrame(frame: FramePlanes) {
-        val detector = container.detector ?: return
+        val detector = container.detectorOrNull() ?: return
         val pixels = YuvFrames.toPixels(
             frame.y, frame.yRowStride, frame.yPixelStride,
             frame.u, frame.v, frame.uvRowStride, frame.uvPixelStride,
@@ -566,8 +565,19 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
     private companion object {
         const val TAG = "CaptureVM"
 
-        /** 抠图用的最大边长：再大对贴纸质量没有意义，只会拖慢分割。 */
-        const val MAX_PHOTO_PX = 1280
+        /**
+         * 抠图用的最大边长。
+         *
+         * 这个数是跟着「贴纸是从这张图里**裁出来**的一块」定的，不是跟着屏幕定的：
+         * 一个物体在 2560 宽的源图里占 30% 就是 ~768px，在 1280 的源图里只有 ~384px，
+         * 而界面上一颗 240dp 的贴纸框在 3x 屏上正是 720px——384 就得放大近一倍，
+         * 边缘会明显糊掉。die-cut 贴纸是这个产品的招牌，不值得为省一次解码牺牲它。
+         *
+         * 它同时是一道**上限**而不是「解全图」：两个分割后端各自还要往 1024/512 工作尺寸降采样，
+         * 所以再高就只是多占内存。4032×3024 的传感器输出在这里会被正确降到 2560，
+         * 而修掉两步降采样之前它压根不会降（`inSampleSize` 卡在 1，一张 48MB 的位图）。
+         */
+        const val MAX_PHOTO_PX = 2560
     }
 }
 

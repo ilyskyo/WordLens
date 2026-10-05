@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.viewinterop.AndroidView
@@ -27,6 +28,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import java.util.concurrent.Executors
 
 /**
  * 取景页的相机层：PreviewView + 分析流 + 拍照流，绑定在宿主生命周期上。
@@ -67,7 +69,16 @@ fun CaptureCamera(
             .onSizeChanged { viewModel.updateViewAspect(it.width, it.height) },
     )
 
-    LaunchedEffect(lifecycleOwner, previewView) {
+    // 线程池跟着这个组合函数一起活：LaunchedEffect 因为生命周期变化重跑时，
+    // 旧的分析器已经被 provider.unbindAll() 拆掉了，而复用同一个池子才不会每帧建线程。
+    val analysisExecutor = remember {
+        Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "wl-analysis").apply { isDaemon = true } }
+    }
+    DisposableEffect(analysisExecutor) {
+        onDispose { analysisExecutor.shutdown() }
+    }
+
+    LaunchedEffect(lifecycleOwner, previewView, analysisExecutor) {
         try {
             val provider = context.awaitCameraProvider()
             provider.unbindAll()
@@ -86,7 +97,10 @@ fun CaptureCamera(
                 )
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
-            analysis.setAnalyzer(ContextCompat.getMainExecutor(context)) { proxy ->
+            // 帧回调不能待在主的 Executor 上：一帧解码 + 推理是几毫秒到几十毫秒的事，
+            // 排在主线程上就是「取景页一切东西都在卡」。专用单线程池同时天然保证了
+            // 帧与帧之间不会交错（检测器不是线程安全的，两条并发回调会互相踩）。
+            analysis.setAnalyzer(analysisExecutor) { proxy ->
                 viewModel.onImageProxy(proxy)
             }
 

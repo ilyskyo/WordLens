@@ -18,6 +18,8 @@ import com.ilyskyo.wordlens.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 
@@ -103,14 +105,19 @@ class VisionRepository(
     }
 
     /**
-     * Prepare the segmentation backends.
+     * 预热分割后端。
+     *
+     * 改成 suspend + Default 的理由很具体：这里要真正去 load TFLite / MediaPipe 模型，
+     * 而它原来是从 `onCameraReady` 里**在主线程上**同步调用的——那是「第一次打开取景页 ANR」
+     * 最直接的一条路径。现在由 Application 冷启动就在后台跑，取景页只 collect 结果；
+     * 谁再调用它也不会重复加载（第一行的非空判断就是那把锁）。
      *
      * Order matters: the automatic ML Kit segmenter is preferred because it needs no tap, and
      * the MediaPipe tap-to-select fallback is always available so the object flow keeps working
      * on devices without Play services.
      */
-    fun prepareSegmentation() {
-        if (_segmenters.value.isNotEmpty()) return
+    suspend fun prepareSegmentation() = withContext(Dispatchers.Default) {
+        if (_segmenters.value.isNotEmpty()) return@withContext
         val list = buildList {
             SubjectSegmenter.available(context)?.let { add(it) }
             runCatching { MagicTouchSegmenter(context) }.getOrNull()?.let { add(it) }
