@@ -6,6 +6,10 @@ package com.ilyskyo.wordlens.ui.capture
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -32,12 +36,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -97,6 +103,8 @@ data class CaptureUiState(
     val ambience: List<String> = emptyList(),
     /** 当前选中的词片 key；null 表示用户没点任何东西——按快门就存整张照片进「回看」。 */
     val selectedChipKey: String? = null,
+    /** 「认不出来时手写」的输入内容。放在 state 里，转屏不会丢。 */
+    val manualWord: String = "",
     /** 取景几何快照。null 表示相机还没就绪（无权限 / 绑定中），此时不画覆盖层。 */
     val cameraFrame: CameraFrame? = null,
 )
@@ -125,6 +133,9 @@ fun CaptureScreen(
     onOpenSettings: () -> Unit = {},
     /** 点词片：传 null 表示取消选中。调用方通常同时把镜头推过去（CameraFocusController）。 */
     onChipSelect: (String?) -> Unit = {},
+    /** 「认不出来时手写」：输入与收录。 */
+    onManualWordChange: (String) -> Unit = {},
+    onManualAdd: () -> Unit = {},
     /** null = 自己查 Context。Preview 里查不到运行时权限，传 true 才能看到取景态。 */
     cameraGranted: Boolean? = null,
     modifier: Modifier = Modifier,
@@ -134,9 +145,20 @@ fun CaptureScreen(
     // 用户答完授权弹窗后，Compose 不会因为权限变了而重组——必须自己制造一次状态变化。
     // 拿这个 tick 参与 granted 的计算，比在 onResume 里重读更可靠（对话框回调不一定走 onResume）。
     var permissionTick by remember { mutableIntStateOf(0) }
+    var permanentlyDenied by remember { mutableStateOf(false) }
+    val activity = LocalContext.current as? Activity
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { permissionTick++ },
+        onResult = { grantedResult ->
+            permissionTick++
+            // 唯一可靠的判别：还能弹 rationale 就还能再问；弹不出来而权限仍没有，就是永久拒绝。
+            // 第一次进来时 rationale 也是 false，所以这个判断只在**用户答过之后**才做。
+            if (!grantedResult) {
+                permanentlyDenied = activity?.shouldShowRequestPermissionRationale(
+                    Manifest.permission.CAMERA,
+                ) != true
+            }
+        },
     )
     val granted = cameraGranted ?: (permissionTick >= 0 &&
         ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -145,7 +167,20 @@ fun CaptureScreen(
     Box(modifier = modifier) {
         if (!granted) {
             PermissionRationale(
+                permanentlyDenied = permanentlyDenied,
                 onGrant = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                onOpenAppSettings = {
+                    // 「去授权」在权限已被永久拒绝之后只剩一条路：应用详情页。
+                    // 继续重复 launch 只会拿到同一个静默的 false，用户则在原地第三次点同一个按钮。
+                    runCatching {
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.fromParts("package", context.packageName, null),
+                            ),
+                        )
+                    }
+                },
                 modifier = Modifier
                     .align(Alignment.Center)
                     .padding(Space.lg),
@@ -202,6 +237,8 @@ fun CaptureScreen(
                 onSpeak = onSpeak,
                 onRetake = onRetake,
                 onSave = onSave,
+                onManualWordChange = onManualWordChange,
+                onManualAdd = onManualAdd,
                 bottomInset = bottomInset,
             )
         }
@@ -209,7 +246,12 @@ fun CaptureScreen(
 }
 
 @Composable
-private fun PermissionRationale(onGrant: () -> Unit, modifier: Modifier = Modifier) {
+private fun PermissionRationale(
+    permanentlyDenied: Boolean,
+    onGrant: () -> Unit,
+    onOpenAppSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -222,11 +264,21 @@ private fun PermissionRationale(onGrant: () -> Unit, modifier: Modifier = Modifi
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
         )
+        // 永久拒绝之后再点「授权」，系统只会静默回一个 false：用户会以为按钮坏了。
+        // 这时候唯一的出路是把人送到应用详情页，并且明说要去那里打开。
         TonalButton(
-            text = stringResource(R.string.capture_grant),
-            onClick = onGrant,
+            text = stringResource(if (permanentlyDenied) R.string.capture_open_settings else R.string.capture_grant),
+            onClick = if (permanentlyDenied) onOpenAppSettings else onGrant,
             modifier = Modifier.width(220.dp),
         )
+        if (permanentlyDenied) {
+            Text(
+                text = stringResource(R.string.capture_permission_permanently_denied),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -434,6 +486,8 @@ private fun CaptureResult(
     onSpeak: () -> Unit,
     onRetake: () -> Unit,
     onSave: () -> Unit,
+    onManualWordChange: (String) -> Unit,
+    onManualAdd: () -> Unit,
     bottomInset: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -482,7 +536,11 @@ private fun CaptureResult(
                     enabled = !state.analysing,
                 )
             } else {
-                NoMatchPanel(state = state)
+                NoMatchPanel(
+                    state = state,
+                    onManualWordChange = onManualWordChange,
+                    onManualAdd = onManualAdd,
+                )
             }
 
             Row(
@@ -511,7 +569,12 @@ private fun CaptureResult(
  * 知道该输什么；看到「失败」只会重拍一百次。
  */
 @Composable
-private fun NoMatchPanel(state: CaptureUiState, modifier: Modifier = Modifier) {
+private fun NoMatchPanel(
+    state: CaptureUiState,
+    onManualWordChange: (String) -> Unit,
+    onManualAdd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -540,6 +603,19 @@ private fun NoMatchPanel(state: CaptureUiState, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+        )
+        // 那句话承诺过的东西，这里就是它的入口。
+        OutlinedTextField(
+            value = state.manualWord,
+            onValueChange = onManualWordChange,
+            label = { Text(stringResource(R.string.manual_field_label)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        TonalButton(
+            text = stringResource(R.string.manual_add),
+            onClick = onManualAdd,
+            enabled = state.manualWord.isNotBlank(),
         )
     }
 }

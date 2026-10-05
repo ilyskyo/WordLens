@@ -421,7 +421,13 @@ private fun EntryTimelineCard(
                 if (card.photo != null) {
                     Image(
                         bitmap = card.photo.asImageBitmap(),
-                        contentDescription = null,
+                        // 时间轴上的照片必须能被念出来是哪一天的；不然读屏用户滚过的
+                        // 就是一串没有上下文的图片。贴纸是同一个词的重复表达，
+                        // 词本身已经在旁边的文字里读得到，所以刻意留空。
+                        contentDescription = stringResource(
+                            R.string.lookback_photo_desc,
+                            formatDay(card.entry.takenAt, LocalContext.current),
+                        ),
                         contentScale = ContentScale.Crop,
                         // 点开的详情页用的就是这一张位图（同一个实例，不二次解码），
                         // 所以飞过去的画面和原地看到的是同一份像素。

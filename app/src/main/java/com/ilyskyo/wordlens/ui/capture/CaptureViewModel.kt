@@ -94,10 +94,10 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         data class StickerFailed(val message: String) : Event
 
         /**
-         * 点了发音但没出声。这颗按钮是本应用使用频率最高的操作之一，
-         * 静默失败会被当成「App 坏了」，所以必须说出来，而且说清能不能改善。
+         * 一句会自己消失的说明。发音没出声、手写收录成功或失败，都走它：
+         * 这些都是「刚那一下的结果」，不值得为每种结果设计一种控件。
          */
-        data class SpeakHint(val message: String) : Event
+        data class Notice(val message: String) : Event
     }
 
     private val _ui = MutableStateFlow(CaptureUiState())
@@ -533,7 +533,45 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
         if (container.speaker.speak(word, lang)) return
         val missing = lang in container.speaker.unsupportedLanguages.value
         val resId = if (missing) R.string.notice_tts_unsupported else R.string.notice_tts_silent
-        _event.value = Event.SpeakHint(container.appContext.getString(resId, lang.nativeName))
+        _event.value = Event.Notice(container.appContext.getString(resId, lang.nativeName))
+    }
+
+    /**
+     * 「认不出来时手写」：兑现 nomatch_body 里那句「你可以直接把它写下来，它会存进你的词典」。
+     *
+     * 那个面板此前只有文字承诺、没有任何输入控件——承诺了没做比没承诺更糟，
+     * 因为它教会用户「这里的文案不作数」。
+     *
+     * 只收词典里查得到的词。查不到就明说，而不是硬造一张没有释义的卡：一张空释义的卡
+     * 进了复习队列就是纯噪音，而 FSRS 会非常认真地把这种噪音排到未来。
+     */
+    fun onManualAdd() {
+        val typed = _ui.value.manualWord.trim()
+        if (typed.isEmpty()) return
+        viewModelScope.launch {
+            val settings = settingsFlow.value
+            val exact = container.lexicon.search(typed, settings.targetLanguage).firstOrNull {
+                it.headword.equals(typed, ignoreCase = true)
+            }
+            val card = exact?.let {
+                container.cardFrom(it, settings.targetLanguage, settings.nativeLanguage, EntrySource.MANUAL)
+            }
+            if (card == null) {
+                _event.value = Event.Notice(
+                    container.appContext.getString(R.string.manual_not_found, typed),
+                )
+                return@launch
+            }
+            container.deck.add(card)
+            _ui.update { it.copy(manualWord = "") }
+            _event.value = Event.Notice(
+                container.appContext.getString(R.string.manual_added, card.headword),
+            )
+        }
+    }
+
+    fun onManualWordChange(text: String) {
+        _ui.update { it.copy(manualWord = text) }
     }
 
     fun acknowledgeEvent() {

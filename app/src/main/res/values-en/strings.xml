@@ -174,4 +174,13 @@
     <!-- 发音失败的可行动提示 -->
     <string name="notice_tts_silent">Nothing was heard. The speech engine on this device cannot voice that word.</string>
     <string name="notice_tts_unsupported">This device’s speech engine has no %1$s voice. Install an engine with %1$s support to hear it.</string>
+    <!-- 认不出来时手写 -->
+    <string name="manual_field_label">Write the word</string>
+    <string name="manual_add">Add to dictionary</string>
+    <string name="manual_added">“%1$s” is now in your dictionary</string>
+    <string name="manual_not_found">“%1$s” is not in the dictionary yet, so it cannot join the review queue</string>
+    <!-- 相机权限被永久拒绝 -->
+    <string name="capture_open_settings">Open system settings</string>
+    <string name="capture_permission_permanently_denied">The system no longer shows the permission dialog. Allow the camera in system settings, then come back.</string>
+    <string name="lookback_photo_desc">Photo taken on %1$s</string>
 </resources>

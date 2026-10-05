@@ -187,4 +187,13 @@
     <!-- 发音失败的可行动提示 -->
     <string name="notice_tts_silent">刚才没有出声。这台设备的语音引擎没能为这个词发声。</string>
     <string name="notice_tts_unsupported">这台设备的语音引擎没有%1$s语音，装一个带%1$s发音的引擎就能读。</string>
+    <!-- 认不出来时手写 -->
+    <string name="manual_field_label">写下这个词</string>
+    <string name="manual_add">收进词典</string>
+    <string name="manual_added">「%1$s」已进你的词典</string>
+    <string name="manual_not_found">词典里还没有「%1$s」，暂时不能进复习队列</string>
+    <!-- 相机权限被永久拒绝 -->
+    <string name="capture_open_settings">去设置里打开</string>
+    <string name="capture_permission_permanently_denied">系统已经不再弹出授权框。请在系统设置里允许相机权限，然后回到这里。</string>
+    <string name="lookback_photo_desc">%1$s拍的照片</string>
 </resources>

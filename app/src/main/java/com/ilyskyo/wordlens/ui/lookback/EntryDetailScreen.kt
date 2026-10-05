@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -175,6 +176,7 @@ fun EntryDetailScreen(
                     bitmap = state.photo,
                     objects = state.objects,
                     entryId = state.entry.id,
+                    takenAt = state.entry.takenAt,
                     onLongPress = { sheetOpen = true },
                 )
 
@@ -298,6 +300,7 @@ private fun PhotoArea(
     bitmap: Bitmap?,
     objects: List<ObjectPlace>,
     entryId: String,
+    takenAt: Long,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -331,7 +334,9 @@ private fun PhotoArea(
     ) {
         Image(
             bitmap = bitmap.asImageBitmap(),
-            contentDescription = null,
+            // 全屏照片不是一个装饰：读屏用户只能靠这一句知道「这是哪一天拍的照片」。
+            // 词片本身另有一串文字节点可读，所以描述里给日期而不是复述物体。
+            contentDescription = stringResource(R.string.lookback_photo_desc, formatDay(takenAt, LocalContext.current)),
             contentScale = ContentScale.FillBounds,
             modifier = Modifier.matchParentSize(),
         )

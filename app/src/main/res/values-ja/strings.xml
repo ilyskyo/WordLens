@@ -170,4 +170,13 @@
     <!-- 发音失败的可行动提示 -->
     <string name="notice_tts_silent">音がでませんでした。この端末の音声エンジンはこの語を発声できません。</string>
     <string name="notice_tts_unsupported">この端末の音声エンジンに%1$sの声はありません。%1$sに対応したエンジンを追加すると読めるようになります。</string>
+    <!-- 认不出来时手写 -->
+    <string name="manual_field_label">単語を書く</string>
+    <string name="manual_add">辞書に加える</string>
+    <string name="manual_added">「%1$s」を辞書に加えました</string>
+    <string name="manual_not_found">「%1$s」は辞書にないため、復習队列に入れられません</string>
+    <!-- 相机权限被永久拒绝 -->
+    <string name="capture_open_settings">設定で許可する</string>
+    <string name="capture_permission_permanently_denied">システムが許可ダイアログを表示しなくなりました。システム設定でカメラを許可してから戻ってください。</string>
+    <string name="lookback_photo_desc">%1$sに撮影した写真</string>
 </resources>

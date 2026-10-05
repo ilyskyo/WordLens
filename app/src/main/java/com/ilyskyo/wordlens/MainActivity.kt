@@ -380,7 +380,7 @@ private fun CaptureHost(
                 notice = e.message
             }
 
-            is CaptureViewModel.Event.SpeakHint -> {
+            is CaptureViewModel.Event.Notice -> {
                 vm.acknowledgeEvent()
                 notice = e.message
             }
@@ -405,6 +405,8 @@ private fun CaptureHost(
             onSpeak = vm::onSpeak,
             onTapSubject = vm::onTapSubject,
             onChipSelect = vm::onChipSelect,
+        onManualWordChange = vm::onManualWordChange,
+        onManualAdd = vm::onManualAdd,
             modifier = Modifier.fillMaxSize(),
             previewContent = { CaptureCamera(vm) },
         )

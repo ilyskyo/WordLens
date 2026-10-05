@@ -170,4 +170,13 @@
     <!-- 发音失败的可行动提示 -->
     <string name="notice_tts_silent">소리가 나지 않았어요. 이 기기의 음성 엔진이 그 단어를 발음할 수 없어요.</string>
     <string name="notice_tts_unsupported">이 기기의 음성 엔진에 %1$s 음성이 없어요. %1$s를 지원하는 엔진을 설치하면 들을 수 있어요.</string>
+    <!-- 认不出来时手写 -->
+    <string name="manual_field_label">단어 적기</string>
+    <string name="manual_add">사전에 추가</string>
+    <string name="manual_added">“%1$s”를 사전에 넣었어요</string>
+    <string name="manual_not_found">“%1$s”는 사전에 없어서 복습 목록에 넣을 수 없어요</string>
+    <!-- 相机权限被永久拒绝 -->
+    <string name="capture_open_settings">설정에서 허용</string>
+    <string name="capture_permission_permanently_denied">시스템이 권한 창을 더 이상 보여주지 않아요. 시스템 설정에서 카메라를 허용한 뒤 돌아와 주세요.</string>
+    <string name="lookback_photo_desc">%1$s에 촬영한 사진</string>
 </resources>
