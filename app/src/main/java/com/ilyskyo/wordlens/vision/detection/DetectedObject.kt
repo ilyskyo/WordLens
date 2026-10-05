@@ -16,8 +16,11 @@ import androidx.compose.ui.geometry.Offset
  * 聚焦保存」这条交互成立的前提。
  *
  * 坐标一律用**归一化的 `[0,1]`**，因为它要同时喂给：Compose 覆盖层（屏幕坐标系）、
- * CameraX 的对焦/变焦计算（传感器归一化坐标）、以及模型输出（本来就是归一化的）。
+ * CameraX 的对焦/变焦计算（传感器归一化坐标）、以及词典与贴纸的裁切几何。
  * 在这几层之间转来转去是这类功能最常见的 off-by-one 来源，所以统一在源头定死。
+ *
+ * 注意换算发生在 [EfficientDetector]：MediaPipe 交出来的是**像素**框，必须在那里除以源图
+ * 尺寸再进这个契约，别指望它已经是归一化的。
  */
 data class DetectedObject(
     /** 模型给出的类别名，可能是复数或复合词（"dining table"、"sports ball"）。 */

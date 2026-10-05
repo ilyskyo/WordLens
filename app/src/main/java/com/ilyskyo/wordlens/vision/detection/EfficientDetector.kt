@@ -71,13 +71,16 @@ class EfficientDetector private constructor(
         val score = best.score()
 
         val raw: RectF = boundingBox() ?: return null
-        // 模型给的是归一化框。这里夹紧到 [0,1]：EfficientDet 在边缘物体上会给出略微越界的
-        // 坐标，直接用会让覆盖层的词片跑到屏幕外面去。
+        // MediaPipe 的 boundingBox() 给的是**像素**坐标（相对送进去的那张位图），不是归一化
+        // 坐标。这里曾经按归一化理解，直接 coerceIn(0f, 1f)：left=120 夹成 1、right=300 也夹
+        // 成 1，宽高归零，于是每一帧的每一条检测都被丢掉——取景器永远没有词片，判帧也退化成
+        // 「只有标签」的弱路径。先除以源图尺寸换算到 [0,1]，再夹紧处理边缘越界。
+        if (srcW <= 0 || srcH <= 0 || raw.width() <= 0f || raw.height() <= 0f) return null
         val box = RectF(
-            raw.left.coerceIn(0f, 1f),
-            raw.top.coerceIn(0f, 1f),
-            raw.right.coerceIn(0f, 1f),
-            raw.bottom.coerceIn(0f, 1f),
+            (raw.left / srcW).coerceIn(0f, 1f),
+            (raw.top / srcH).coerceIn(0f, 1f),
+            (raw.right / srcW).coerceIn(0f, 1f),
+            (raw.bottom / srcH).coerceIn(0f, 1f),
         )
         if (box.width() <= 0f || box.height() <= 0f) return null
 
