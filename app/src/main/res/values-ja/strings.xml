@@ -179,4 +179,16 @@
     <string name="capture_open_settings">設定で許可する</string>
     <string name="capture_permission_permanently_denied">システムが許可ダイアログを表示しなくなりました。システム設定でカメラを許可してから戻ってください。</string>
     <string name="lookback_photo_desc">%1$sに撮影した写真</string>
+    <!-- 设置：语音与数据 -->
+    <string name="settings_voice_section">発音</string>
+    <string name="settings_voice_engines">この端末の音声エンジン：%1$s</string>
+    <string name="settings_voice_engines_none">この端末に音声エンジンがないため、スピーカーを押しても何も鳴りません。</string>
+    <string name="settings_voice_missing">まだ読めない：%1$s</string>
+    <string name="settings_voice_hint">声はシステムエンジンのもので、このアプリ同梱ではありません。対応エンジン（例：Google Text-to-Speech ＋ 言語パック）を入れれば、ここで再チェックできます。</string>
+    <string name="settings_voice_recheck">再チェック</string>
+    <string name="settings_data_section">データ</string>
+    <string name="settings_import">単語カードを取り込む（deck.json）</string>
+    <string name="settings_import_hint">カードと復習進度だけを取り込みます。写真はずっと deck.json の外（ファイル名だけ）なので、ステッカー付きのカードは画像なしで届くことがあります。</string>
+    <string name="settings_import_done">%1$d件追加、%2$d件更新</string>
+    <string name="settings_import_bad">このファイルは読めませんでした。このアプリが書き出した deck.json が必要です。</string>
 </resources>

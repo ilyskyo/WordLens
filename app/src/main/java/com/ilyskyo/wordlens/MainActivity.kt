@@ -419,9 +419,13 @@ private fun CaptureHost(
 private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
     val vm: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
     val state by vm.state.collectAsStateWithLifecycle()
-    SettingsScreen(
-        state = state,
-        onClose = onClose,
+    val engines by vm.engines.collectAsStateWithLifecycle()
+    val missingLanguages by vm.missingLanguages.collectAsStateWithLifecycle()
+    val settingsNotice by vm.notice.collectAsStateWithLifecycle()
+    Box(modifier = Modifier.fillMaxSize()) {
+        SettingsScreen(
+            state = state,
+            onClose = onClose,
         onTargetLanguage = vm::onTargetLanguage,
         onNativeLanguage = vm::onNativeLanguage,
         onDirection = vm::onDirection,
@@ -430,10 +434,17 @@ private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
         onRedactBeforeUpload = vm::onRedactBeforeUpload,
         onReminderEnabled = vm::onReminderEnabled,
         onReminderMinuteOfDay = vm::onReminderMinuteOfDay,
-        onCloudEnabled = vm::onCloudEnabled,
-        onCloudModel = vm::onCloudModel,
-        onCloudApiKey = vm::onCloudApiKey,
-        onClearCloudApiKey = vm::onClearCloudApiKey,
-        modifier = Modifier.fillMaxSize(),
-    )
+        engines = engines,
+        missingLanguages = missingLanguages,
+        onRecheckVoices = vm::reprobeVoices,
+            onImport = vm::onImportDeck,
+            onCloudEnabled = vm::onCloudEnabled,
+            onCloudModel = vm::onCloudModel,
+            onCloudApiKey = vm::onCloudApiKey,
+            onClearCloudApiKey = vm::onClearCloudApiKey,
+            modifier = Modifier.fillMaxSize(),
+        )
+        // 导入的结果必须有下文：文件选择器关掉之后，用户手里只剩下一个「好像成功了」的猜测。
+        NoticeHost(message = settingsNotice, onDismiss = vm::acknowledgeNotice)
+    }
 }

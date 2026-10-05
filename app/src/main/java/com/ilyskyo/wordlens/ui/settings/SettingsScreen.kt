@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -56,6 +55,7 @@ import com.ilyskyo.wordlens.core.reminder.ReminderPlan
 import com.ilyskyo.wordlens.data.repository.AppSettings
 import com.ilyskyo.wordlens.srs.Fsrs
 import com.ilyskyo.wordlens.ui.components.OptionChip
+import com.ilyskyo.wordlens.ui.components.OutlinedAction
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.RatingColors
@@ -87,6 +87,10 @@ fun SettingsScreen(
     onRedactBeforeUpload: (Boolean) -> Unit = {},
     onReminderEnabled: (Boolean) -> Unit = {},
     onReminderMinuteOfDay: (Int) -> Unit = {},
+    engines: List<String> = emptyList(),
+    missingLanguages: List<Lang> = emptyList(),
+    onRecheckVoices: () -> Unit = {},
+    onImport: (android.net.Uri) -> Unit = {},
     onCloudEnabled: (Boolean) -> Unit = {},
     onCloudModel: (String) -> Unit = {},
     onCloudApiKey: (String) -> Unit = {},
@@ -188,6 +192,14 @@ fun SettingsScreen(
                     onEnabled = onReminderEnabled,
                     onMinuteOfDay = onReminderMinuteOfDay,
                 )
+
+                VoiceSection(
+                    engines = engines,
+                    missingLanguages = missingLanguages,
+                    onRecheck = onRecheckVoices,
+                )
+
+                DataSection(onImport = onImport)
 
                 PrivacySection(
                     redact = state.redactBeforeUpload,
@@ -457,6 +469,76 @@ private fun ReminderTimeDialog(
         },
     )
 }
+
+/**
+ * 发音引擎的现状。
+ *
+ * 这是 §6.3 里那个 voiceHint 的兑现：与其在用户点喇叭听不到时冒一句「失败」，
+ * 不如在设置页把「现在这个引擎念日文是什么样、怎么改善」一次说清楚。
+ * 缺哪些语言直接列出来——「不支持」是一个词，「缺日语和韩语」是一个可以行动的事实。
+ */
+@Composable
+private fun VoiceSection(
+    engines: List<String>,
+    missingLanguages: List<Lang>,
+    onRecheck: () -> Unit,
+) {
+    Section(title = stringResource(R.string.settings_voice_section)) {
+        Text(
+            text = if (engines.isEmpty()) {
+                stringResource(R.string.settings_voice_engines_none)
+            } else {
+                stringResource(R.string.settings_voice_engines, engines.joinToString(SEPARATOR))
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (engines.isEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        )
+        if (engines.isNotEmpty() && missingLanguages.isNotEmpty()) {
+            Text(
+                text = stringResource(
+                    R.string.settings_voice_missing,
+                    missingLanguages.joinToString(SEPARATOR) { it.nativeName },
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = stringResource(R.string.settings_voice_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onRecheck) {
+            Text(stringResource(R.string.settings_voice_recheck))
+        }
+    }
+}
+
+/**
+ * 导入词卡。
+ *
+ * 类型过滤器用通配：deck.json 在不少 ROM 的文件管理器里被报成「未知类型」，
+ * 收窄成 application/json 会让一部分用户根本找不到自己导出的那个文件。
+ */
+@Composable
+private fun DataSection(onImport: (android.net.Uri) -> Unit) {
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(onImport)
+    }
+    Section(title = stringResource(R.string.settings_data_section)) {
+        OutlinedAction(
+            text = stringResource(R.string.settings_import),
+            onClick = { launcher.launch(arrayOf("*/*")) },
+        )
+        Text(
+            text = stringResource(R.string.settings_import_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private const val SEPARATOR = "  ·  "
 
 @Composable
 private fun PrivacySection(redact: Boolean, onRedact: (Boolean) -> Unit) {

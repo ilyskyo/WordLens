@@ -179,4 +179,16 @@
     <string name="capture_open_settings">설정에서 허용</string>
     <string name="capture_permission_permanently_denied">시스템이 권한 창을 더 이상 보여주지 않아요. 시스템 설정에서 카메라를 허용한 뒤 돌아와 주세요.</string>
     <string name="lookback_photo_desc">%1$s에 촬영한 사진</string>
+    <!-- 设置：语音与数据 -->
+    <string name="settings_voice_section">발음</string>
+    <string name="settings_voice_engines">이 기기의 음성 엔진: %1$s</string>
+    <string name="settings_voice_engines_none">이 기기에는 음성 엔진이 없어서 스피커를 눌러도 소리가 나지 않아요.</string>
+    <string name="settings_voice_missing">아직 읽지 못함: %1$s</string>
+    <string name="settings_voice_hint">음성은 이 앱이 아니라 시스템 엔진이 제공해요. 해당 언어를 지원하는 엔진(예: Google 텍스트 음성 변환 + 언어 팩)을 설치한 뒤 다시 확인해 보세요.</string>
+    <string name="settings_voice_recheck">다시 확인</string>
+    <string name="settings_data_section">데이터</string>
+    <string name="settings_import">단어 카드 가져오기(deck.json)</string>
+    <string name="settings_import_hint">카드와 복습 진도만 합쳐요. 사진은 deck.json에 절대 담기지 않고 파일명만 있어, 스티커 카드는 이미지 없이 올 수 있어요.</string>
+    <string name="settings_import_done">%1$d개 추가, %2$d개 업데이트</string>
+    <string name="settings_import_bad">그 파일을 읽을 수 없어요. 이 앱이 내보낸 deck.json이어야 해요.</string>
 </resources>

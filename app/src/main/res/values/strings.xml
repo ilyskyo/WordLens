@@ -196,4 +196,16 @@
     <string name="capture_open_settings">去设置里打开</string>
     <string name="capture_permission_permanently_denied">系统已经不再弹出授权框。请在系统设置里允许相机权限，然后回到这里。</string>
     <string name="lookback_photo_desc">%1$s拍的照片</string>
+    <!-- 设置：语音与数据 -->
+    <string name="settings_voice_section">发音</string>
+    <string name="settings_voice_engines">这台设备上的语音引擎：%1$s</string>
+    <string name="settings_voice_engines_none">这台设备没有可用的语音引擎，点喇叭不会有任何声音。</string>
+    <string name="settings_voice_missing">暂时念不出：%1$s</string>
+    <string name="settings_voice_hint">语音由系统引擎提供，不是这个 App 自带的。装一个含该语言的引擎（例如 Google 语音服务并下载对应语言包）之后，回到这里重新检查一次。</string>
+    <string name="settings_voice_recheck">重新检查</string>
+    <string name="settings_data_section">数据</string>
+    <string name="settings_import">导入词卡（deck.json）</string>
+    <string name="settings_import_hint">只合并词卡与复习进度。照片从来不在 deck.json 里，它只存文件名，所以带贴纸的卡导入后可能显示不出图。</string>
+    <string name="settings_import_done">新增 %1$d 张，更新 %2$d 张</string>
+    <string name="settings_import_bad">这个文件读不出来。它需要是本 App 导出的 deck.json。</string>
 </resources>

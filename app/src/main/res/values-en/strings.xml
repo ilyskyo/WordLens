@@ -183,4 +183,16 @@
     <string name="capture_open_settings">Open system settings</string>
     <string name="capture_permission_permanently_denied">The system no longer shows the permission dialog. Allow the camera in system settings, then come back.</string>
     <string name="lookback_photo_desc">Photo taken on %1$s</string>
+    <!-- 设置：语音与数据 -->
+    <string name="settings_voice_section">Speech</string>
+    <string name="settings_voice_engines">Speech engines on this device: %1$s</string>
+    <string name="settings_voice_engines_none">This device has no speech engine, so the speaker button stays silent.</string>
+    <string name="settings_voice_missing">Cannot voice yet: %1$s</string>
+    <string name="settings_voice_hint">Voices come from system engines, not from this app. Install an engine that covers the language (for example Google Text-to-Speech plus its language pack), then re-check here.</string>
+    <string name="settings_voice_recheck">Re-check</string>
+    <string name="settings_data_section">Data</string>
+    <string name="settings_import">Import cards (deck.json)</string>
+    <string name="settings_import_hint">Merges cards and review progress only. Photos are never inside deck.json — it stores filenames — so a card with a sticker may arrive without its image.</string>
+    <string name="settings_import_done">%1$d added, %2$d updated</string>
+    <string name="settings_import_bad">That file could not be read. It needs to be a deck.json exported from this app.</string>
 </resources>
