@@ -20,8 +20,9 @@ import kotlinx.coroutines.launch
  * 桌面小组件：今日待复习数。
  *
  * 读数走 [com.ilyskyo.wordlens.core.AppContainer] 而不是另建一份仓库：`deck.json` 只能有一个
- * 写者视角，而小组件本来就活在同一个进程里。[onUpdate] 不是 suspend，所以第一帧显示 0，
- * DataStore 答出复习方向之后立刻换成真数——晚几十毫秒是诚实，复制一份仓库不是。
+ * 写者视角，而小组件本来就活在同一个进程里。[onUpdate] 不是 suspend，所以数字要晚几十毫秒
+ * 才到——那几十毫秒里桌面上留着的是上一次的数（RemoteViews 在桌面有底），不是被清零的占位。
+ * 诚实和复制一份仓库之间没有冲突，闪一下 0 才是问题。
  */
 class DueWidgetProvider : AppWidgetProvider() {
 
@@ -32,7 +33,10 @@ class DueWidgetProvider : AppWidgetProvider() {
     ) {
         val container = (context.applicationContext as? WordLensApplication)?.container
         for (id in appWidgetIds) {
-            render(context, appWidgetManager, id, due = 0)
+            // 不再先渲染一个 0。原来那样做的理由「第一帧总要显示点什么」站不住：
+            // RemoteViews 在桌面里是留底的，没有新数据时 launcher 显示的就是上一次那个数。
+            // 于是每复习完一张触发的刷新都会让桌上闪一下 0 再回到 6——
+            // 一个会闪的读数比一个晚几十毫秒的读数更不像真的。
             container?.applicationScope?.launch {
                 val due = runCatching { container.dueCount() }.getOrDefault(0)
                 render(context, appWidgetManager, id, due)
