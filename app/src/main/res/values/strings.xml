@@ -88,4 +88,12 @@
     <string name="nomatch_title">这个词我还认不出来</string>
     <string name="nomatch_body">模型只看到了上面的词。你可以直接把它写下来，它会存进你的词典。</string>
     <string name="nomatch_labels_seen">模型看到的</string>
+    <!-- 条目详情 -->
+    <string name="detail_close">关闭</string>
+    <string name="detail_untitled">没有标题的一刻</string>
+    <string name="detail_photo_missing">这张照片不在这台设备上</string>
+    <string name="detail_declined">当时它还看到</string>
+    <string name="detail_event_hint">补一句当时发生了什么</string>
+    <string name="detail_event_save">记下这句</string>
+    <string name="detail_event_count">这条已记下 %1$d 句</string>
 </resources>

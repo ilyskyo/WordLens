@@ -73,4 +73,11 @@
     <string name="nomatch_title">I can not name this one</string>
     <string name="nomatch_body">The model only saw the labels above. Write the word yourself and it goes into your dictionary.</string>
     <string name="nomatch_labels_seen">What the model saw</string>
+    <string name="detail_close">Close</string>
+    <string name="detail_untitled">An unnamed moment</string>
+    <string name="detail_photo_missing">This photo is not on this device</string>
+    <string name="detail_declined">It also saw</string>
+    <string name="detail_event_hint">Add what happened that day</string>
+    <string name="detail_event_save">Write it down</string>
+    <string name="detail_event_count">%1$d line written for this entry</string>
 </resources>

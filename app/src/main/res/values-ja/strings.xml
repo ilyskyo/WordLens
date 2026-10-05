@@ -73,4 +73,11 @@
     <string name="nomatch_title">この単語はまだわかりません</string>
     <string name="nomatch_body">モデルが見つけたのは上の言葉だけ。自分で書き込めば辞書に保存されます。</string>
     <string name="nomatch_labels_seen">モデルが見た言葉</string>
+    <string name="detail_close">閉じる</string>
+    <string name="detail_untitled">名前のないひととき</string>
+    <string name="detail_photo_missing">この写真は端末にありません</string>
+    <string name="detail_declined">そのとき見えたもの</string>
+    <string name="detail_event_hint">あの日の一言を付け足す</string>
+    <string name="detail_event_save">書き留める</string>
+    <string name="detail_event_count">この項目 %1$d 行を記録済み</string>
 </resources>

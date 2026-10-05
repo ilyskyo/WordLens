@@ -4,7 +4,6 @@
 package com.ilyskyo.wordlens.ui.nav
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,6 +12,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.core.AppContainer
 import com.ilyskyo.wordlens.data.model.EntryObject
+import com.ilyskyo.wordlens.data.model.EventCard
 import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.data.model.FsrsState
 import com.ilyskyo.wordlens.data.model.Lang
@@ -31,10 +31,15 @@ import com.ilyskyo.wordlens.ui.lookback.CardWord
 import com.ilyskyo.wordlens.ui.lookback.EntryCard
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
 import com.ilyskyo.wordlens.ui.lookback.DayGroup
+import com.ilyskyo.wordlens.ui.lookback.EntryDetailState
+import com.ilyskyo.wordlens.ui.lookback.ObjectPlace
 import com.ilyskyo.wordlens.ui.lookback.dayLabel
 import com.ilyskyo.wordlens.ui.lookback.formatDay
 import com.ilyskyo.wordlens.ui.remember.RememberCard
 import com.ilyskyo.wordlens.ui.remember.RememberUiState
+import com.ilyskyo.wordlens.vision.camera.CameraFocusMath
+import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.NormBox
+import com.ilyskyo.wordlens.vision.camera.PhotoDecoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -104,6 +109,26 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RememberUiState())
+
+    // ── 条目详情 ────────────────────────────────────────────────────────────
+
+    private val selectedEntryId = MutableStateFlow<String?>(null)
+
+    /** 详情页「补一句」的草稿放在 VM 里，转屏不会丢。 */
+    private val eventDraft = MutableStateFlow("")
+
+    val detail: StateFlow<EntryDetailState?> = combine(
+        container.diary.document,
+        container.lexicon.index,
+        settingsFlow,
+        selectedEntryId,
+        eventDraft,
+    ) { diary, lexicon, settings, id, draft -> buildDetail(diary, lexicon, settings, id, draft) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** 只缓存上一次那张：详情页一次只看一条，而 combine 会随输入逐字重算。 */
+    private var lastDecoded: Pair<String, PhotoDecoder.UprightImage?>? = null
 
     // ── 回调 ────────────────────────────────────────────────────────────────
 
@@ -176,6 +201,46 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val word = card.words.firstOrNull { it.text.isNotBlank() } ?: return
         val lang = Lang.fromAnyTag(word.languageTag ?: "en") ?: settingsFlow.value.targetLanguage
         container.speaker.speak(word.text, lang)
+    }
+
+    fun onOpenEntry(id: String) {
+        eventDraft.value = ""
+        selectedEntryId.value = id
+    }
+
+    fun onCloseEntry() {
+        selectedEntryId.value = null
+    }
+
+    fun onEventDraftChange(text: String) {
+        eventDraft.value = text
+    }
+
+    /**
+     * 「补一句当时发生了什么」→ 一条 `source = USER` 的事件卡。
+     *
+     * 这是事件卡唯一的诞生地（说明书 §4.2 的第三种落库）。写下来的这句话和照片同一天、
+     * 同一条目，复习时它按自己的间隔回来——背单词 App 给不了这种「回放某天」的训练。
+     */
+    fun onSaveEvent() {
+        val id = selectedEntryId.value ?: return
+        val text = eventDraft.value.trim()
+        if (text.isEmpty()) return
+        val entry = container.diary.document.value.entries.firstOrNull { it.id == id } ?: return
+        viewModelScope.launch {
+            container.diary.addEvent(
+                EventCard(
+                    id = EventCard.newId(),
+                    text = text,
+                    happenedAt = entry.takenAt,
+                    entryId = entry.id,
+                    // 缩略图直接引用条目照片：同一个文件，不复制第二份。
+                    photoPath = entry.photoPath,
+                    source = ReviewSource.USER,
+                ),
+            )
+            eventDraft.value = ""
+        }
     }
 
     // ── 构建 ────────────────────────────────────────────────────────────────
@@ -321,6 +386,56 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private fun dayKeyOf(epochMillis: Long): String =
         java.time.Instant.ofEpochMilli(epochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
 
+    /**
+     * 组装详情页：把存进日记的四角坐标重新长回这张照片上。
+     *
+     * `EntryObject` 的框归一化在**传感器坐标系**里，而界面上显示的是按 EXIF 转正后的位图，
+     * 所以中间必须过一次 `imageBoxFromSensorNorm`。这一步不能省：省略之后竖持拍的照片里，
+     * 词会压在错的位置上——而这正是「场景式」与普通日记的分界线，错了就等于没有。
+     */
+    private fun buildDetail(
+        diary: DiaryDocument,
+        lexicon: LexiconIndex,
+        settings: AppSettings,
+        entryId: String?,
+        draft: String,
+    ): EntryDetailState? {
+        val entry = entryId?.let { id -> diary.entries.firstOrNull { it.id == id } } ?: return null
+        val file = File(container.entryPhotoDir, entry.photoPath)
+        val decoded = decodedDetailPhoto(file)
+        val degrees = decoded?.exifDegrees ?: 0
+        return EntryDetailState(
+            entry = entry,
+            photo = decoded?.bitmap,
+            objects = entry.objects
+                .filter { it.layer == OverlayLayer.ITEM }
+                .map { obj ->
+                    ObjectPlace(
+                        id = obj.id,
+                        // 正面显示的是记录当时的那个词，释义只在被词典命中时补上。
+                        word = obj.word,
+                        gloss = obj.lexiconEntryId?.let(lexicon::byId)?.gloss(settings.nativeLanguage),
+                        box = CameraFocusMath.imageBoxFromSensorNorm(
+                            NormBox(obj.left, obj.top, obj.right, obj.bottom),
+                            degrees,
+                        ),
+                        hasSticker = obj.stickerPath != null,
+                    )
+                },
+            ambience = entry.ambience,
+            moodLabel = entry.mood?.let { container.appContext.getString(it.labelRes) },
+            eventDraft = draft,
+            eventCount = diary.events.count { it.entryId == entry.id },
+        )
+    }
+
+    private fun decodedDetailPhoto(file: File): PhotoDecoder.UprightImage? {
+        lastDecoded?.takeIf { it.first == file.path }?.let { return it.second }
+        val decoded = PhotoDecoder.decodeUpright(file, MAX_DETAIL_PX)
+        lastDecoded = file.path to decoded
+        return decoded
+    }
+
     /** 把存进日记的展示词回填成词典的音标与释义。词典里没有就只显示词本身。 */
     private fun cardWordFor(
         obj: EntryObject,
@@ -352,15 +467,10 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         if (!file.isFile) return null
         val key = "$maxPx:${file.path}"
         synchronized(bitmapCache) { bitmapCache[key]?.let { return it } }
-        val bitmap = runCatching {
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(file.path, bounds)
-            var sample = 1
-            while (bounds.outWidth / sample > maxPx * 2 || bounds.outHeight / sample > maxPx * 2) {
-                sample *= 2
-            }
-            BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
-        }.getOrNull()
+        // 走 PhotoDecoder 而不是裸 BitmapFactory：CameraX 竖持写出的 JPEG 像素网格是横的，
+        // 方向只存在 EXIF 里，而 BitmapFactory 不读 EXIF——不转正的话时间轴上的照片整张躺倒，
+        // 且不报任何错。
+        val bitmap = PhotoDecoder.decodeUpright(file, maxPx)?.bitmap
         synchronized(bitmapCache) { bitmapCache[key] = bitmap }
         return bitmap
     }
@@ -371,6 +481,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
         private const val MAX_ENTRY_PX = 768
         private const val MAX_CARD_PX = 256
+
+        /** 详情页只有全屏一张图，可以解得比时间轴大得多——词框要压在真实细节上。 */
+        private const val MAX_DETAIL_PX = 1440
         private const val BITMAP_CACHE_SIZE = 64
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {

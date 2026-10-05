@@ -128,7 +128,8 @@
 
 日记的主路径，不是设置项。
 
-- **按天分组**，今天 / 昨天 / 具体日期。
+- **按天分组**，今天 / 昨天 / 具体日期。前两种用相对说法——昨天那天的日期数字其实不携带信息。
+  分组键存 ISO 日期而不是标签文本：标签随界面语言变，而 `LazyColumn` 的 key 一变整列重建。
 - 时间轴卡片**两种形态**：
   - 有点纸：照片 + 散落的贴纸词（±3° 轻微旋转，手贴上去的感觉）。
   - 无贴纸：纯照片 + 摘要 + 关键词。
@@ -311,6 +312,7 @@ app/src/main/java/com/ilyskyo/wordlens/
 │       ├── CameraFocusMath.kt         纯几何（19 测试）
 │       ├── OverlayGeometry.kt         框 → 屏幕坐标（15 测试）
 │       ├── CameraFocusController.kt   逐帧下发裁切
+│       ├── PhotoDecoder.kt            解码即按 EXIF 转正
 │       └── YuvFrames.kt               YUV_420_888 → ARGB（11 测试）
 ├── widget/DueWidgetProvider.kt
 └── ui/
@@ -318,7 +320,7 @@ app/src/main/java/com/ilyskyo/wordlens/
     ├── icons/     WordLensIcons（7 个手绘）
     ├── components/ Common
     ├── nav/       HomeTabBar · HomeViewModel · WordLensApp
-    ├── lookback/  时间轴
+    ├── lookback/  时间轴 · 条目详情（词长回原图 + 补一句）
     ├── remember/  复习
     └── capture/   CaptureScreen · CaptureCamera · CaptureViewModel · ViewfinderOverlay
 ```
@@ -344,6 +346,12 @@ app/src/main/java/com/ilyskyo/wordlens/
 - **四语 UI 资源齐了**：`values`（中，默认）+ `values-en` / `values-ja` / `values-ko`，56 条一一对应。
   时段问候、日期标签、氛围标记都改走资源——日期只把「月份短名」交给 CLDR，语序由每种语言自己的字符串决定
 - **「标记已掌握」＋撤销入口**（见 §6.2），数据层与队列层都按它过滤
+- **时间轴按天分组**（今天 / 昨天 / 日期）
+- **条目详情页**：`EntryDetailScreen` 把 `EntryObject` 的四角坐标经 `imageBoxFromSensorNorm` +
+  EXIF 转正映射回显示图，词片重新长在物体上方；页面下方的「补一句当时发生了什么」是
+  **事件卡唯一的诞生地**（此前 `DiaryRepository.addEvent` 只被 Preview 调过）
+- **照片解码统一到一个 `PhotoDecoder`**：`BitmapFactory` 不读 EXIF，CameraX 竖持写出的 JPEG
+  像素网格是横的，所以时间轴此前会把照片显示成躺倒——而且不报任何错
 - 词典 12000 条、两个模型文件、`scenes.json` / `ambience.json`
 - `LICENSE` + `THIRD_PARTY_NOTICES.md` + `README.md` + `docs/BUILD.md` + GitHub Actions CI
 
@@ -369,12 +377,11 @@ app/src/main/java/com/ilyskyo/wordlens/
 | 项 | 备注 |
 |---|---|
 | 真机验证 | 见上面「进行中」，这是发布前唯一的硬门槛 |
-| 时间轴按天分组 | §6.1 写了「今天 / 昨天 / 具体日期」，现在每张卡各自显示日期，还没有分组头 |
+| 详情页真机核对 | 词片压在物体上的位置是坐标链路的终点，也是唯一还没在真机上验过的一段（详见「进行中」） |
 | 四语词典 | 只有 `lexicon/en.json`。中/日/韩的词条需要从其他来源补，`LexiconEntry.words` 的结构已经支持多语言 |
 | release 签名 | 签名四项写在 `local.properties`，缺省产物不签名（见 `docs/BUILD.md`）；要发版需要一个长期 keystore |
 | 桌面小组件 | 布局和 receiver 已在 manifest 里，`DueWidgetProvider` 只填了文字，业务未实现 |
 | `PROCESS_TEXT` / `SEND` intent | manifest 里声明了，接收端未实现 |
-| 条目详情页 | 二级页在信息架构里有（§5），现在时间轴点进去还没有落地页面 |
 | 搜索页 | 底部右圆目前是 `contentDescription` 占位，没有对应界面 |
 
 ### ✅ 已决定：模型文件直接提交

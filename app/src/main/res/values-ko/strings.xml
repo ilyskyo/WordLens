@@ -73,4 +73,11 @@
     <string name="nomatch_title">이 단어는 아직 모르겠어요</string>
     <string name="nomatch_body">모델이 본 것은 위의 단어뿐이에요. 직접 적어 넣으면 사전에 저장돼요.</string>
     <string name="nomatch_labels_seen">모델이 본 단어</string>
+    <string name="detail_close">닫기</string>
+    <string name="detail_untitled">이름 없는 순간</string>
+    <string name="detail_photo_missing">이 사진은 이 기기에 없어요</string>
+    <string name="detail_declined">그때 그것도 봤어요</string>
+    <string name="detail_event_hint">그날 있었던 일을 한 줄 더</string>
+    <string name="detail_event_save">적어 두기</string>
+    <string name="detail_event_count">이 항목에 %1$d줄 적었어요</string>
 </resources>

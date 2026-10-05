@@ -24,6 +24,7 @@ import com.ilyskyo.wordlens.ui.capture.CaptureCamera
 import com.ilyskyo.wordlens.ui.capture.CaptureScreen
 import com.ilyskyo.wordlens.ui.capture.CaptureViewModel
 import com.ilyskyo.wordlens.ui.capture.captureViewModelFactory
+import com.ilyskyo.wordlens.ui.lookback.EntryDetailScreen
 import com.ilyskyo.wordlens.ui.nav.HomeViewModel
 import com.ilyskyo.wordlens.ui.nav.WordLensApp
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
@@ -40,6 +41,9 @@ class MainActivity : ComponentActivity() {
                 val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
                 val lookback by home.lookback.collectAsStateWithLifecycle()
                 val rememberState by home.remember.collectAsStateWithLifecycle()
+                val detail by home.detail.collectAsStateWithLifecycle()
+                // 详情页是浮层而不是路由，所以返回键要自己接：不接的话系统返回会直接退出应用。
+                androidx.activity.compose.BackHandler(enabled = detail != null, onBack = home::onCloseEntry)
                 Box(Modifier.fillMaxSize()) {
                     WordLensApp(
                         lookbackState = lookback,
@@ -48,13 +52,23 @@ class MainActivity : ComponentActivity() {
                         onReveal = home::onReveal,
                         onGrade = home::onGrade,
                         onReviewSpeak = home::onSpeak,
-                    onMarkMastered = home::onMarkMastered,
-                    onUnmark = home::onUnmark,
+                        onMarkMastered = home::onMarkMastered,
+                        onUnmark = home::onUnmark,
                         onLookbackSpeak = home::onEntrySpeak,
+                        onOpenEntry = home::onOpenEntry,
                         onCapture = { showCapture = true },
                     )
                     if (showCapture) {
                         CaptureHost(container, onDismiss = { showCapture = false })
+                    }
+                    detail?.let { state ->
+                        EntryDetailScreen(
+                            state = state,
+                            onBack = home::onCloseEntry,
+                            onDraftChange = home::onEventDraftChange,
+                            onSaveEvent = home::onSaveEvent,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
                 }
             }

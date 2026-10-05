@@ -4,10 +4,7 @@
 package com.ilyskyo.wordlens.ui.capture
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.graphics.Rect
-import android.media.ExifInterface
 import android.util.Log
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
@@ -39,6 +36,7 @@ import com.ilyskyo.wordlens.vision.camera.CameraFocusMath
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.NormBox
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.SensorCrop
 import com.ilyskyo.wordlens.vision.camera.OverlayGeometry
+import com.ilyskyo.wordlens.vision.camera.PhotoDecoder
 import com.ilyskyo.wordlens.vision.camera.YuvFrames
 import com.ilyskyo.wordlens.vision.detection.DetectedObject
 import com.ilyskyo.wordlens.vision.detection.dedupeOverlapping
@@ -58,7 +56,6 @@ import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
@@ -529,28 +526,15 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
 
     private data class UprightPhoto(val bitmap: Bitmap, val rotationDegrees: Int)
 
-    /** 解码并按 EXIF 转正。旋转角仍用传感器角——映射约定的是「显示图」，转正后即为显示图。 */
-    private fun decodeUpright(file: File): UprightPhoto? = runCatching {
-        if (!file.isFile) return null
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.path, bounds)
-        var sample = 1
-        while (max(bounds.outWidth, bounds.outHeight) / sample > MAX_PHOTO_PX * 2) sample *= 2
-        val raw = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
-            ?: return null
-        val degrees = when (ExifInterface(file.path)
-            .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> 90
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270
-            else -> 0
-        }
-        val bitmap = if (degrees == 0) raw else {
-            Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, Matrix().apply { postRotate(degrees.toFloat()) }, true)
-                .also { if (it !== raw) raw.recycle() }
-        }
-        UprightPhoto(bitmap, rotationDegrees)
-    }.getOrNull()
+    /**
+     * 解码并按 EXIF 转正，交给 [PhotoDecoder]（时间轴与详情页用的是同一个解码器，照片才不会一处正一处歪）。
+     *
+     * 坐标映射用的是**传感器旋转角**而不是 EXIF 角：词片的框归一化在传感器坐标系里，转正后的位图
+     * 就是「显示图」，`imageBoxFromSensorNorm` 要换算的正是这个角度。两者只有一种情况会不一致——
+     * 分析帧之后、快门之前把手机转了向，那时 EXIF 才是真相。真机上要盯的就是这一条。
+     */
+    private fun decodeUpright(file: File): UprightPhoto? =
+        PhotoDecoder.decodeUpright(file, MAX_PHOTO_PX)?.let { UprightPhoto(it.bitmap, rotationDegrees) }
 
     private suspend fun ImageCapture.savePhoto(file: File) =
         suspendCancellableCoroutine { cont ->
