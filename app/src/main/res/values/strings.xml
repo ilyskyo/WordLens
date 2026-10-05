@@ -215,7 +215,7 @@
     <string name="settings_import">导入词卡（deck.json）</string>
     <string name="settings_import_hint">只合并词卡与复习进度。照片从来不在 deck.json 里，它只存文件名，所以带贴纸的卡导入后可能显示不出图。</string>
     <string name="settings_import_done">新增 %1$d 张，更新 %2$d 张</string>
-    <string name="settings_import_bad">这个文件读不出来。它需要是本 App 导出的 deck.json。</string>
+    <string name="settings_import_bad">这个文件读不出来：太大（上限 8 MB），或者不是本 App 导出的 deck.json。</string>
     <!-- 详情页：编辑这一条 -->
     <string name="detail_edit">编辑标题与感受</string>
     <string name="detail_edit_title">编辑这一条</string>

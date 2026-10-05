@@ -202,7 +202,7 @@
     <string name="settings_import">Import cards (deck.json)</string>
     <string name="settings_import_hint">Merges cards and review progress only. Photos are never inside deck.json — it stores filenames — so a card with a sticker may arrive without its image.</string>
     <string name="settings_import_done">%1$d added, %2$d updated</string>
-    <string name="settings_import_bad">That file could not be read. It needs to be a deck.json exported from this app.</string>
+    <string name="settings_import_bad">That file could not be read - it is too large (the limit is 8 MB) or not a deck.json exported from this app.</string>
     <!-- 详情页：编辑这一条 -->
     <string name="detail_edit">Edit title and mood</string>
     <string name="detail_edit_title">Edit this entry</string>
