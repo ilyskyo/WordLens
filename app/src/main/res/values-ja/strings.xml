@@ -108,4 +108,15 @@
     <string name="settings_cloud_state_no_key">APIキーが未入力なので雲端認識は動きません。</string>
     <string name="settings_cloud_key_clear">キーを消す</string>
     <string name="settings_cloud_note">キーはこの端末の設定ファイルに平文で置きます。暗号化も転送もせず、クラウドバックアップにも入れません。オフにすれば即座に止まります。</string>
+    <!-- 时间轴多选 -->
+    <string name="selection_count">%1$d 件選択中</string>
+    <string name="selection_select_all">すべて選択</string>
+    <string name="selection_cancel">キャンセル</string>
+    <string name="selection_delete">削除</string>
+    <string name="selection_delete_title">%1$d 件の記録を削除しますか？</string>
+    <string name="selection_delete_body">写真とステッカーは完全に削除されます。そこから作った単語カードは残ります——復習にかけた時間は消えません。</string>
+    <string name="detail_copy_text">この文字をコピー</string>
+    <string name="detail_delete">この記録を削除</string>
+    <string name="detail_delete_confirm_title">この記録を削除しますか？</string>
+    <string name="detail_delete_confirm_body">写真とステッカーは完全に削除されます。そこから作った単語カードは残ります。</string>
 </resources>

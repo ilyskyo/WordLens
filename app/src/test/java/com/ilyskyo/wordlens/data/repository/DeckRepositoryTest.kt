@@ -93,6 +93,19 @@ class DeckRepositoryTest {
         assertEquals(listOf("w"), repo.dueCards(StudyDirection.RECOGNIZE, now).map { it.id })
     }
 
+    /**
+     * 删日记时要靠这个判断决定 `stickers/` 那份副本去留。
+     *
+     * 判错的两种后果都不体面：多删了，词卡指向一个空文件；少删了，磁盘上永远留着一张
+     * 没有任何界面能再看到的贴纸。
+     */
+    @Test
+    fun `sticker references are answered from the deck`() = runBlocking {
+        val repo = deckRepo(card("a").let { it.copy(stickerPath = "st-a.png") }, card("b"))
+        assertTrue(repo.referencesSticker("st-a.png"))
+        assertFalse(repo.referencesSticker("st-b.png"))
+    }
+
     /** 事件走的是另一个文件，但规则必须一致——否则「词汇与事件」一起练时队列语义会分裂。 */
     @Test
     fun `events follow the same archiving rule`() = runBlocking {

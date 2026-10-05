@@ -49,6 +49,7 @@ import com.ilyskyo.wordlens.ui.capture.captureViewModelFactory
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailScreen
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailState
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
+import com.ilyskyo.wordlens.ui.lookback.TimelineSelection
 import com.ilyskyo.wordlens.ui.nav.HomeTab
 import com.ilyskyo.wordlens.ui.nav.HomeViewModel
 import com.ilyskyo.wordlens.ui.nav.LocalPageVisibilityScope
@@ -121,6 +122,7 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
     val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val lookback by home.lookback.collectAsStateWithLifecycle()
     val rememberState by home.remember.collectAsStateWithLifecycle()
+    val selectedIds by home.selected.collectAsStateWithLifecycle()
 
     // 时间轴的滚动状态提在这里：详情页属于另一个场景，本场景在转场结束后会被拆掉。
     // 状态留在 LookbackScreen 内部的话，返回时列表会跳回顶部——用户刚看的那条瞬间消失了。
@@ -128,7 +130,15 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
 
     applyLightStatusBar(darkSurface = top == Page.Capture)
 
-    BackHandler(enabled = stack.size > 1) { pop(stack, home) }
+    // 返回键的优先级：先退出多选，再弹页面栈。多选是一种「模式」而不是一个页面，
+    // 但用户按返回时的意图是一样的——先回到没有模式的状态。
+    BackHandler(enabled = stack.size > 1 || selectedIds.isNotEmpty()) {
+        if (selectedIds.isNotEmpty() && top is Page.Home) {
+            home.onClearSelection()
+        } else {
+            pop(stack, home)
+        }
+    }
 
     SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
@@ -146,6 +156,11 @@ private fun WordLensRoot(container: AppContainer, requestedTab: MutableState<Hom
                             rememberState = rememberState,
                             requestedTab = requestedTab.value,
                             lookbackListState = lookbackListState,
+                            selectedIds = selectedIds,
+                            onLongPressEntry = home::onLongPressEntry,
+                            onSelectAllEntries = home::onSelectAllEntries,
+                            onClearSelection = home::onClearSelection,
+                            onDeleteSelected = home::onDeleteSelected,
                             onCapture = { stack.add(Page.Capture) },
                             onSearch = { stack.add(Page.Search) },
                             onOpenEntry = { id -> openEntry(stack, home, id) },
@@ -226,6 +241,11 @@ private fun HomeScene(
     rememberState: RememberUiState,
     requestedTab: HomeTab,
     lookbackListState: LazyListState,
+    selectedIds: Set<String>,
+    onLongPressEntry: (String) -> Unit,
+    onSelectAllEntries: () -> Unit,
+    onClearSelection: () -> Unit,
+    onDeleteSelected: () -> Unit,
     onCapture: () -> Unit,
     onSearch: () -> Unit,
     onOpenEntry: (String) -> Unit,
@@ -235,6 +255,13 @@ private fun HomeScene(
         requestedTab = requestedTab,
         lookbackListState = lookbackListState,
         lookbackState = lookback,
+        selection = TimelineSelection(
+            selection = selectedIds,
+            onLongPress = onLongPressEntry,
+            onSelectAll = onSelectAllEntries,
+            onClear = onClearSelection,
+            onDelete = onDeleteSelected,
+        ),
         rememberState = rememberState,
         onMaterialChange = home::onMaterialChange,
         onReveal = home::onReveal,
@@ -268,6 +295,11 @@ private fun DetailScene(home: HomeViewModel, onBack: () -> Unit) {
         onBack = onBack,
         onDraftChange = home::onEventDraftChange,
         onSaveEvent = home::onSaveEvent,
+        // 删完要离开这一页：条目已经不在了，留在详情页等于看着一条空记录。
+        onDelete = {
+            home.onDeleteEntries(setOf(state.entry.id))
+            onBack()
+        },
         modifier = Modifier.fillMaxSize(),
     )
 }

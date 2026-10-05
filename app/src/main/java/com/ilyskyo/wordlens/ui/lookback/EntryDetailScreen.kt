@@ -3,6 +3,7 @@
 
 package com.ilyskyo.wordlens.ui.lookback
 
+import android.content.ClipData
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -33,17 +34,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +59,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -61,12 +69,14 @@ import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.ui.components.PrimaryButton
+import com.ilyskyo.wordlens.ui.components.longPressable
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.NormBox
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * 详情页上长在物体中的一个词。
@@ -106,8 +116,13 @@ fun EntryDetailScreen(
     onBack: () -> Unit,
     onDraftChange: (String) -> Unit,
     onSaveEvent: () -> Unit,
+    onDelete: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    var sheetOpen by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboard.current
+    val clipScope = rememberCoroutineScope()
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
         // 不透明整页：关闭按钮不能压在状态栏时钟上，正文末尾也不能藏进手势条。
         Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -155,7 +170,12 @@ fun EntryDetailScreen(
                     .padding(bottom = Space.xl),
                 verticalArrangement = Arrangement.spacedBy(Space.md),
             ) {
-                PhotoArea(state.photo, state.objects, state.entry.id)
+                PhotoArea(
+                    bitmap = state.photo,
+                    objects = state.objects,
+                    entryId = state.entry.id,
+                    onLongPress = { sheetOpen = true },
+                )
 
                 AnimatedVisibility(
                     visible = stage >= 1,
@@ -191,16 +211,92 @@ fun EntryDetailScreen(
                     )
                 }
             }
+
+            // 长按大图 = 「我要对这张照片做点什么」。删除是不可逆的，所以它一定要经过
+            // 一次确认，而不是一个直接的按钮。
+            if (sheetOpen) {
+                ModalBottomSheet(onDismissRequest = { sheetOpen = false }) {
+                    Column(modifier = Modifier.padding(bottom = Space.lg)) {
+                        SheetAction(
+                            text = stringResource(R.string.detail_copy_text),
+                            onClick = {
+                                sheetOpen = false
+                                val text = detailPlainText(state)
+                                clipScope.launch {
+                                    // Compose 1.11 起 Clipboard 只剩 setClipEntry：setText 被移除了。
+                                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("WordLens", text)))
+                                }
+                            },
+                        )
+                        SheetAction(
+                            text = stringResource(R.string.detail_delete),
+                            destructive = true,
+                            onClick = {
+                                sheetOpen = false
+                                confirmDelete = true
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (confirmDelete) {
+                AlertDialog(
+                    onDismissRequest = { confirmDelete = false },
+                    title = { Text(stringResource(R.string.detail_delete_confirm_title)) },
+                    text = { Text(stringResource(R.string.detail_delete_confirm_body)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                confirmDelete = false
+                                onDelete()
+                            },
+                        ) {
+                            Text(
+                                text = stringResource(R.string.selection_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { confirmDelete = false }) {
+                            Text(stringResource(R.string.selection_cancel))
+                        }
+                    },
+                )
+            }
         }
     }
 }
 
+/** Sheet 里的一行操作。删除项用 error 色，和列表里的多选删除保持同一套语义。 */
+@Composable
+private fun SheetAction(text: String, onClick: () -> Unit, destructive: Boolean = false) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .longPressable(onClick = onClick, onLongClick = {})
+            .padding(horizontal = Space.lg, vertical = Space.md),
+    )
+}
+
+/** 复制的是「这条记录能被说出来的部分」：标题、摘要、画面上的词。不含内部 id。 */
+private fun detailPlainText(state: EntryDetailState): String = buildString {
+    state.entry.title?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
+    state.entry.summary?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
+    state.objects.map { it.word }.distinct().takeIf { it.isNotEmpty() }?.let { appendLine(it.joinToString(" · ")) }
+    state.ambience.takeIf { it.isNotEmpty() }?.let { append(it.joinToString(" · ")) }
+}.trim()
 /** 照片 + 压在物体上方的词片。词片锚在上沿，不压住物体本身。 */
 @Composable
 private fun PhotoArea(
     bitmap: Bitmap?,
     objects: List<ObjectPlace>,
     entryId: String,
+    onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (bitmap == null) {
@@ -228,7 +324,8 @@ private fun PhotoArea(
             .aspectRatio(bitmap.width.toFloat() / bitmap.height.toFloat())
             .clip(MaterialTheme.shapes.large)
             // 与时间轴卡片上是同一张位图、同一个键：飞过去的不是「另一张相似的照片」。
-            .sharedEntryPhoto(entryId),
+            .sharedEntryPhoto(entryId)
+            .longPressable(onClick = {}, onLongClick = onLongPress),
     ) {
         Image(
             bitmap = bitmap.asImageBitmap(),

@@ -45,6 +45,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
@@ -110,6 +111,64 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RememberUiState())
+
+    // ── 时间轴多选 ────────────────────────────────────────────────────────
+
+    private val _selected = MutableStateFlow<Set<String>>(emptySet())
+
+    /** 非空即处于多选模式。UI 与返回键都只看这一个集合，不再另存一个布尔。 */
+    val selected: StateFlow<Set<String>> = _selected.asStateFlow()
+
+    /** 长按卡片：空集合时进入多选并选中它，之后每次长按切换一项。 */
+    fun onLongPressEntry(id: String) {
+        _selected.update { current ->
+            when {
+                current.isEmpty() -> setOf(id)
+                id in current -> current - id
+                else -> current + id
+            }
+        }
+    }
+
+    fun onSelectAllEntries() {
+        _selected.value = lookback.value.groups.flatMap { group -> group.cards.map { it.entry.id } }.toSet()
+    }
+
+    fun onClearSelection() {
+        _selected.value = emptySet()
+    }
+
+    /**
+     * 批量删除选中的条目。不可逆，所以调用方必须先二次确认。
+     *
+     * 贴纸副本的取舍：`entries/` 下那份随条目一起删；`stickers/` 下同名那份只有在没有词卡
+     * 引用它时才删——词卡可能活得比这条日记久。
+     */
+    fun onDeleteSelected() {
+        val ids = _selected.value
+        _selected.value = emptySet()
+        onDeleteEntries(ids)
+    }
+
+    /**
+     * 删掉这些日记与它们的文件。多选删除与详情页删除共用这一条。
+     *
+     * 贴纸副本的取舍：`entries/` 下那份随条目一起删；`stickers/` 下同名那份只有在没有词卡
+     * 引用它时才删——词卡可能活得比这条日记久。
+     */
+    fun onDeleteEntries(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            ids.forEach { id ->
+                container.diary.deleteEntry(id).forEach { name ->
+                    if (!container.deck.referencesSticker(name)) {
+                        runCatching { File(container.stickerDir, name).delete() }
+                    }
+                }
+            }
+            DueWidgetProvider.refresh(container.appContext)
+        }
+    }
 
     // ── 条目详情 ────────────────────────────────────────────────────────────
 

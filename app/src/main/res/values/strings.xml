@@ -125,4 +125,15 @@
     <string name="settings_cloud_state_no_key">还没有填 API Key，云端识别不会启用。</string>
     <string name="settings_cloud_key_clear">清除密钥</string>
     <string name="settings_cloud_note">密钥以明文存在这台机器的设置文件里，不加密、不上传、也不进云备份；关掉开关即刻失效。</string>
+    <!-- 时间轴多选 -->
+    <string name="selection_count">已选择 %1$d 项</string>
+    <string name="selection_select_all">全选</string>
+    <string name="selection_cancel">取消</string>
+    <string name="selection_delete">删除</string>
+    <string name="selection_delete_title">删除这 %1$d 条记录？</string>
+    <string name="selection_delete_body">照片和贴纸会一起删除，无法恢复。由这些照片生成的词卡会保留——你已经为它们花过复习时间。</string>
+    <string name="detail_copy_text">复制这段文字</string>
+    <string name="detail_delete">删除这条记录</string>
+    <string name="detail_delete_confirm_title">删除这条记录？</string>
+    <string name="detail_delete_confirm_body">照片和贴纸会一起删除，无法恢复。由它生成的词卡会保留。</string>
 </resources>

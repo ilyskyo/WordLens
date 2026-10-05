@@ -80,18 +80,25 @@ class DiaryRepository(
      *
      * 照片在文件系统里而事件在 JSON 里，顺序必须**先改文档再删文件**：反过来做，中途崩溃
      * 会得到「照片没了但日记还在」的坏数据；按现在的顺序，最坏是留下孤儿照片，可被清理。
+     *
+     * @return 这条日记引用过的贴纸文件名（相对 `filesDir/entries`）。`stickers/` 下还有同名
+     *   副本，那份可能被词卡单独引用着，所以**不在这里删**，交给持有牌组的调用方判断。
      */
-    suspend fun deleteEntry(id: String) {
+    suspend fun deleteEntry(id: String): List<String> {
         var photoPath: String? = null
+        var stickers: List<String> = emptyList()
         doc.update { current ->
             val victim = current.entries.firstOrNull { it.id == id }
             photoPath = victim?.photoPath
+            stickers = victim?.objects?.mapNotNull { it.stickerPath }.orEmpty()
             current.copy(
                 entries = current.entries.filterNot { it.id == id },
                 events = current.events.filterNot { it.entryId == id },
             )
         }
         photoPath?.let { runCatching { File(photoDir, it).delete() } }
+        stickers.forEach { name -> runCatching { File(photoDir, name).delete() } }
+        return stickers
     }
 
     // ── events ───────────────────────────────────────────────────────────────

@@ -108,4 +108,15 @@
     <string name="settings_cloud_state_no_key">API 키가 비어 있어 클라우드 인식은 켜지지 않아요.</string>
     <string name="settings_cloud_key_clear">키 지우기</string>
     <string name="settings_cloud_note">키는 이 기기의 설정 파일에 평문으로 저장돼요. 암호화하지 않고, 보내지 않으며, 클라우드 백업에서도 제외돼요. 끄면 즉시 멈춰요.</string>
+    <!-- 时间轴多选 -->
+    <string name="selection_count">%1$d개 선택됨</string>
+    <string name="selection_select_all">모두 선택</string>
+    <string name="selection_cancel">취소</string>
+    <string name="selection_delete">삭제</string>
+    <string name="selection_delete_title">이 %1$d개를 삭제할까요?</string>
+    <string name="selection_delete_body">사진과 스티커는 완전히 사라져요. 거기서 만든 단어 카드는 남아요 — 이미 들인 복습 시간은 지워지지 않아요.</string>
+    <string name="detail_copy_text">이 글 복사</string>
+    <string name="detail_delete">이 기록 삭제</string>
+    <string name="detail_delete_confirm_title">이 기록을 삭제할까요?</string>
+    <string name="detail_delete_confirm_body">사진과 스티커가 완전히 사라져요. 거기서 만든 단어 카드는 남아요.</string>
 </resources>

@@ -199,6 +199,14 @@ class DeckRepository(
 
     fun card(id: String): WordCard? = doc.current.cards.firstOrNull { it.id == id }
 
+    /**
+     * 这张贴纸是否还被某张词卡引用。
+     *
+     * 同一张贴纸在 `stickers/` 与 `entries/` 各存一份，两边生命周期不同：删日记要能收回
+     * entries 那份，但只有牌组不再引用时才该动 stickers 那份——否则词卡会指向一个空文件。
+     */
+    fun referencesSticker(name: String): Boolean = doc.current.cards.any { it.stickerPath == name }
+
     fun snapshot(): List<WordCard> = doc.current.cards
 
     fun stats(direction: StudyDirection, now: Long = System.currentTimeMillis()): DeckStats {

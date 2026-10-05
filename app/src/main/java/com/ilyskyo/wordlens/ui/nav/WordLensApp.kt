@@ -32,6 +32,7 @@ import com.ilyskyo.wordlens.srs.Fsrs
 import com.ilyskyo.wordlens.ui.lookback.EntryCard
 import com.ilyskyo.wordlens.ui.lookback.LookbackScreen
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
+import com.ilyskyo.wordlens.ui.lookback.TimelineSelection
 import com.ilyskyo.wordlens.ui.remember.RememberScreen
 import com.ilyskyo.wordlens.ui.remember.RememberUiState
 
@@ -58,6 +59,8 @@ fun WordLensApp(
     /** 时间轴的滚动状态由宿主外提：详情页是 AnimatedContent 的另一个场景，本场景会被拆掉。 */
     lookbackListState: LazyListState = rememberLazyListState(),
     lookbackState: LookbackUiState = LookbackUiState(),
+    /** 时间轴的多选状态。放在这里而不是 LookbackScreen 内部，因为返回键要能先退出它。 */
+    selection: TimelineSelection = TimelineSelection(),
     rememberState: RememberUiState = RememberUiState(),
     onCapture: () -> Unit = {},
     onSearch: () -> Unit = {},
@@ -118,6 +121,7 @@ fun WordLensApp(
                         bottomInset = PaddingValues(bottom = BOTTOM_INSET),
                         listState = lookbackListState,
                         state = lookbackState,
+                        selection = selection,
                         onOpenEntry = onOpenEntry,
                         onSpeak = onLookbackSpeak,
                         modifier = Modifier.fillMaxSize(),

@@ -108,4 +108,15 @@
     <string name="settings_cloud_state_no_key">No API key yet, so cloud recognition stays off.</string>
     <string name="settings_cloud_key_clear">Clear key</string>
     <string name="settings_cloud_note">The key is stored in plain text in this device’s settings file — not encrypted, not uploaded, and excluded from cloud backup. Switching off stops it immediately.</string>
+    <!-- 时间轴多选 -->
+    <string name="selection_count">%1$d selected</string>
+    <string name="selection_select_all">Select all</string>
+    <string name="selection_cancel">Cancel</string>
+    <string name="selection_delete">Delete</string>
+    <string name="selection_delete_title">Delete these %1$d moments?</string>
+    <string name="selection_delete_body">The photos and stickers go away for good. Word cards made from them stay — you have already spent review time on them.</string>
+    <string name="detail_copy_text">Copy this text</string>
+    <string name="detail_delete">Delete this moment</string>
+    <string name="detail_delete_confirm_title">Delete this moment?</string>
+    <string name="detail_delete_confirm_body">The photo and its sticker go away for good. Word cards made from it stay.</string>
 </resources>

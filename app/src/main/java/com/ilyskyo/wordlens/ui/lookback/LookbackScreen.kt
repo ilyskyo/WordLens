@@ -26,10 +26,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +55,7 @@ import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntryMood
 import com.ilyskyo.wordlens.ui.components.EmptyState
+import com.ilyskyo.wordlens.ui.components.longPressable
 import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
 import com.ilyskyo.wordlens.ui.theme.Space
@@ -63,6 +72,22 @@ data class LookbackUiState(
     val groups: List<DayGroup> = emptyList(),
     val todayCount: Int = 0,
 )
+
+/**
+ * 时间轴的多选状态。
+ *
+ * 打包成一个对象而不是六个参数：这一页本来就要接住 onOpenEntry / onSpeak / topInset，
+ * 再摊开一排回调就没法读了。[selection] 非空即代表处于多选模式，界面与返回键都只看它。
+ */
+data class TimelineSelection(
+    val selection: Set<String> = emptySet(),
+    val onLongPress: (String) -> Unit = {},
+    val onSelectAll: () -> Unit = {},
+    val onClear: () -> Unit = {},
+    val onDelete: () -> Unit = {},
+) {
+    val active: Boolean get() = selection.isNotEmpty()
+}
 
 /**
  * 时间轴上的一天。
@@ -121,6 +146,7 @@ fun LookbackScreen(
      * 状态留在本文件里的话，从详情页返回时列表会跳回顶部——用户刚看的那条瞬间消失了。
      */
     listState: LazyListState = rememberLazyListState(),
+    selection: TimelineSelection = TimelineSelection(),
     onOpenEntry: (String) -> Unit = {},
     onSpeak: (EntryCard) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -153,8 +179,20 @@ fun LookbackScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(Space.md),
     ) {
-        item(key = "greeting") {
-            Greeting(todayCount = state.todayCount, modifier = Modifier.padding(bottom = Space.sm))
+        item(key = "header") {
+            // 多选时顶栏整个换掉：问候语在批量操作的语境里没有意义，而「已选几项」必须
+            // 一眼看得到——不可逆的动作，上下文不能藏在别处。
+            if (selection.active) {
+                SelectionBar(
+                    count = selection.selection.size,
+                    onSelectAll = selection.onSelectAll,
+                    onClear = selection.onClear,
+                    onDelete = selection.onDelete,
+                    modifier = Modifier.padding(bottom = Space.sm),
+                )
+            } else {
+                Greeting(todayCount = state.todayCount, modifier = Modifier.padding(bottom = Space.sm))
+            }
         }
         state.groups.forEach { group ->
             // 分组头压在当天第一张卡上方：翻时间轴时「哪天」比「几点」更重要。
@@ -162,9 +200,85 @@ fun LookbackScreen(
                 DayHeader(group.label)
             }
             items(group.cards, key = { it.entry.id }) { card ->
-                TimelineRow(card = card, onOpen = { onOpenEntry(card.entry.id) }, onSpeak = { onSpeak(card) })
+                TimelineRow(
+                    card = card,
+                    selected = card.entry.id in selection.selection,
+                    onOpen = {
+                        // 多选模式下单击的含义是勾选，不是打开——两套语义不能同时生效。
+                        if (selection.active) selection.onLongPress(card.entry.id) else onOpenEntry(card.entry.id)
+                    },
+                    onLongPress = { selection.onLongPress(card.entry.id) },
+                    onSpeak = { onSpeak(card) },
+                )
             }
         }
+    }
+}
+
+/**
+ * 多选顶栏：数量、全选、取消、删除。
+ *
+ * 删除一定要二次确认，而且确认文案必须说清「词卡会留下」——用户删的是照片，
+ * 但这个词他已经花过复习时间，静默一起删掉等于偷走他的学习记录。
+ */
+@Composable
+private fun SelectionBar(
+    count: Int,
+    onSelectAll: () -> Unit,
+    onClear: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var confirm by remember { mutableStateOf(false) }
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.xs),
+    ) {
+        Text(
+            text = stringResource(R.string.selection_count, count),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onSelectAll) {
+            Text(stringResource(R.string.selection_select_all))
+        }
+        TextButton(onClick = onClear) {
+            Text(stringResource(R.string.selection_cancel))
+        }
+        TextButton(onClick = { confirm = true }) {
+            Text(
+                text = stringResource(R.string.selection_delete),
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(R.string.selection_delete_title, count)) },
+            text = { Text(stringResource(R.string.selection_delete_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirm = false
+                        onDelete()
+                    },
+                ) {
+                    Text(
+                        text = stringResource(R.string.selection_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirm = false }) {
+                    Text(stringResource(R.string.selection_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -214,7 +328,9 @@ private fun Greeting(todayCount: Int, modifier: Modifier = Modifier) {
 @Composable
 private fun TimelineRow(
     card: EntryCard,
+    selected: Boolean,
     onOpen: () -> Unit,
+    onLongPress: () -> Unit,
     onSpeak: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -252,7 +368,9 @@ private fun TimelineRow(
         // ── 卡片 ────────────────────────────────────────────────────
         EntryTimelineCard(
             card = card,
+            selected = selected,
             onOpen = onOpen,
+            onLongPress = onLongPress,
             onSpeak = onSpeak,
             modifier = Modifier
                 .weight(1f)
@@ -270,7 +388,9 @@ private fun TimelineRow(
 @Composable
 private fun EntryTimelineCard(
     card: EntryCard,
+    selected: Boolean,
     onOpen: () -> Unit,
+    onLongPress: () -> Unit,
     onSpeak: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -278,12 +398,14 @@ private fun EntryTimelineCard(
     val entry = card.entry
 
     Surface(
-        onClick = onOpen,
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp,
         tonalElevation = 1.dp,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            // 点击与长按共用一个手势识别器：长按触发后不会再补一次 onClick。
+            .longPressable(onClick = onOpen, onLongClick = onLongPress),
     ) {
         Column {
             // ── 照片区（含右下角贴纸或 mood） ────────────────────────
@@ -341,6 +463,34 @@ private fun EntryTimelineCard(
                     )
                 } else if (entry.mood != null) {
                     MoodBadge(mood = entry.mood, modifier = Modifier.align(Alignment.BottomEnd))
+                }
+
+                if (selected) {
+                    // 遮罩压在整张照片上，勾选框走 Material 3 自己的复选框画法是明确的
+                    // 「可多选」信号。只靠描边不够：照片本身可能是任何颜色。
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)),
+                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(Space.sm),
+                    ) {
+                        Checkbox(
+                            checked = true,
+                            onCheckedChange = null,
+                            enabled = false,
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = MaterialTheme.colorScheme.primary,
+                                checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                            modifier = Modifier.size(32.dp),
+                        )
+                    }
                 }
             }
 
