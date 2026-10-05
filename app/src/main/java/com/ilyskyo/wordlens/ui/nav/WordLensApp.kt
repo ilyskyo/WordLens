@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import com.ilyskyo.wordlens.ui.remember.RememberUiState
 @Composable
 fun WordLensApp(
     modifier: Modifier = Modifier,
+    requestedTab: HomeTab = HomeTab.LOOKBACK,
     lookbackState: LookbackUiState = LookbackUiState(),
     rememberState: RememberUiState = RememberUiState(),
     onCapture: () -> Unit = {},
@@ -62,6 +64,9 @@ fun WordLensApp(
     onUnmark: (String) -> Unit = {},
 ) {
     var tab by remember { mutableStateOf(HomeTab.LOOKBACK) }
+    // 外部要求换页（小组件点击）时跟随一次。key 是请求值而不是 tab，所以用户自己点页签
+    // 不会被这条效果拽回去。
+    LaunchedEffect(requestedTab) { tab = requestedTab }
 
     // 目前只有主页面，没有二级路由；一旦加了详情页，这里改成跟随导航栈深度。
     val atTopLevel = true

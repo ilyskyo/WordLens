@@ -40,6 +40,7 @@ import com.ilyskyo.wordlens.ui.remember.RememberUiState
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.NormBox
 import com.ilyskyo.wordlens.vision.camera.PhotoDecoder
+import com.ilyskyo.wordlens.widget.DueWidgetProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -159,6 +160,8 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             revealedAt = 0L
             // 仓库更新会推动流重算队列，这里只复位翻面与计数。
             session.update { it.copy(revealed = false, done = it.done + 1) }
+            // 桌面上那个数得跟着变。系统刷新最快 30 分钟一次，对一个「还剩几个」的读数没意义。
+            DueWidgetProvider.refresh(container.appContext)
         }
     }
 
@@ -177,6 +180,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                     is ReviewItem.Event -> container.diary.updateEvent(item.card.copy(mastered = true))
                 }
             }
+            DueWidgetProvider.refresh(container.appContext)
         }
     }
 
@@ -187,6 +191,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 container.deck.card(id)?.let { container.deck.update(it.copy(mastered = false)) }
                 container.diary.event(id)?.let { container.diary.updateEvent(it.copy(mastered = false)) }
             }
+            DueWidgetProvider.refresh(container.appContext)
         }
     }
 

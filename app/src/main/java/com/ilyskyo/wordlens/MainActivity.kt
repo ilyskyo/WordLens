@@ -1,5 +1,6 @@
 package com.ilyskyo.wordlens
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -25,6 +26,7 @@ import com.ilyskyo.wordlens.ui.capture.CaptureScreen
 import com.ilyskyo.wordlens.ui.capture.CaptureViewModel
 import com.ilyskyo.wordlens.ui.capture.captureViewModelFactory
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailScreen
+import com.ilyskyo.wordlens.ui.nav.HomeTab
 import com.ilyskyo.wordlens.ui.nav.HomeViewModel
 import com.ilyskyo.wordlens.ui.nav.WordLensApp
 import com.ilyskyo.wordlens.ui.search.SearchScreen
@@ -32,10 +34,20 @@ import com.ilyskyo.wordlens.ui.search.SearchViewModel
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
 
 class MainActivity : ComponentActivity() {
+
+    /**
+     * 小组件点击带来的「要去复习」。
+     *
+     * 冷启动读 `onCreate` 的 intent，热启动由 `onNewIntent` 更新——两条路径都要接，否则
+     * 「点完一张卡回到桌面再点小组件」会停在原来那一页。
+     */
+    private val requestedTab = mutableStateOf(HomeTab.LOOKBACK)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        applyIntent(intent)
         val container = (application as WordLensApplication).container
         setContent {
             WordLensTheme {
@@ -54,6 +66,7 @@ class MainActivity : ComponentActivity() {
                 )
                 Box(Modifier.fillMaxSize()) {
                     WordLensApp(
+                        requestedTab = requestedTab.value,
                         lookbackState = lookback,
                         rememberState = rememberState,
                         onMaterialChange = home::onMaterialChange,
@@ -85,6 +98,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        applyIntent(intent)
+    }
+
+    private fun applyIntent(intent: Intent) {
+        requestedTab.value = if (intent.getBooleanExtra(EXTRA_OPEN_REMEMBER, false)) {
+            HomeTab.REMEMBER
+        } else {
+            HomeTab.LOOKBACK
+        }
+    }
+
+    companion object {
+        /** 小组件点击：直接落到「记住」页。 */
+        const val EXTRA_OPEN_REMEMBER = "com.ilyskyo.wordlens.OPEN_REMEMBER"
     }
 }
 

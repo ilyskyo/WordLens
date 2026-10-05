@@ -355,6 +355,9 @@ app/src/main/java/com/ilyskyo/wordlens/
   **事件卡唯一的诞生地**（此前 `DiaryRepository.addEvent` 只被 Preview 调过）
 - **照片解码统一到一个 `PhotoDecoder`**：`BitmapFactory` 不读 EXIF，CameraX 竖持写出的 JPEG
   像素网格是横的，所以时间轴此前会把照片显示成躺倒——而且不报任何错
+- **桌面小组件**：读数走 `AppContainer.dueCount()`，点它直达「记住」页（冷启动读 intent、
+  热启动走 `onNewIntent`，`launchMode` 已是 singleTask），评级与归档之后主动 `sendBroadcast` 刷新——
+  系统自己的 `updatePeriodMillis` 下限是 30 分钟，对一个「还剩几个」的读数没有意义
 - 词典 12000 条、两个模型文件、`scenes.json` / `ambience.json`
 - `LICENSE` + `THIRD_PARTY_NOTICES.md` + `README.md` + `docs/BUILD.md` + GitHub Actions CI
 
@@ -382,7 +385,7 @@ app/src/main/java/com/ilyskyo/wordlens/
 | 真机验证 | 见上面「进行中」，这是发布前唯一的硬门槛。详情页的词片位置是坐标链路的终点，也是最需要先看一眼的一段 |
 | 四语词典 | 只有 `lexicon/en.json`。中/日/韩的词条需要从其他来源补，`LexiconEntry.words` 的结构已经支持多语言 |
 | release 签名 | 签名四项写在 `local.properties`，缺省产物不签名（见 `docs/BUILD.md`）；要发版需要一个长期 keystore |
-| 桌面小组件 | 布局和 receiver 已在 manifest 里，`DueWidgetProvider` 只填了文字，业务未实现 |
+| 小组件配色 | RemoteViews 用不了 MaterialTheme，深色模式下读数颜色还是硬编码的一组，需要一套 night 资源 |
 | `PROCESS_TEXT` / `SEND` intent | manifest 里声明了，接收端未实现 |
 
 ### ✅ 已决定：模型文件直接提交
