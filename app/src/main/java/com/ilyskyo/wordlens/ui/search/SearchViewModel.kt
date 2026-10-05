@@ -89,6 +89,9 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
     private val query = MutableStateFlow("")
     private val added = MutableStateFlow(emptySet<String>())
 
+    /** 正在写入途中的词头，挡住连点两下。只在主线程动它，理由见 [onCollect]。 */
+    private val collecting = mutableSetOf<String>()
+
     val state: StateFlow<SearchUiState> = combine(
         container.deck.document,
         container.diary.document,
@@ -125,28 +128,40 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
      * 收录词典里的一条。
      *
      * 去重按**词头**而不是 id：`LexiconEntry.toCard` 每次都发一个新 id，所以
-     * `DeckRepository.add` 里的 id 判重只挡得住同一张卡的重放，挡不住连点两次按钮
-     * 塞进两张一模一样的空卡。取景页那边留同名重复是有意的（同一个词、不同的场景与贴纸），
-     * 这里没有照片也没有场景，重复就是纯噪音。
+     * `DeckRepository.add` 里的 id 判重只挡得住同一张卡的重放。取景页那边留同名重复是有意的
+     * （同一个词、不同的场景与贴纸），这里没有照片也没有场景，重复就是纯噪音。
+     *
+     * 但**查牌组挡不住连点两下**：那一次查是同步读 `snapshot()`，而写入要等
+     * `settings.first()` 挂起之后再回来——第二下完全能在第一张卡落库之前通过判重，于是塞进
+     * 两张一模一样的卡。原来这段注释写着「挡得住」，那是一句关于代码的假话。现在加一道在途词头：
+     * 第一下把词头占住，第二下当场返回。只改一个 `MutableSet` 而不上锁，是因为 `onCollect` 由
+     * 界面回调进来、`viewModelScope` 是 `Main.immediate`，两下点击之间没有并发；
+     * 判重的**结果**才需要跨那一次挂起，而那个结果就记在这一个集合里。
      */
     fun onCollect(lexiconEntryId: String) {
         val entry = container.lexicon.byId(lexiconEntryId) ?: return
         val headword = LexiconIndex.normalize(entry.headword)
-        if (headword.isNotBlank() && container.deck.snapshot().any { LexiconIndex.normalize(it.headword) == headword }) {
+        if (headword.isBlank()) return
+        if (container.deck.snapshot().any { LexiconIndex.normalize(it.headword) == headword }) {
             added.value = added.value + entry.id
             return
         }
+        if (!collecting.add(headword)) return
         viewModelScope.launch {
-            // 设置是冷流，读当前值得显式 first()；这里不缓存，因为改语言不该留下旧方向。
-            val settings = container.settings.settings.first()
-            val card = container.cardFrom(
-                entry,
-                settings.targetLanguage,
-                settings.nativeLanguage,
-                EntrySource.MANUAL,
-            ) ?: return@launch
-            if (container.deck.add(card)) {
-                added.value = added.value + entry.id
+            try {
+                // 设置是冷流，读当前值得显式 first()；这里不缓存，因为改语言不该留下旧方向。
+                val settings = container.settings.settings.first()
+                val card = container.cardFrom(
+                    entry,
+                    settings.targetLanguage,
+                    settings.nativeLanguage,
+                    EntrySource.MANUAL,
+                )
+                if (card != null && container.deck.add(card)) {
+                    added.value = added.value + entry.id
+                }
+            } finally {
+                collecting.remove(headword)
             }
         }
     }
