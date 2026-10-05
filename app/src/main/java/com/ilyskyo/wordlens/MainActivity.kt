@@ -49,7 +49,9 @@ import com.ilyskyo.wordlens.ui.capture.CaptureCamera
 import com.ilyskyo.wordlens.ui.capture.CaptureScreen
 import com.ilyskyo.wordlens.ui.capture.CaptureViewModel
 import com.ilyskyo.wordlens.ui.capture.captureViewModelFactory
+import com.ilyskyo.wordlens.ui.components.Notice
 import com.ilyskyo.wordlens.ui.components.NoticeHost
+import java.util.concurrent.atomic.AtomicLong
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailScreen
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailState
 import com.ilyskyo.wordlens.ui.lookback.LookbackUiState
@@ -359,7 +361,7 @@ private fun HomeScene(
     onCapture: () -> Unit,
     onSearch: () -> Unit,
     onOpenEntry: (String) -> Unit,
-    notice: String?,
+    notice: Notice?,
     onDismissNotice: () -> Unit,
 ) {
     WordLensApp(
@@ -482,7 +484,10 @@ private fun CaptureHost(
     val event by vm.event.collectAsStateWithLifecycle()
     // 取景页整体是暗的，一条系统 Toast 在这里既压不住快门按钮也跟不上主题：
     // 用应用自己的提示层，消息与消失都由这一层负责。
-    var notice by remember { mutableStateOf<String?>(null) }
+    // 取景页这层提示装的也是「第几次说」而不是「当前那句话」：连续两次同样的失败
+    // （两次都没认出词）在下游是一次变化，提示条只缩短不重播。
+    var notice by remember { mutableStateOf<Notice?>(null) }
+    val noticeSeq = remember { AtomicLong() }
 
     // 相册入口用系统的照片选择器：挑几张就授权几张，不需要任何存储权限，
     // 也就不会出现「一个 READ_MEDIA_IMAGES 换来整个相册」这种与本产品的立场相反的事。
@@ -516,18 +521,18 @@ private fun CaptureHost(
 
             is CaptureViewModel.Event.Failed -> {
                 vm.acknowledgeEvent()
-                notice = e.message
+                notice = Notice(e.message, noticeSeq.incrementAndGet())
             }
 
             // 抠图失败不影响保存，只说明一句：贴纸是这份记录的加分项，不是必要条件。
             is CaptureViewModel.Event.StickerFailed -> {
                 vm.acknowledgeEvent()
-                notice = e.message
+                notice = Notice(e.message, noticeSeq.incrementAndGet())
             }
 
             is CaptureViewModel.Event.Notice -> {
                 vm.acknowledgeEvent()
-                notice = e.message
+                notice = Notice(e.message, noticeSeq.incrementAndGet())
             }
 
             null -> Unit
@@ -560,7 +565,7 @@ private fun CaptureHost(
             modifier = Modifier.fillMaxSize(),
             previewContent = { CaptureCamera(vm) },
         )
-        NoticeHost(message = notice, onDismiss = { notice = null })
+        NoticeHost(notice = notice, onDismiss = { notice = null })
     }
 }
 
@@ -594,6 +599,6 @@ private fun SettingsHost(container: AppContainer, onClose: () -> Unit) {
             modifier = Modifier.fillMaxSize(),
         )
         // 导入的结果必须有下文：文件选择器关掉之后，用户手里只剩下一个「好像成功了」的猜测。
-        NoticeHost(message = settingsNotice, onDismiss = vm::acknowledgeNotice)
+        NoticeHost(notice = settingsNotice, onDismiss = vm::acknowledgeNotice)
     }
 }

@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ilyskyo.wordlens.data.model.StudyMaterial
 import com.ilyskyo.wordlens.srs.Fsrs
+import com.ilyskyo.wordlens.ui.components.Notice
 import com.ilyskyo.wordlens.ui.components.NoticeHost
 import com.ilyskyo.wordlens.ui.lookback.EntryCard
 import com.ilyskyo.wordlens.ui.lookback.LookbackScreen
@@ -80,7 +81,7 @@ fun WordLensApp(
     /** 月历选某一天。 */
     onPickDay: (String?) -> Unit = {},
     /** 一次性提示（发音没出声之类）。空就什么都不显示。 */
-    notice: String? = null,
+    notice: Notice? = null,
     onDismissNotice: () -> Unit = {},
 ) {
     // 转屏不该把人从「记住」甩回「回看」：页签是 UI 状态，活在该活的地方就够了，
@@ -182,7 +183,7 @@ fun WordLensApp(
                 }
             }
 
-            NoticeHost(message = notice, onDismiss = onDismissNotice)
+            NoticeHost(notice = notice, onDismiss = onDismissNotice)
 
             // 顶部页签浮在内容之上：照片从它下方穿过，而不是被一条横栏切开。
             HomeTopTabs(

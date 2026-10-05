@@ -44,6 +44,7 @@ import com.ilyskyo.wordlens.ui.lookback.DayGroup
 import com.ilyskyo.wordlens.ui.lookback.EntryDetailState
 import com.ilyskyo.wordlens.ui.lookback.ObjectPlace
 import com.ilyskyo.wordlens.ui.lookback.dayKeyLabel
+import com.ilyskyo.wordlens.ui.components.Notice
 import com.ilyskyo.wordlens.ui.lookback.dayLabel
 import com.ilyskyo.wordlens.ui.lookback.formatDay
 import com.ilyskyo.wordlens.ui.remember.RememberCard
@@ -67,6 +68,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 首页（回看 + 记住）的状态来源。
@@ -221,7 +223,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val candidates = container.diary.document.value.entries
             .filter { it.dayKey != today && it.dayKey !in walked }
         val pick = candidates.randomOrNull() ?: run {
-            _notice.value = container.appContext.getString(R.string.walk_empty)
+            emit(container.appContext.getString(R.string.walk_empty))
             return null
         }
         walked.addLast(pick.dayKey)
@@ -374,9 +376,19 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
      * 一次性低调提示。见 [com.ilyskyo.wordlens.ui.components.NoticeHost] 为什么这里不用 Toast。
      *
      * 只放「用户刚才那一下没成功」这一类信息。可成功的反馈不该占用它：那是动效的工作。
+     *
+     * 装的是 [Notice]（文案 + 第几次）而不是裸文案：`StateFlow` 按值相等去重，同一句话连着来两次
+     * 会被下游当成一次变化，于是提示条只缩短不重播。连点两次发音正是这一格。
      */
-    private val _notice = MutableStateFlow<String?>(null)
-    val notice: StateFlow<String?> = _notice.asStateFlow()
+    private val _notice = MutableStateFlow<Notice?>(null)
+    val notice: StateFlow<Notice?> = _notice.asStateFlow()
+
+    /** 每一次开口都是新的一次，与文案是否相同无关。 */
+    private val noticeSeq = AtomicLong()
+
+    private fun emit(message: String) {
+        _notice.value = Notice(message, noticeSeq.incrementAndGet())
+    }
 
     /**
      * 刚存下的记录必须当场看得见。
@@ -392,9 +404,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val filter = _dayFilter.value ?: return
         if (filter == dayKey) return
         _dayFilter.value = null
-        _notice.value = container.appContext.getString(
-            R.string.notice_filter_cleared,
-            dayKeyLabel(dayKey, container.appContext),
+        emit(
+            container.appContext.getString(
+                R.string.notice_filter_cleared,
+                dayKeyLabel(dayKey, container.appContext),
+            ),
         )
     }
 
@@ -411,7 +425,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
      * 在那里开口等于什么都没说。复用同一条 notice 通路，而不是再造一个「跨页提示」的状态。
      */
     fun showNotice(message: String) {
-        _notice.value = message
+        emit(message)
     }
 
     fun acknowledgeNotice() {
@@ -472,7 +486,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         if (container.speaker.speak(text, lang)) return
         val missing = lang in container.speaker.unsupportedLanguages.value
         val resId = if (missing) R.string.notice_tts_unsupported else R.string.notice_tts_silent
-        _notice.value = container.appContext.getString(resId, lang.nativeName)
+        emit(container.appContext.getString(resId, lang.nativeName))
     }
 
     /**

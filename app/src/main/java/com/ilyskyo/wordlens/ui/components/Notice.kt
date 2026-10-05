@@ -20,9 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -35,6 +32,18 @@ import com.ilyskyo.wordlens.ui.theme.rememberReduceMotion
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.softShadow
 import kotlinx.coroutines.delay
+
+/**
+ * 一次提示：那句话说什么，以及它是第几次说。
+ *
+ * `id` 存在的唯一理由是 `StateFlow` 按**值相等**去重：连着两次同样的文案，在下游是同一次变化，
+ * 于是 `LaunchedEffect` 不重启、计时器不重来、`liveRegion` 也不再念第二遍。用户连点两次发音
+ * 得到的就是一条越来越短、越来越不像「回答了我这一下」的提示，而界面上看不出任何区别。
+ *
+ * 修它的办法不是想办法让文案每次都不同，而是把「这是一次事件」写进类型里：文案相同而 id 不同，
+ * 就是两次要说的事。与 `MainActivity` 里 `SharedQuery` / `PageStack` 的 sequence 同一个做法。
+ */
+data class Notice(val text: String, val id: Long)
 
 /**
  * 一条会自己消失的低调提示。
@@ -57,22 +66,16 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun NoticeHost(
-    message: String?,
+    notice: Notice?,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     durationMillis: Long = DEFAULT_VISIBLE_MS,
 ) {
-    // 同一句话连续出现两次也要重新计时，所以用 text 做 key 而不是只看可见性。
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(message) {
-        if (message == null) {
-            visible = false
-        } else {
-            visible = true
-            delay(durationMillis)
-            onDismiss()
-            visible = false
-        }
+    // 计时挂在这一次事件上：同一句话再来一遍要重新计时，也要重新被读屏念一遍。
+    LaunchedEffect(notice) {
+        if (notice == null) return@LaunchedEffect
+        delay(durationMillis)
+        onDismiss()
     }
 
     // 提示的进出是装饰性的，它要讲的那句话本身是完整的（而且同时走了 liveRegion），
@@ -80,10 +83,10 @@ fun NoticeHost(
     // 只有「怎么出现」变了。
     val reduceMotion = rememberReduceMotion()
     val lift: Float = if (reduceMotion) {
-        if (message != null) 1f else 0f
+        if (notice != null) 1f else 0f
     } else {
         val animated by animateFloatAsState(
-            targetValue = if (message != null) 1f else 0f,
+            targetValue = if (notice != null) 1f else 0f,
             animationSpec = Motion.snappy,
             label = "noticeLift",
         )
@@ -98,7 +101,7 @@ fun NoticeHost(
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
-            visible = message != null,
+            visible = notice != null,
             enter = if (reduceMotion) {
                 fadeIn(tween(120))
             } else {
@@ -121,7 +124,7 @@ fun NoticeHost(
                     .semantics { liveRegion = LiveRegionMode.Polite },
             ) {
                 Text(
-                    text = message.orEmpty(),
+                    text = notice?.text.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = Space.lg, vertical = Space.sm),

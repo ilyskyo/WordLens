@@ -14,10 +14,12 @@ import com.ilyskyo.wordlens.data.repository.decodeDeck
 import com.ilyskyo.wordlens.data.model.RatingPalette
 import com.ilyskyo.wordlens.data.model.StudyDirection
 import com.ilyskyo.wordlens.data.repository.AppSettings
+import com.ilyskyo.wordlens.ui.components.Notice
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.util.concurrent.atomic.AtomicLong
 import androidx.annotation.StringRes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,8 +72,15 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
-    private val _notice = MutableStateFlow<String?>(null)
-    val notice: StateFlow<String?> = _notice.asStateFlow()
+    private val _notice = MutableStateFlow<Notice?>(null)
+    val notice: StateFlow<Notice?> = _notice.asStateFlow()
+
+    /** 文案相同而 id 不同就是两次要说的事，见 [com.ilyskyo.wordlens.ui.components.NoticeHost]。 */
+    private val noticeSeq = AtomicLong()
+
+    private fun emit(message: String) {
+        _notice.value = Notice(message, noticeSeq.incrementAndGet())
+    }
 
     fun acknowledgeNotice() {
         _notice.value = null
@@ -101,14 +110,16 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 }.getOrNull()
             }
             if (document == null) {
-                _notice.value = container.appContext.getString(R.string.settings_import_bad)
+                emit(container.appContext.getString(R.string.settings_import_bad))
                 return@launch
             }
             val result = container.deck.mergeFrom(document)
-            _notice.value = container.appContext.getString(
-                R.string.settings_import_done,
-                result.added,
-                result.updated,
+            emit(
+                container.appContext.getString(
+                    R.string.settings_import_done,
+                    result.added,
+                    result.updated,
+                ),
             )
         }
     }
