@@ -4,16 +4,11 @@
 package com.ilyskyo.wordlens.ui.components
 
 import android.graphics.Bitmap
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,17 +29,15 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -55,18 +48,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
+import com.ilyskyo.wordlens.ui.theme.Scale
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
+import com.ilyskyo.wordlens.ui.theme.pressFeedback
+import com.ilyskyo.wordlens.ui.theme.pressable
+import com.ilyskyo.wordlens.ui.theme.softShadow
 import com.ilyskyo.wordlens.ui.theme.stickerCorner
-
-/** 按压缩放到的比例。规范给的是 0.96。 */
-private const val PRESSED_SCALE = 0.96f
 
 /**
  * 主按钮。
  *
- * 三个变体共用一份实现：除了颜色，它们完全一样（20dp 圆角、48dp 最小高度、按压缩放）。
+ * 三个变体共用一份手感：除了颜色，它们完全一样（20dp 超椭圆、48dp 最小高度、按压缩放）。
  * 分成三份写会让「按压反馈」在三处各自漂移。
+ *
+ * ## 为什么要把 interactionSource 显式传给 Button
+ *
+ * 缩放和触觉都读同一个 source 的 pressed 状态。以前这里另建了一个 source 挂在外面，
+ * Button 内部用的是它自己那一个——于是外层永远读不到 pressed，缩放动画**一次都没跑过**，
+ * 只剩波纹在假装「按到了」。波纹被关掉之后，这个 bug 就从「看不出来」变成「按下去没反应」。
  */
 @Composable
 fun PrimaryButton(
@@ -75,21 +75,22 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    PressableScale(onClick = onClick, enabled = enabled, modifier = modifier) {
-        Button(
-            onClick = onClick,
-            enabled = enabled,
-            shape = MaterialTheme.shapes.medium,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .fillMaxWidth(),
-        ) {
-            Text(text, style = MaterialTheme.typography.labelLarge)
-        }
+    val interaction = remember { MutableInteractionSource() }
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = interaction,
+        shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+        modifier = modifier
+            .pressFeedback(interaction, enabled = enabled)
+            .heightIn(min = 48.dp)
+            .fillMaxWidth(),
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -100,21 +101,22 @@ fun TonalButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    PressableScale(onClick = onClick, enabled = enabled, modifier = modifier) {
-        FilledTonalButton(
-            onClick = onClick,
-            enabled = enabled,
-            shape = MaterialTheme.shapes.medium,
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            ),
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .fillMaxWidth(),
-        ) {
-            Text(text, style = MaterialTheme.typography.labelLarge)
-        }
+    val interaction = remember { MutableInteractionSource() }
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = interaction,
+        shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+        modifier = modifier
+            .pressFeedback(interaction, enabled = enabled)
+            .heightIn(min = 48.dp)
+            .fillMaxWidth(),
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -125,56 +127,22 @@ fun OutlinedAction(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
+    val interaction = remember { MutableInteractionSource() }
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
+        interactionSource = interaction,
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),
         modifier = modifier
+            .pressFeedback(interaction, enabled = enabled)
             .heightIn(min = 48.dp)
             .fillMaxWidth(),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge)
-    }
-}
-
-/**
- * 按压缩放容器。
- *
- * 用弹簧而不是 tween：抬手时弹簧会自然回弹，而固定 100ms 的线性 tween 在快速连点时
- * 显得迟钝。缩放通过 [MutableInteractionSource] 读取，而不是自己记一个 pressed 状态，
- * 这样它和 Material 自带的 ripple 天然同步。
- */
-@Composable
-private fun PressableScale(
-    onClick: () -> Unit,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) PRESSED_SCALE else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "pressScale",
-    )
-    Box(
-        modifier = modifier
-            .scale(scale)
-            .then(
-                Modifier.pointerInput(enabled) {
-                    detectTapGestures(onTap = { if (enabled) onClick() })
-                },
-            ),
-    ) {
-        content()
     }
 }
 
@@ -202,13 +170,8 @@ fun StickerCard(
 
     Box(
         modifier = modifier
-            // 阴影用暖灰而不是默认黑：黑色阴影落在奶油白背景上会显脏。
-            .shadow(
-                elevation = 6.dp,
-                shape = stickerCorner(STICKER_BOX_RADIUS),
-                ambientColor = accents.shadowTint,
-                spotColor = accents.shadowTint,
-            )
+            // 三层暖灰阴影，强度取一半：贴纸只有几十 dp，全套距离会让它旁边挂一片灰雾。
+            .softShadow(stickerCorner(STICKER_BOX_RADIUS), intensity = 0.5f)
             .rotate(rotationDegrees)
             .clip(stickerCorner(STICKER_BOX_RADIUS))
             .background(MaterialTheme.colorScheme.surface)
@@ -219,12 +182,12 @@ fun StickerCard(
             )
             .then(
                 if (onClick != null || onLongClick != null) {
-                    Modifier.pointerInput(onClick, onLongClick) {
-                        detectTapGestures(
-                            onTap = { onClick?.invoke() },
-                            onLongPress = { onLongClick?.invoke() },
-                        )
-                    }
+                    Modifier.pressable(
+                        onClick = { onClick?.invoke() },
+                        onLongClick = onLongClick,
+                        // 贴纸是小面积元素，缩多一点才读得出「按到了」。
+                        pressedScale = Scale.Small,
+                    )
                 } else {
                     Modifier
                 },
@@ -313,23 +276,29 @@ fun SpeakButton(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    PressableScale(onClick = onClick, enabled = enabled, modifier = modifier) {
-        Surface(
-            shape = CircleShape,
-            color = container,
-            modifier = Modifier
-                .size(size)
-                .semantics { this.contentDescription = contentDescription },
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = WordLensIcons.Speaker,
-                    // 语义已在 Surface 上合并，这里必须置空，否则读屏会重复。
-                    contentDescription = null,
-                    tint = content,
-                    modifier = Modifier.size(size * 0.45f),
-                )
-            }
+    Surface(
+        shape = CircleShape,
+        color = container,
+        modifier = modifier
+            // 发音是最高频的操作，值得最重的一档缩量：56dp 的圆按下去缩 5.6dp，
+            // 指尖不用看也知道「这一下点到了」。
+            .pressable(
+                onClick = onClick,
+                enabled = enabled,
+                role = Role.Button,
+                pressedScale = Scale.Small,
+            )
+            .size(size)
+            .semantics { this.contentDescription = contentDescription },
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = WordLensIcons.Speaker,
+                // 语义已在 Surface 上合并，这里必须置空，否则读屏会重复。
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.size(size * 0.45f),
+            )
         }
     }
 }

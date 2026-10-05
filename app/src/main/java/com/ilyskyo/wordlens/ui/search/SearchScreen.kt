@@ -3,7 +3,6 @@
 
 package com.ilyskyo.wordlens.ui.search
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,7 +31,9 @@ import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.WordCard
 import com.ilyskyo.wordlens.ui.components.EmptyState
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
+import com.ilyskyo.wordlens.ui.theme.Scale
 import com.ilyskyo.wordlens.ui.theme.Space
+import com.ilyskyo.wordlens.ui.theme.pressable
 
 /**
  * 搜索 / 添加页。三区共用一个输入框：牌组、词典、日记。
@@ -155,7 +156,7 @@ fun SearchScreen(
                             color = MaterialTheme.colorScheme.surface,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onOpenEntry(entry.id) },
+                                .pressable(onClick = { onOpenEntry(entry.id) }, pressedScale = Scale.Large),
                         ) {
                             Column(
                                 modifier = Modifier.padding(Space.md),

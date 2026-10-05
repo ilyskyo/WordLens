@@ -46,14 +46,18 @@ val Inter = variableFamily(
     400, 500, 600, 700,
 )
 
-/**
- * 中日韩字形回退。
+/*
+ * 中日韩字形怎么办。
  *
- * Nunito 与 Inter 都不含汉字与假名，若不指定回退字体，系统会在中文/日文文本上
- * 逐字回退到默认字体，行高与基线会跳。这里显式交给平台挑选合适的 CJK 字体，
- * 保证同一段文本里混排英文与汉字时行高一致。
+ * Nunito 与 Inter 都不含汉字与假名，中日韩文本按字回退到系统字体——这是**刻意不去管它**的
+ * 一件事：想自己控制中文观感，就得随包带一款 CJK 字体，而 Noto Sans SC 哪怕按字重子集化
+ * 也要 8MB 以上。这个体积不是「稍微大一点」，它比整个 App 的其余部分都大，而且我们是
+ * arm64-only、还要随包带两个推理模型。
+ *
+ * 所以现在的策略是让系统挑它自己那套中日韩字体（小米是 MiSans、华为是 HarmonyOS Sans、
+ * AOSP 是 Noto Sans CJK），代价是各家的字重表现会有细微差别，好处是用户在系统设置里选的
+ * 字体偏好被尊重，而 APK 不需要为了一个字重背 8MB。
  */
-private val CjkFallback = FontFamily.Default
 
 /**
  * 中英混排的行高修正。
@@ -83,32 +87,49 @@ private fun wordLensTextStyle(
     platformStyle = PlatformTextStyle(includeFontPadding = false),
 )
 
-/** 按设计规范定义的字号层级。 */
+/**
+ * 字号层级：按 iOS 的 Text Style 尺度重排，但保留 M3 的角色名。
+ *
+ * 为什么不新造一套 `largeTitle / headline / body` 的名字：M3 的每个组件内部都在取
+ * `titleMedium`、`labelLarge` 这些角色，改了名就等于每个屏幕都要手写样式，
+ * 而「屏幕只准引用 Token」这条红线靠的是**层级只有一个来源**，不是名字好听。
+ *
+ * 关键差异（相对上一版 Material 尺度）：
+ *
+ * - **正文 16 → 17sp**。iOS 的 body 是 17pt，Material 是 16sp。这 1sp 是整个「苹果感」里
+ *   最容易被读出、也最难被解释的一项：16sp 读起来像安卓，17sp 读起来像 iOS。
+ * - **大标题收紧字距**（34sp 上 -0.4sp）。大号无衬线不收紧会散，尤其 Inter 这种中性骨架。
+ * - **小字反而给正字距**（13sp 起 +0.1、12sp +0.2）。小号字挤在一起最难读，iOS 也是这么做的。
+ * - **标题仍用 Nunito，正文与控件用 Inter**。规范要的是 Inter 的骨架，但产品识别度来自
+ *   Nunito 那圈开阔的字腔；把标题也换成 Inter 会省一个字体族，代价是整套品牌失去表情，
+ *   不值。行高与基线由同一套 [wordLensTextStyle] 保证，两个族混排不会出现台阶。
+ */
 val WordLensTypography = Typography(
-    // 32sp Bold —— 单词本体的展示级字号，收藏页大卡片用
-    displayLarge = wordLensTextStyle(Nunito, 32, 38, FontWeight.Bold, -0.5),
-    displayMedium = wordLensTextStyle(Nunito, 28, 34, FontWeight.Bold, -0.4),
+    // largeTitle 34 / W700：复习卡正面的单词本体，全屏最大的一行字。
+    displayLarge = wordLensTextStyle(Nunito, 34, 40, FontWeight.Bold, -0.4),
+    displayMedium = wordLensTextStyle(Nunito, 28, 34, FontWeight.Bold, -0.3),
     displaySmall = wordLensTextStyle(Nunito, 24, 30, FontWeight.SemiBold, -0.2),
 
-    // 24sp SemiBold —— 页面标题
-    headlineLarge = wordLensTextStyle(Nunito, 24, 30, FontWeight.SemiBold),
-    headlineMedium = wordLensTextStyle(Nunito, 22, 28, FontWeight.SemiBold),
-    headlineSmall = wordLensTextStyle(Nunito, 20, 26, FontWeight.SemiBold),
+    // title2 / title3：页面标题
+    headlineLarge = wordLensTextStyle(Nunito, 24, 30, FontWeight.SemiBold, -0.2),
+    headlineMedium = wordLensTextStyle(Nunito, 22, 28, FontWeight.SemiBold, -0.2),
+    headlineSmall = wordLensTextStyle(Nunito, 20, 26, FontWeight.SemiBold, -0.1),
 
-    // 20sp Medium —— 卡片标题
-    titleLarge = wordLensTextStyle(Nunito, 20, 26, FontWeight.Medium),
-    titleMedium = wordLensTextStyle(Nunito, 17, 23, FontWeight.Medium),
-    titleSmall = wordLensTextStyle(Nunito, 15, 21, FontWeight.Medium),
+    // title：卡片标题
+    titleLarge = wordLensTextStyle(Nunito, 20, 26, FontWeight.SemiBold, -0.1),
+    // iOS 的 headline：17 半粗，页签、区块标题、卡片词头都用它。
+    titleMedium = wordLensTextStyle(Nunito, 17, 23, FontWeight.SemiBold, -0.1),
+    titleSmall = wordLensTextStyle(Nunito, 16, 22, FontWeight.SemiBold, -0.1),
 
-    // 16sp Regular —— 正文
-    bodyLarge = wordLensTextStyle(Inter, 16, 25, FontWeight.Normal),
-    bodyMedium = wordLensTextStyle(Inter, 14, 22, FontWeight.Normal),
-    bodySmall = wordLensTextStyle(Inter, 13, 19, FontWeight.Normal),
+    // body 17 / callout 16 / footnote 13——正文三档全部 Inter，长读不累。
+    bodyLarge = wordLensTextStyle(Inter, 17, 25, FontWeight.Normal, -0.1),
+    bodyMedium = wordLensTextStyle(Inter, 16, 23, FontWeight.Normal, -0.1),
+    bodySmall = wordLensTextStyle(Inter, 13, 18, FontWeight.Normal, 0.1),
 
-    // 14sp Medium —— 按钮与标签
-    labelLarge = wordLensTextStyle(Inter, 14, 18, FontWeight.Medium),
-    labelMedium = wordLensTextStyle(Inter, 12, 16, FontWeight.Medium),
-    labelSmall = wordLensTextStyle(Inter, 11, 15, FontWeight.Medium),
+    // 按钮与标签
+    labelLarge = wordLensTextStyle(Inter, 15, 20, FontWeight.SemiBold, -0.1),
+    labelMedium = wordLensTextStyle(Inter, 12, 16, FontWeight.Medium, 0.2),
+    labelSmall = wordLensTextStyle(Inter, 11, 15, FontWeight.Medium, 0.2),
 )
 
 /**
@@ -123,15 +144,6 @@ val IpaTextStyle = TextStyle(
     fontSize = 14.sp,
     lineHeight = 19.sp,
     fontWeight = FontWeight.Normal,
-    platformStyle = PlatformTextStyle(includeFontPadding = false),
-    lineHeightStyle = mixedLineHeight,
-)
-
-/** 汉字/假名/韩文正文样式，保证与英文正文同一行高。 */
-val CjkBodyStyle = TextStyle(
-    fontFamily = CjkFallback,
-    fontSize = 16.sp,
-    lineHeight = 25.sp,
     platformStyle = PlatformTextStyle(includeFontPadding = false),
     lineHeightStyle = mixedLineHeight,
 )

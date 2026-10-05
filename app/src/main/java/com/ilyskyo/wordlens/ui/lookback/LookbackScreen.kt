@@ -55,11 +55,13 @@ import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntryMood
 import com.ilyskyo.wordlens.ui.components.EmptyState
-import com.ilyskyo.wordlens.ui.components.longPressable
 import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
+import com.ilyskyo.wordlens.ui.theme.Scale
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
+import com.ilyskyo.wordlens.ui.theme.pressable
+import com.ilyskyo.wordlens.ui.theme.softShadow
 import com.ilyskyo.wordlens.ui.theme.stickerCorner
 import java.time.Instant
 import java.time.LocalDate
@@ -400,12 +402,14 @@ private fun EntryTimelineCard(
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
         tonalElevation = 1.dp,
         modifier = modifier
             .fillMaxWidth()
+            // 单层 elevation 阴影在奶油白上会硬成一块灰：换成三层柔和阴影，
+            // 轮廓仍然是卡片自己的超椭圆，所以裁切与阴影必然一致。
+            .softShadow(MaterialTheme.shapes.large)
             // 点击与长按共用一个手势识别器：长按触发后不会再补一次 onClick。
-            .longPressable(onClick = onOpen, onLongClick = onLongPress),
+            .pressable(onClick = onOpen, onLongClick = onLongPress, pressedScale = Scale.Large),
     ) {
         Column {
             // ── 照片区（含右下角贴纸或 mood） ────────────────────────

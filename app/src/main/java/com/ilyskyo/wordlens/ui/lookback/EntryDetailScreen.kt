@@ -69,7 +69,8 @@ import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntrySource
 import com.ilyskyo.wordlens.ui.components.PrimaryButton
-import com.ilyskyo.wordlens.ui.components.longPressable
+import com.ilyskyo.wordlens.ui.theme.Scale
+import com.ilyskyo.wordlens.ui.theme.pressable
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.Space
@@ -278,7 +279,7 @@ private fun SheetAction(text: String, onClick: () -> Unit, destructive: Boolean 
         color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .fillMaxWidth()
-            .longPressable(onClick = onClick, onLongClick = {})
+            .pressable(onClick = onClick)
             .padding(horizontal = Space.lg, vertical = Space.md),
     )
 }
@@ -290,6 +291,7 @@ private fun detailPlainText(state: EntryDetailState): String = buildString {
     state.objects.map { it.word }.distinct().takeIf { it.isNotEmpty() }?.let { appendLine(it.joinToString(" · ")) }
     state.ambience.takeIf { it.isNotEmpty() }?.let { append(it.joinToString(" · ")) }
 }.trim()
+
 /** 照片 + 压在物体上方的词片。词片锚在上沿，不压住物体本身。 */
 @Composable
 private fun PhotoArea(
@@ -325,7 +327,7 @@ private fun PhotoArea(
             .clip(MaterialTheme.shapes.large)
             // 与时间轴卡片上是同一张位图、同一个键：飞过去的不是「另一张相似的照片」。
             .sharedEntryPhoto(entryId)
-            .longPressable(onClick = {}, onLongClick = onLongPress),
+            .pressable(onClick = {}, onLongClick = onLongPress, pressedScale = Scale.Large),
     ) {
         Image(
             bitmap = bitmap.asImageBitmap(),

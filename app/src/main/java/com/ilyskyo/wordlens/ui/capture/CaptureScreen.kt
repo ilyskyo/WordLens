@@ -9,12 +9,12 @@ import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,9 +63,13 @@ import com.ilyskyo.wordlens.ui.components.SpeakButton
 import com.ilyskyo.wordlens.ui.components.TonalButton
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.theme.BottomSheetShape
+import com.ilyskyo.wordlens.ui.theme.Haptic
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
+import com.ilyskyo.wordlens.ui.theme.Motion
+import com.ilyskyo.wordlens.ui.theme.Scale
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
+import com.ilyskyo.wordlens.ui.theme.pressable
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.NormBox
 import com.ilyskyo.wordlens.vision.camera.CameraFocusMath.SensorCrop
 
@@ -362,7 +366,7 @@ private fun CaptureBottomControls(
                         // 没有任何词片时才把提示本身做成按钮（走手动抠主流）；
                         // 有词片时选择靠点词片完成，提示只是陈述。
                         if (selectedWord == null && state.chips.isEmpty()) {
-                            Modifier.clickable(onClick = onTapSubject)
+                            Modifier.pressable(onClick = onTapSubject)
                         } else {
                             Modifier
                         },
@@ -377,17 +381,15 @@ private fun CaptureBottomControls(
 /**
  * 快门：白色外圈 + 主色内圈。
  *
- * 按下缩到 0.92。分析中时中间换成进度环而不是「转圈图标」，让「正在做什么」与
+ * 不可用时缩到 0.92。分析中时中间换成进度环而不是「转圈图标」，让「正在做什么」与
  * 「做完会得到什么」出现在同一个位置。
  */
 @Composable
 private fun ShutterButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val scale by androidx.compose.animation.core.animateFloatAsState(
+    val scale by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.92f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-        ),
-        label = "shutter",
+        animationSpec = Motion.smooth,
+        label = "shutterAvailability",
     )
     Box(
         modifier = modifier
@@ -395,7 +397,13 @@ private fun ShutterButton(enabled: Boolean, onClick: () -> Unit, modifier: Modif
             .scale(scale)
             .clip(CircleShape)
             .border(3.dp, Color.White.copy(alpha = if (enabled) 1f else 0.5f), CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
+            // 快门是全 App 最该「按下去有回声」的一颗按钮：缩到 0.90 并发一次重触觉。
+            .pressable(
+                onClick = onClick,
+                enabled = enabled,
+                pressedScale = Scale.Small,
+                haptic = Haptic.Heavy,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (enabled) {

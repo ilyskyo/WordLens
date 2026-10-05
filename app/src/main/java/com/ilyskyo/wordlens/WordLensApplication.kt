@@ -3,6 +3,7 @@ package com.ilyskyo.wordlens
 import android.app.Application
 import android.util.Log
 import com.ilyskyo.wordlens.core.AppContainer
+import com.ilyskyo.wordlens.ui.theme.Haptics
 
 /**
  * 进程级入口：持有 [AppContainer]，并在冷启动就预热所有 JSON 文档。
@@ -19,6 +20,9 @@ class WordLensApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         container.warmUp()
+        // 振动器在第一次 vibrate 之前要过一次 IPC，那一下正好落在用户第一次按下按钮时——
+        // 触觉慢半拍比没有触觉更明显。所以在这里提前解析，代价是一次系统服务查询。
+        Haptics.init(this)
         Log.i(TAG, "WordLens started, filesDir=$filesDir")
     }
 

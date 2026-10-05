@@ -41,10 +41,11 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import com.ilyskyo.wordlens.R
-import com.ilyskyo.wordlens.ui.components.longPressable
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
+import com.ilyskyo.wordlens.ui.theme.Scale
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
+import com.ilyskyo.wordlens.ui.theme.pressable
 
 /**
  * 一级页面的两个页签。这两个才是顶层。
@@ -154,7 +155,14 @@ private fun TabItem(
             .clip(CircleShape)
             .background(indicator)
             .padding(horizontal = indicatorWidth, vertical = Space.sm)
-            .longPressable(onClick = onClick, onLongClick = onLongClick, role = Role.Tab)
+            .pressable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                role = Role.Tab,
+                // 页签是「切换」而不是「执行」，缩得比按钮少一点：0.97 在 88dp 宽上是 2.6dp，
+                // 足够被看见，又不会让胶囊在切换瞬间像被捏了一下。
+                pressedScale = Scale.Large,
+            )
             // 合并语义：读屏念一次「记住，标签页，已选中」，而不是把图标与文字分开念。
             .clearAndSetSemantics {
                 contentDescription = label
