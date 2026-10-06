@@ -230,12 +230,21 @@ fun LookbackScreen(
                 start = Space.md,
                 end = Space.md,
                 // 静止时问候语不能被悬浮页签压住；滚动起来照片从页签下方穿过仍是想要的效果。
-                top = topInset.calculateTopPadding() + Space.sm,
+                // 避让搬进吸顶头部自己身上（见下面两个分支的 `top`）：`stickyHeader` 钉在
+                // 视口的 y=0，**不吃 contentPadding**，这里再留一份会把整格顶到状态栏里。
+                top = 0.dp,
                 bottom = bottomInset.calculateBottomPadding() + Space.xl,
             ),
-            verticalArrangement = Arrangement.spacedBy(Space.md),
+            // 间距交给每一类 item 自己带（见 TimelineRow 与 DayHeader 里的注释），
+            // 这样左侧主干才能长满整行、不在行与行之间断开。
+            verticalArrangement = Arrangement.Top,
         ) {
-            item(key = "header") {
+            // 吸顶而不是随列表滚走：这一格里是**字**（问候语、已选几项、清除筛选），
+            // 字被悬浮页签齐头切掉半行会读成「渲染坏了」，而照片从页签下方穿过是想要的效果。
+            // 同一个容器要同时做到两件事，只能让它待在页签下面不动。
+            // 多选时这一点更重要：「已选 3 项 / 删除」是不可逆动作的上下文，
+            // 滚一下就看不见等于让用户在不知道作用范围的情况下按删除。
+            stickyHeader(key = "header") {
                 // 多选时顶栏整个换掉：问候语在批量操作的语境里没有意义，而「已选几项」必须
                 // 一眼看得到——不可逆的动作，上下文不能藏在别处。
                 if (selection.active) {
@@ -244,10 +253,21 @@ fun LookbackScreen(
                         onSelectAll = selection.onSelectAll,
                         onClear = selection.onClear,
                         onDelete = selection.onDelete,
-                        modifier = Modifier.padding(bottom = Space.sm),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // 吸顶之后会有照片从底下经过，不透明底是必须的：没有它字会和照片叠在一起。
+                            .background(MaterialTheme.colorScheme.background)
+                            // 悬浮页签的避让由头部自己带：`stickyHeader` 钉在视口 y=0，
+                            // 不吃列表的 contentPadding。
+                            .padding(top = topInset.calculateTopPadding(), bottom = Space.sm),
                     )
                 } else {
-                    Column(modifier = Modifier.padding(bottom = Space.sm)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(top = topInset.calculateTopPadding(), bottom = Space.sm),
+                    ) {
                         Greeting(
                             todayCount = state.todayCount,
                             onOpenCalendar = { calendarOpen = true },
@@ -545,7 +565,9 @@ private fun DayHeader(label: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.onBackground,
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = Space.sm, start = TIMELINE_WIDTH + Space.sm),
+            // `bottom` 是这一格自己带着的空隙（见 TimelineRow 里那条注释）：整页不再用
+            // `verticalArrangement` 统一留白，所以每一类 item 都要自己补上。
+            .padding(top = Space.sm, start = TIMELINE_WIDTH + Space.sm, bottom = Space.md),
     )
 }
 
@@ -654,7 +676,11 @@ private fun TimelineRow(
             onSpeak = onSpeak,
             modifier = Modifier
                 .weight(1f)
-                .padding(start = Space.sm),
+                // 行间距吃在**卡片自己**的 bottom padding 里，而不是 LazyColumn 的
+                // `verticalArrangement`：那样一来这一行的高度就包含这段空隙，左侧那根
+                // 主干跟着长满，卡片之间不再出现断口。装机看到的「线是断的」就是
+                // 空隙不属于任何一行导致的。
+                .padding(start = Space.sm, bottom = Space.md),
         )
     }
 }
@@ -770,27 +796,37 @@ private fun EntryTimelineCard(
                             .matchParentSize()
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)),
                     )
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                    // 自己画这颗勾，不用 M3 的 Checkbox：它的轨道是一个**圆角方块**，
+                    // 外面再套一圈白底圆，就成了「圆包里一个方块」——装机截图上很难看，
+                    // 而且方块的四角会把白圈切成一圈窄边。iOS 的选中是一颗实心圆 + 白勾。
+                    Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(Space.sm),
+                            .padding(Space.sm)
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            // 白圈是必须的：选中时整张卡被压上一层珊瑚，勾要在这层色上
+                            // 仍然读得出边界。
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+                            .padding(3.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Checkbox(
-                            checked = true,
-                            // 它自己不接受点击（切换由整张卡承担），但**不能**用 enabled=false 来表达
-                            // 这件事：M3 的 Checkbox 一旦 disabled 就换用整套 disabled 配色，
-                            // 下面那两行 checkedColor/checkmarkColor 全部作废——截图上那颗勾因此
-                            // 是灰的，看着像「这张卡不能操作」，而它恰恰是选中态唯一的确认信号。
-                            // onCheckedChange = null 已经足够让它不响应切换，且不会碰配色。
-                            onCheckedChange = null,
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = MaterialTheme.colorScheme.primary,
-                                checkmarkColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                            modifier = Modifier.size(32.dp),
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = WordLensIcons.Check,
+                                // 选中状态已经由整张卡的 `selected` 语义合并上报（见 #33），
+                                // 这里再给描述就是念两遍。
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     }
                 }
             }

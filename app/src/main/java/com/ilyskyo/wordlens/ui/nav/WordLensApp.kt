@@ -147,6 +147,10 @@ fun WordLensApp(
                 onCapture = onCapture,
                 onSearch = onSearch,
                 visible = atTopLevel && !(hiddenByScroll && tab == HomeTab.LOOKBACK),
+                // 和顶部页签同一个理由：`AnimatedVisibility` 与按压反馈都走 graphicsLayer，
+                // 而带 layer 的兄弟节点不保证按文档顺序落笔。装机截图上时间轴的照片
+                // 直接盖在了拍照键上——按钮是这一页最该被找到的一颗，它必须在最上层。
+                modifier = Modifier.zIndex(1f),
             )
         },
     ) { innerPadding ->

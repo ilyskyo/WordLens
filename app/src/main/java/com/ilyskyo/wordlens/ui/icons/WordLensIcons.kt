@@ -202,6 +202,32 @@ object WordLensIcons {
         }.build()
     }
 
+    /**
+     * 勾选：一短一长两笔，圆头。
+     *
+     * 时间轴多选的选中态要用它。画在这里而不是引 `material-icons`：那个包根本不在依赖里，
+     * 而整套图标已经都是手绘的——混进一个系统字体会在笔画粗细上与其余十几枚不一致。
+     * 用描边而不是填充路径，是因为它要在 16dp 上仍然读得清：填充的勾在那个尺寸下会糊成一团。
+     */
+    val Check: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Check",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 2.6f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(5.4f, 12.6f); lineTo(9.9f, 17.1f); lineTo(18.6f, 7.4f)
+            }
+        }.build()
+    }
+
     /** 齿轮：外圈圆 + 中心圆孔 + 四枚齿。用简化造型，避免十几个小矩形的路径噪声。 */
     val Settings: ImageVector by lazy {
         ImageVector.Builder(
