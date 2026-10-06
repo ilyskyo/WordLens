@@ -326,6 +326,8 @@ fun LookbackScreen(
  * 有记录的格子可点，没记录的格子仍可看见但点不动——筛到一个空的日子里，
  * 用户看到的只是「什么都没变」，而时间轴其实已经被换成空的了。
  *
+ * 「下一月」在当月就停住：未来那个月不可能有记录，翻过去得到的是一整张点不开的格子。
+ *
  * 格子算术全在 MonthGrid（纯函数、有 JVM 测试）里：月初不是周一起始时前面补几格、
  * 闰年二月几天、周起点跟着谁的地区设置走。这些错只在特定的月份才暴露，而一个月只来一次。
  */
@@ -379,7 +381,11 @@ private fun MonthSheet(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                IconButton(onClick = { month = month.plusMonths(1) }) {
+                IconButton(
+                    onClick = { month = month.plusMonths(1) },
+                    // 理由写在 MonthSheet 上面那段：翻进未来只能得到一张点不开的格子。
+                    enabled = month < YearMonth.from(today),
+                ) {
                     Icon(
                         imageVector = WordLensIcons.ChevronRight,
                         contentDescription = stringResource(R.string.calendar_next),
@@ -662,7 +668,6 @@ private fun EntryTimelineCard(
     onSpeak: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accents = WordLensTheme.accents
     val entry = card.entry
 
     Surface(
@@ -674,6 +679,11 @@ private fun EntryTimelineCard(
             // 单层 elevation 阴影在奶油白上会硬成一块灰：换成三层柔和阴影，
             // 轮廓仍然是卡片自己的超椭圆，所以裁切与阴影必然一致。
             .softShadow(MaterialTheme.shapes.large)
+            // 读屏要能念出「这一张已经选上了」。多选模式里唯一的数量读数在顶栏那句「已选 N 项」，
+            // 而滚过一张张卡片时用户需要知道的是**哪几张**在里面——照片本身没有可辨的标题。
+            // 月历的格子早就做了同一件事。这里的 `this.` 不能省：这个函数的参数把接收者上那个
+            // 同名扩展属性挡住了，写成 `selected = selected` 编出来是「给参数赋值」。
+            .semantics { this.selected = selected }
             // 点击与长按共用一个手势识别器：长按触发后不会再补一次 onClick。
             .pressable(onClick = onOpen, onLongClick = onLongPress, pressedScale = Scale.Large),
     ) {

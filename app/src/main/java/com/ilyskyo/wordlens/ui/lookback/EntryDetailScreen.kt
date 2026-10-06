@@ -146,9 +146,32 @@ fun EntryDetailScreen(
 ) {
     var sheetOpen by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf(false) }
+    // 编辑对话框和它的草稿一起住在外层，而不是住在对话框自己身上。放里面只能成立两件事中的一件：
+    //
+    // - `rememberSaveable` 的值在组合被拆掉之后**仍然留在注册表里**。草稿住在对话框里时，
+    //   「取消」并没有把它作废：下一次长按 → 编辑，框里回来的是上一次那份被明确取消掉的内容，
+    //   而它与当前条目的差别恰好只有用户自己知道。按下保存，日记里就多了一句他作废过的话。
+    // - 反过来，`editing` 如果只是普通 remember，转屏会把对话框整块关掉：草稿确实被
+    //   saveable 留住了，可它留在一扇已经关上的门上——「打到一半转屏不丢」这句话要成立，
+    //   对话框本身也得活过这一次旋转。
+    //
+    // 播种放在「打开」这一刻（照当前条目取），作废放在「关闭」这一刻，两条就都成立了。
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var editTitle by rememberSaveable { mutableStateOf("") }
+    var editSummary by rememberSaveable { mutableStateOf("") }
+    var editMood by rememberSaveable { mutableStateOf<EntryMood?>(null) }
     val clipboard = LocalClipboard.current
     val clipScope = rememberCoroutineScope()
+
+    // 关闭即作废：只把 `editing` 拨回 false 是不够的，那三份草稿会一直躺在 saveable 注册表里，
+    // 下一次打开时被原样取回来。清空之后，「取消」这句话才真的说完了。
+    fun closeEditor() {
+        editing = false
+        editTitle = ""
+        editSummary = ""
+        editMood = null
+    }
+
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
         // 不透明整页：关闭按钮不能压在状态栏时钟上，正文末尾也不能藏进手势条。
         Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -278,6 +301,11 @@ fun EntryDetailScreen(
                             text = stringResource(R.string.detail_edit),
                             onClick = {
                                 sheetOpen = false
+                                // 每次打开都照当前的条目重播一遍：框里的内容从此只有两个来源——
+                                // 条目本来的样子，和这一次真正打过的字。
+                                editTitle = state.entry.title.orEmpty()
+                                editSummary = state.entry.summary.orEmpty()
+                                editMood = state.entry.mood
                                 editing = true
                             },
                         )
@@ -295,9 +323,17 @@ fun EntryDetailScreen(
 
             if (editing) {
                 EditEntryDialog(
-                    entry = state.entry,
-                    onSave = onSaveEditing,
-                    onDismiss = { editing = false },
+                    title = editTitle,
+                    summary = editSummary,
+                    mood = editMood,
+                    onTitleChange = { editTitle = it },
+                    onSummaryChange = { editSummary = it },
+                    onMoodChange = { editMood = it },
+                    onSave = {
+                        onSaveEditing(editTitle, editSummary, editMood)
+                        closeEditor()
+                    },
+                    onDismiss = { closeEditor() },
                 )
             }
 
@@ -336,19 +372,22 @@ fun EntryDetailScreen(
  * 编辑入口只存在于详情页，**不进拍照流程**（§4.2）：按下快门那一下必须仍然是完整的一个动作。
  * 想补什么随时回来补，但别让「拍完还要填表」变成放弃记录的理由。
  *
- * 草稿用 rememberSaveable：对话框里字打到一半转屏就清空，是最容易被误报成 bug 的一种丢数据。
+ * 三个字段是**受控**的：草稿住在调用方（见 [EntryDetailScreen] 里那段注释）。这里自己
+ * `rememberSaveable` 一份的话，「取消」就只是关掉了对话框，草稿本身活得好好的，下一次打开
+ * 会被原样填回去——用户明确作废过的一句话，就这样在另一次编辑里悄悄成了正文。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EditEntryDialog(
-    entry: Entry,
-    onSave: (title: String, summary: String, mood: EntryMood?) -> Unit,
+    title: String,
+    summary: String,
+    mood: EntryMood?,
+    onTitleChange: (String) -> Unit,
+    onSummaryChange: (String) -> Unit,
+    onMoodChange: (EntryMood?) -> Unit,
+    onSave: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var title by rememberSaveable { mutableStateOf(entry.title.orEmpty()) }
-    var summary by rememberSaveable { mutableStateOf(entry.summary.orEmpty()) }
-    var mood by rememberSaveable(entry.mood) { mutableStateOf(entry.mood) }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.detail_edit_title)) },
@@ -359,14 +398,14 @@ private fun EditEntryDialog(
             ) {
                 OutlinedTextField(
                     value = title,
-                    onValueChange = { title = it },
+                    onValueChange = onTitleChange,
                     label = { Text(stringResource(R.string.detail_edit_field_title)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = summary,
-                    onValueChange = { summary = it },
+                    onValueChange = onSummaryChange,
                     label = { Text(stringResource(R.string.detail_edit_field_summary)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -382,19 +421,14 @@ private fun EditEntryDialog(
                         OptionChip(
                             label = "${option.emoji} ${stringResource(option.labelRes)}",
                             selected = mood == option,
-                            onClick = { mood = if (mood == option) null else option },
+                            onClick = { onMoodChange(if (mood == option) null else option) },
                         )
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    onSave(title, summary, mood)
-                    onDismiss()
-                },
-            ) {
+            TextButton(onClick = onSave) {
                 Text(stringResource(R.string.capture_save))
             }
         },
