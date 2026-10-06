@@ -227,6 +227,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             releaseRecorder()
             _take.value = null
         }
+        // 选中的那一批里如果被删掉了任何一个，那个 id 必须跟着走：多选模式的判据就是「集合非空」，
+        // 于是留下一个已经不存在的 id，界面上就是一个指着空气的「已选 1 项」，而那颗删除键
+        // 按下去什么文件都不会少——读起来像按钮坏了。走得通的一步：长按卡片进入多选，
+        // 再长按顶部页签随机漫步到另一条、在详情页删掉它、返回，多选模式原样还在。
+        // 剪在这里而不是各调用点自觉处理，因为删除有两条通路（多选、详情页），而漏一条不会报错。
+        _selected.value = _selected.value - ids
         viewModelScope.launch {
             ids.forEach { id ->
                 container.diary.deleteEntry(id).forEach { name ->
