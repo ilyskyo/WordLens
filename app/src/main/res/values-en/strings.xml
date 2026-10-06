@@ -77,7 +77,9 @@
     <string name="import_no_objects">Nothing was recognized in that photo — it went into Moments as a whole picture</string>
 
     <string name="nomatch_title">I can not name this one</string>
-    <string name="nomatch_body">The model only saw the labels above. Write the word yourself and it goes into your dictionary.</string>
+    <string name="nomatch_body">The model only saw the labels above. Write the word and what it means, and it goes into your dictionary - and straight into the review queue.</string>
+    <string name="nomatch_meaning_label">What it means (your native language)</string>
+    <string name="manual_added_stored">“%1$s” added, and saved to your dictionary</string>
     <string name="nomatch_labels_seen">What the model saw</string>
     <string name="detail_close">Close</string>
     <string name="detail_untitled">An unnamed moment</string>

@@ -562,6 +562,7 @@ private fun CaptureHost(
             onTapSubject = vm::onTapSubject,
             onChipSelect = vm::onChipSelect,
         onManualWordChange = vm::onManualWordChange,
+        onManualMeaningChange = vm::onManualMeaningChange,
         onManualAdd = vm::onManualAdd,
             modifier = Modifier.fillMaxSize(),
             previewContent = { CaptureCamera(vm) },

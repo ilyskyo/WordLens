@@ -94,7 +94,9 @@
 
     <!-- 识别为空时的诚实提示 -->
     <string name="nomatch_title">这个词我还认不出来</string>
-    <string name="nomatch_body">模型只看到了上面的词。你可以直接把它写下来，它会存进你的词典。</string>
+    <string name="nomatch_body">模型只看到了上面这些。把词写下来、再补一句它的意思，它就会进你的词典，也立刻进复习队列。</string>
+    <string name="nomatch_meaning_label">它的意思（你的母语）</string>
+    <string name="manual_added_stored">「%1$s」收下了，也已经记进你的词典</string>
     <string name="nomatch_labels_seen">模型看到的</string>
     <!-- 条目详情 -->
     <string name="detail_close">关闭</string>

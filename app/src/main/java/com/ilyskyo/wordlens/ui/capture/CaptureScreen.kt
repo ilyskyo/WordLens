@@ -114,6 +114,11 @@ data class CaptureUiState(
     val selectedChipKey: String? = null,
     /** 「认不出来时手写」的输入内容。放在 state 里，转屏不会丢。 */
     val manualWord: String = "",
+    /**
+     * 手写词的释义。词典里没有这个词时它是**唯一**能把它变成一条用户词条的东西，
+     * 而「存进你的词典」这句话（`nomatch_body`）全靠它才不是空话。
+     */
+    val manualMeaning: String = "",
     /** 取景几何快照。null 表示相机还没就绪（无权限 / 绑定中），此时不画覆盖层。 */
     val cameraFrame: CameraFrame? = null,
 )
@@ -146,6 +151,7 @@ fun CaptureScreen(
     onChipSelect: (String?) -> Unit = {},
     /** 「认不出来时手写」：输入与收录。 */
     onManualWordChange: (String) -> Unit = {},
+    onManualMeaningChange: (String) -> Unit = {},
     onManualAdd: () -> Unit = {},
     /** null = 自己查 Context。Preview 里查不到运行时权限，传 true 才能看到取景态。 */
     cameraGranted: Boolean? = null,
@@ -250,6 +256,7 @@ fun CaptureScreen(
                 onRetake = onRetake,
                 onSave = onSave,
                 onManualWordChange = onManualWordChange,
+                onManualMeaningChange = onManualMeaningChange,
                 onManualAdd = onManualAdd,
                 bottomInset = bottomInset,
             )
@@ -583,6 +590,7 @@ private fun CaptureResult(
     onRetake: () -> Unit,
     onSave: () -> Unit,
     onManualWordChange: (String) -> Unit,
+    onManualMeaningChange: (String) -> Unit,
     onManualAdd: () -> Unit,
     bottomInset: PaddingValues,
     modifier: Modifier = Modifier,
@@ -635,6 +643,7 @@ private fun CaptureResult(
                 NoMatchPanel(
                     state = state,
                     onManualWordChange = onManualWordChange,
+                    onManualMeaningChange = onManualMeaningChange,
                     onManualAdd = onManualAdd,
                 )
             }
@@ -668,6 +677,7 @@ private fun CaptureResult(
 private fun NoMatchPanel(
     state: CaptureUiState,
     onManualWordChange: (String) -> Unit,
+    onManualMeaningChange: (String) -> Unit,
     onManualAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -700,11 +710,19 @@ private fun NoMatchPanel(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        // 那句话承诺过的东西，这里就是它的入口。
+        // 那句话承诺过的东西，这里就是它的入口。释义这一格是入口的另一半：
+        // 只有词没有意思，存进去的就是一张空释义的卡，而 FSRS 会非常认真地把噪音排到未来。
         OutlinedTextField(
             value = state.manualWord,
             onValueChange = onManualWordChange,
             label = { Text(stringResource(R.string.manual_field_label)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = state.manualMeaning,
+            onValueChange = onManualMeaningChange,
+            label = { Text(stringResource(R.string.nomatch_meaning_label)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )

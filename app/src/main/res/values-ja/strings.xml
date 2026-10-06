@@ -77,7 +77,9 @@
     <string name="import_no_objects">この写真からは何も見つかりませんでした。写真全体を記録に保存しました</string>
 
     <string name="nomatch_title">この単語はまだわかりません</string>
-    <string name="nomatch_body">モデルが見つけたのは上の言葉だけ。自分で書き込めば辞書に保存されます。</string>
+    <string name="nomatch_body">モデルが見たのは上のラベルだけ。言葉とその意味を書き込めば、自分のワード帳に入り、そのまま復習リストにも加わります。</string>
+    <string name="nomatch_meaning_label">意味（母語）</string>
+    <string name="manual_added_stored">「%1$s」を加えました。自分のワード帳にも保存しました</string>
     <string name="nomatch_labels_seen">モデルが見た言葉</string>
     <string name="detail_close">閉じる</string>
     <string name="detail_untitled">名前のないひととき</string>

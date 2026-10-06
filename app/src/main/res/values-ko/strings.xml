@@ -77,7 +77,9 @@
     <string name="import_no_objects">이 사진에서는 아무것도 찾지 못했어요. 사진 전체를 기록에 저장했어요</string>
 
     <string name="nomatch_title">이 단어는 아직 모르겠어요</string>
-    <string name="nomatch_body">모델이 본 것은 위의 단어뿐이에요. 직접 적어 넣으면 사전에 저장돼요.</string>
+    <string name="nomatch_body">모델이 본 것은 위의 표시들뿐이에요. 단어와 뜻을 적어 넣으면 내 단어장에 저장되고, 바로 복습 목록에도 들어가요.</string>
+    <string name="nomatch_meaning_label">뜻 (제 모국어)</string>
+    <string name="manual_added_stored">%1$s을(를) 넣었어요. 내 단어장에도 저장했어요</string>
     <string name="nomatch_labels_seen">모델이 본 단어</string>
     <string name="detail_close">닫기</string>
     <string name="detail_untitled">이름 없는 순간</string>

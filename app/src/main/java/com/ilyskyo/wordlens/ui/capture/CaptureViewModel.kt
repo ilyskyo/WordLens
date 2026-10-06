@@ -610,9 +610,7 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
                 container.cardFrom(it, settings.targetLanguage, settings.nativeLanguage, EntrySource.MANUAL)
             }
             if (card == null) {
-                _event.value = Event.Notice(
-                    container.appContext.getString(R.string.manual_not_found, typed),
-                )
+                awaitManualEntry(typed, settings)
                 return@launch
             }
             container.deck.add(card)
@@ -621,6 +619,49 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
                 container.appContext.getString(R.string.manual_added, card.headword),
             )
         }
+    }
+
+    /**
+     * 词典里没有这个词 —— `nomatch_body` 那句「它会存进你的词典」从这里才开始兑现。
+     *
+     * 原来这一支只发一句「词典里还没有它」就结束：面板让用户把词写下来，而写下来什么也不会发生
+     * （那个面板此前只有文字承诺、没有入口，正是 C 轨点过的那类「界面有入口但空转」）。
+     * 现在把它存成一条用户词条，随即用它造卡进队列：词典是用户能改的文本，而设备端识别的诚实
+     * 边界本来就在词典上——这一次认不出来的东西，写了它的意思之后就该认得第二次。
+     *
+     * 没填意思时不猜：只把那句话说清楚，并指出另一个入口（设置 → 我的词条）。
+     * 一张空释义的卡进复习队列是纯噪音，而 FSRS 会非常认真地把噪音排到未来。
+     */
+    private suspend fun awaitManualEntry(typed: String, settings: AppSettings) {
+        val meaning = _ui.value.manualMeaning.trim()
+        val entry = LexiconEntry.userEntry(typed, meaning, settings.targetLanguage, settings.nativeLanguage)
+        if (entry == null) {
+            _event.value = Event.Notice(
+                container.appContext.getString(R.string.manual_not_found, typed),
+            )
+            return
+        }
+        if (!container.lexicon.saveUserEntry(entry)) {
+            _event.value = Event.Notice(container.appContext.getString(R.string.notice_word_failed))
+            return
+        }
+        // `saveUserEntry` 已经 reload 过索引，所以这里查得到自己刚写的那条：
+        // 卡片与词典那一格用的是同一个来源，不另造一份释义。
+        val stored = container.lexicon.byId(entry.id) ?: entry
+        val card = container.cardFrom(stored, settings.targetLanguage, settings.nativeLanguage, EntrySource.MANUAL)
+        if (card == null) {
+            _event.value = Event.Notice(container.appContext.getString(R.string.manual_not_found, typed))
+            return
+        }
+        container.deck.add(card)
+        _ui.update { it.copy(manualWord = "", manualMeaning = "") }
+        _event.value = Event.Notice(
+            container.appContext.getString(R.string.manual_added_stored, card.headword),
+        )
+    }
+
+    fun onManualMeaningChange(text: String) {
+        _ui.update { it.copy(manualMeaning = text) }
     }
 
     fun onManualWordChange(text: String) {
