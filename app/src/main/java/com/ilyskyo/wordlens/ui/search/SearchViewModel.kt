@@ -204,7 +204,9 @@ class SearchViewModel(private val container: AppContainer) : ViewModel() {
         // 已经在牌组里的词典条目不再提议——否则用户会在两个区看到同一件事。
         val owned = deck.cards.map { LexiconIndex.normalize(it.headword) }.toSet()
         var suggestionMore = false
-        val suggestions = if (needle.isEmpty()) {
+        // 闸门看的是**原始**查询是否为空，不是规范后的：a / an / the / some 会被规范成空串，
+        // 用 needle 判空等于把这四个词的查询直接判成「用户还没输入」，词典那一区永远空着。
+        val suggestions = if (q.isEmpty()) {
             emptyList()
         } else {
             // 多问一条只为了知道「还有没有更多」：词典里究竟匹配多少条要扫完全表才能报数，

@@ -284,12 +284,20 @@ class LexiconIndex(entries: List<LexiconEntry>) {
     /** Search for the "add a word" picker: matches headwords in any language, or any gloss. */
     fun search(query: String, language: Lang? = null, limit: Int = 50): List<LexiconEntry> {
         val q = normalize(query)
+        // 规范查询会把冠词整词剔掉（a / an / the / some），于是这四个词被规范成**空串**。
+        // 而空串在 `contains` 里等于「什么都匹配」，在调用方又被当作「还没输入」——
+        // 一个值同时背着两种相反的含义，结果是词典里明摆着有的那四个词查不出来。
+        // 这里让空规范查询退回去精确比对词面：既不放开成整张表，也不静默返回空。
+        val exact = if (q.isEmpty()) query.trim().lowercase() else null
         return entries.asSequence()
             .filter { language == null || it.words.containsKey(language.tag) }
             .filter {
-                q.isEmpty() ||
+                if (exact != null) {
+                    it.words.values.any { w -> w.equals(exact, ignoreCase = true) }
+                } else {
                     it.words.values.any { w -> normalize(w).contains(q) } ||
-                    it.glosses.values.any { g -> g.contains(query, ignoreCase = true) }
+                        it.glosses.values.any { g -> g.contains(query, ignoreCase = true) }
+                }
             }
             .sortedWith(compareBy({ it.frequency.takeIf { f -> f > 0 } ?: Int.MAX_VALUE }, { it.headword }))
             .take(limit)

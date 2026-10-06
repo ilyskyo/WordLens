@@ -86,4 +86,24 @@ class LexiconUserEntryTest {
         val found = LexiconIndex(listOf(entry)).search("soba")
         assertTrue("加进去之后仍然搜不到，这条路就是断的", found.any { it.id == entry.id })
     }
+
+    /**
+     * 冠词本身也要查得到。
+     *
+     * `normalize` 把 a / an / the / some 整词剔掉，这四个词的规范形式是**空串**；
+     * 而空串在子串匹配里等于「全表」，在调用方又被当作「还没输入」。三件事叠在一起的后果是：
+     * 词典里明摆着收着 "a"，搜索页输入 a 却回一句「Nothing matches」——四个常用英文词
+     * 在自家词典上查不出来，而界面给的理由是「换个词试试」。
+     */
+    @Test
+    fun `an article is still findable as a word`() {
+        val article = LexiconEntry.userEntry("a", "一个（不定冠词）", Lang.ENGLISH, Lang.CHINESE)
+        val other = LexiconEntry.userEntry("apple", "苹果", Lang.ENGLISH, Lang.CHINESE)
+        val index = LexiconIndex(listOfNotNull(article, other))
+
+        assertEquals(listOf("a"), index.search("a").map { it.headword })
+        // 反过来：空规范查询不能被放开成整张表，否则输入 "the" 会列出前 N 条不相干的词。
+        assertTrue("查一个词典里没有的冠词应该什么都不是，而不是全表",
+            index.search("the").isEmpty())
+    }
 }
