@@ -111,11 +111,23 @@ data class LexiconEntry(
             headword = w,
             language = target.tag,
             ipa = ipaFor(target),
-            glosses = buildMap {
-                put(native.tag, gloss(native) ?: w)
-                // Keep every other translation we have: it costs nothing and makes the card
-                // useful to a learner who is also picking up the other languages.
-                glosses.forEach { (tag, value) -> if (tag != native.tag) put(tag, value) }
+            // 只带**真的**有那个语言的释义。这里原来是 `put(native.tag, gloss(native) ?: w)`，
+            // 两道谎叠在一起：
+            //
+            // 1. [gloss] 会借——母语缺释义时它返回别的语言那一条，于是日文释义被写进
+            //    `glosses["zh"]`。中文用户翻到背面看到的是日文，而这是他要被评级的那一行。
+            //    （同一个形状已经为注音修过一次，见 [ipaFor]。）
+            // 2. 一个释义都没有时它退到 `w`，把**词头自己**当成母语翻译写进卡里，于是这张卡
+            //    从诞生起就正面背面同字——复习队列里那批「伞/伞」的化石就是这么铸出来的。
+            //
+            // 现在铸卡这一侧不再生产化石：母语槽里那个「和词头一模一样」的值也被滤掉，
+            // 因为词典里真出现这种数据时，它一定不是翻译（`filterNot` 只管母语那一格，
+            // 单语词如 "shampoo" 的英文释义仍然留着）。
+            //
+            // 留空才是真话：背面没有翻译，界面改用例句与照片；回忆方向下它确实出不了题，
+            // 会被队列当作不可复习跳过并计入读数，而不是假装一张好卡。
+            glosses = glosses.filterNot { (tag, value) ->
+                tag == native.tag && value.trim().equals(w.trim(), ignoreCase = true)
             },
             example = example,
             exampleGlosses = exampleGlosses,
