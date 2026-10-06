@@ -82,6 +82,20 @@ class JsonDocument<T>(
         private set
 
     /**
+     * 这一次启动是不是「文件在、但解析不出来，于是从空文档重新开始」。
+     *
+     * 与 [persisting] 分开的理由只有一个：损坏留证成功之后我们是**可以**继续写盘的
+     * （`persisting` 回到 true），但此刻内存里那份文档是空的，而磁盘上还有别人。
+     * 任何「拿这份文档去判断磁盘上哪些文件没人引用」的逻辑——比如启动时清扫孤立录音——
+     * 都必须先看这个标志：空文档会让**每一段**录音都看起来是孤儿。
+     *
+     * 那条清扫删掉的东西不可恢复，而 `.corrupt` 里那份 JSON 是可以找人修的。两者的代价
+     * 不对称，所以这一次宁可不扫。
+     */
+    var recoveredBlank: Boolean = false
+        private set
+
+    /**
      * Read the document from disk. Safe to call more than once; later calls are no-ops unless
      * [reload] is used.
      */
@@ -131,6 +145,9 @@ class JsonDocument<T>(
     private fun readFromDisk(): T {
         if (!disk.exists(file)) {
             persisting = true
+            // 文件从来没有过：这是全新装机，不是「读懂了一份空的文档」。对清扫来说两者
+            // 的区别正是要紧的——装机时磁盘上本来也不该有媒体，所以这里可以继续扫。
+            recoveredBlank = false
             return fallback()
         }
         val text = try {
@@ -158,6 +175,7 @@ class JsonDocument<T>(
             return decoded
         }
         persisting = true
+        recoveredBlank = false
         return decoded
     }
 
@@ -180,6 +198,9 @@ class JsonDocument<T>(
             return _state.value
         }
         persisting = true
+        // 可以写盘，但内存里这份是空的而磁盘上还有别人留下的媒体：这一次不许拿它去判断
+        // 「哪些文件没人引用」。见 [recoveredBlank]。
+        recoveredBlank = true
         Log.e(
             tag,
             "Corrupt document at ${file.absolutePath} (${cause::class.simpleName}: ${cause.message}). " +

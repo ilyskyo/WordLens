@@ -261,4 +261,50 @@ class DiaryRepositoryTest {
         assertTrue(kept.isFile)
         assertFalse(orphan.exists())
     }
+
+    /**
+     * `diary.json` 坏掉之后，这一次启动**不许**扫录音。
+     *
+     * 损坏留证成功时 `JsonDocument` 会得到一份合法的空文档并继续允许写盘——于是「没有条目引用
+     * 这段录音」对磁盘上每一段都成立，一扫就把用户所有说过的话删干净。而那些 `.m4a` 是不可恢复的，
+     * 反倒是 `.corrupt` 里那份 JSON 可以找人修。代价不对称，所以这条路必须堵在代码里，
+     * 不能指望「损坏很少发生」。
+     */
+    @Test
+    fun `a corrupt diary does not blank the audio shelf`() = runBlocking {
+        val audio = audioRoot()
+        val doc = JsonDocument(
+            file = File(folder.root, "diary.json"),
+            fallback = { DiaryDocument() },
+            serializer = DiaryDocument.serializer(),
+            scope = scope,
+        )
+        File(folder.root, "diary.json").writeText("{ not json at all", Charsets.UTF_8)
+        val repo = DiaryRepository(doc, folder.root, audio, scope)
+        val recording = File(audio, VoiceMemo.fileName("e13")).apply { writeText("m4a-bytes") }
+
+        repo.loadAsync().join()
+
+        assertTrue("损坏之后把用户的录音一次删光了", recording.isFile)
+        assertTrue("损坏的字节该留证下来，否则无从追查", folder.root.listFiles()!!.any { ".corrupt" in it.name })
+    }
+
+    /** 反过来：读到一份**合法**的空文档时该照扫不误，否则这条隐私保证永远不会兑现。 */
+    @Test
+    fun `a legitimately empty diary still sweeps`() = runBlocking {
+        val audio = audioRoot()
+        val doc = JsonDocument(
+            file = File(folder.root, "diary.json"),
+            fallback = { DiaryDocument() },
+            serializer = DiaryDocument.serializer(),
+            scope = scope,
+        )
+        File(folder.root, "diary.json").writeText("""{"schemaVersion":1,"entries":[],"events":[]}""", Charsets.UTF_8)
+        val repo = DiaryRepository(doc, folder.root, audio, scope)
+        val orphan = File(audio, VoiceMemo.fileName("e14")).apply { writeText("m4a-bytes") }
+
+        repo.loadAsync().join()
+
+        assertFalse(orphan.exists())
+    }
 }

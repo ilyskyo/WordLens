@@ -88,9 +88,19 @@ class DiaryRepository(
      * 扫，谁就会对每一段录音都得出「没有条目引用它」，把用户所有的声音一次删光。把它写成
      * AppContainer 里单独的一条 launch，就等于把排序交给调用点去记，而这条排序错了没有崩溃、
      * 只有第二天打不开的录音。
+     *
+     * 同一个理由还挡住第二种更隐蔽的失败：**读到空文档和「什么都没有」不是一回事**。
+     * `diary.json` 损坏并被留证之后，内存里是一份合法的空文档（还能继续写盘），
+     * 而磁盘上每一段录音都存在——那一扫会把用户所有说过的话删干净，而 `.corrupt` 里那份
+     * 反倒是可以找人修的。代价不对称，所以 `persisting`（没读懂 / 架构比这个构建还新）或
+     * `recoveredBlank`（损坏后从空文档起步）任意为真时，这一次不扫。
      */
     fun loadAsync(): Job = scope.launch {
         doc.load()
+        if (!doc.persisting || doc.recoveredBlank) {
+            Log.w(TAG, "audio sweep skipped: the diary did not come back as itself")
+            return@launch
+        }
         val swept = sweepUnreferencedAudio()
         if (swept > 0) Log.i(TAG, "Swept $swept unreferenced audio file(s)")
     }
