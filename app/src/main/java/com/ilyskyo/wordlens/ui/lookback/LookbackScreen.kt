@@ -11,11 +11,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -608,8 +610,21 @@ private fun TimelineRow(
     onSpeak: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier.fillMaxWidth()) {
+    Row(
+        // 这一行必须有一个确定的高度基准，否则左侧那根主干**从来画不出来**：
+        // LazyColumn 的 item 拿到的是无界高度约束，而 Column 里的 weight(1f) 需要
+        // 「剩余高度」这个数——无界时它算出 0，于是节点上下两段线都是零像素高，
+        // 整页一条线只剩下几颗孤立的圆点。IntrinsicSize.Max 让行高由卡片自己撑出来，
+        // 再把有界的约束交给那一列。代价是每行多一次固有高度测量（位图早已解好，不重解码）。
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Max),
+    ) {
         // ── 左侧时间轴 ──────────────────────────────────────────────
+        // 主干的颜色不能用 `outline`：浅色方案里它是最低对比的那一档，2dp 画出来在
+        // 真机与模拟器上都完全看不见——「整页一条线」只剩下几颗孤立的节点。
+        // 取 onSurface 那一族的低透明度：跟着明暗走，又稳定读得出来。
+        val spine = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.24f)
         Column(
             modifier = Modifier.width(TIMELINE_WIDTH),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -618,7 +633,7 @@ private fun TimelineRow(
                 Modifier
                     .width(TIMELINE_STROKE)
                     .weight(1f)
-                    .background(MaterialTheme.colorScheme.outline),
+                    .background(spine),
             )
             Box(
                 Modifier
@@ -635,7 +650,7 @@ private fun TimelineRow(
                 Modifier
                     .width(TIMELINE_STROKE)
                     .weight(1f)
-                    .background(MaterialTheme.colorScheme.outline),
+                    .background(spine),
             )
         }
 
@@ -692,7 +707,14 @@ private fun EntryTimelineCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(entryAspectRatio),
+                    .aspectRatio(entryAspectRatio)
+                    // 共享节点是**这一整块**，不是里面那张位图：与详情页那边对齐（那边框住的是
+                    // 照片加词片）。挂在位图上时，位图飞到共享层里，压在日期标签之上——
+                    // 真机截图上「日期不见了」就是这么来的，而它其实是自己的照片盖住了自己。
+                    .sharedEntryPhoto(entry.id)
+                    // 圆角必须自己裁，而且要放在共享修饰符**内侧**：共享层画的是这个节点
+                    // 的内容，外面的 clip 它不认。放在外侧时截图上仍然是四个直角。
+                    .clip(MaterialTheme.shapes.large),
             ) {
                 if (card.photo != null) {
                     Image(
@@ -707,9 +729,7 @@ private fun EntryTimelineCard(
                         contentScale = ContentScale.Crop,
                         // 点开的详情页用的就是这一张位图（同一个实例，不二次解码），
                         // 所以飞过去的画面和原地看到的是同一份像素。
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .sharedEntryPhoto(entry.id),
+                        modifier = Modifier.fillMaxSize(),
                     )
                 } else {
                     Box(
@@ -949,7 +969,14 @@ internal fun dayLabel(epochMillis: Long, context: Context): String {
 internal fun stickerTilt(id: String): Float = ((id.fold(0) { a, c -> a + c.code } % 601) - 300) / 100f
 
 private val TIMELINE_WIDTH = 28.dp
-private val TIMELINE_STROKE = 1.dp
+/**
+ * 时间轴主干的粗细。
+ *
+ * 1dp 在 420dpi 上是 2.6 个物理像素，而 `outline` 本来就是浅色系里最浅的那一档——
+ * 真机与模拟器上截出来都是「只有节点，没有线」，整页一条线的设计意图直接消失。
+ * 2dp 是能稳定看见的最小值，再粗就开始和卡片抢注意力。
+ */
+private val TIMELINE_STROKE = 2.dp
 private val TIMELINE_NODE = 10.dp
 private val STICKER_SIZE = 72.dp
 private const val SUMMARY_MAX_LINES = 2
