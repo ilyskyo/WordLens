@@ -84,7 +84,17 @@ data class LexiconEntry(
 
     fun word(tag: String): String? = words[tag] ?: words.values.firstOrNull()
 
-    fun ipaFor(language: Lang): String? = ipa[language.tag] ?: ipa.values.firstOrNull()
+    /**
+     * 该语言自己的注音；**没有就返回 null，不借别的语言的**。
+     *
+     * 原来这里 `?: ipa.values.firstOrNull()`：目标语是中文而条目只有英语音标时，
+     * 卡片正面印着「伞」，下面却挂 `/ʌm'brelə/`。两件事都是错的——它既不是这张卡要问的
+     * 词的读音，又把另一个语言的词形泄露了出来。而 `cardFor` 里那句「正面是母语释义时
+     * 音标就是答案的一部分，不能剧透」正是被这一行破掉的。
+     *
+     * 释义可以借（别的语言的释义仍然是释义，见 [gloss]），注音不行：注音是**这个词的形状**。
+     */
+    fun ipaFor(language: Lang): String? = ipa[language.tag]
 
     /** Meaning in [language]; falls back to any available gloss. */
     fun gloss(language: Lang): String? = glosses[language.tag]

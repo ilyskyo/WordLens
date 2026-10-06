@@ -106,4 +106,21 @@ class LexiconUserEntryTest {
         assertTrue("查一个词典里没有的冠词应该什么都不是，而不是全表",
             index.search("the").isEmpty())
     }
+
+    /**
+     * 注音不跨语言借用。
+     *
+     * 中文目标的卡上出现英语音标，读起来像「这题的答案顺便写在题目上了」；而 `cardFor`
+     * 明确写着正面是母语释义时不能给音标。守的就是这一格。
+     */
+    @Test
+    fun `a card never borrows another language's phonetics`() {
+        val entry = LexiconEntry.userEntry("umbrella", "伞", Lang.ENGLISH, Lang.CHINESE)
+            .let { requireNotNull(it).copy(ipa = mapOf("en" to "/ʌmˈbrelə/")) }
+
+        assertEquals("/ʌmˈbrelə/", entry.ipaFor(Lang.ENGLISH))
+        assertNull("中文目标没有自己的注音，就该空着", entry.ipaFor(Lang.CHINESE))
+        assertNull(entry.toCard(Lang.CHINESE, Lang.ENGLISH, EntrySource.MANUAL)?.ipa)
+        assertEquals("/ʌmˈbrelə/", entry.toCard(Lang.ENGLISH, Lang.CHINESE, EntrySource.MANUAL)?.ipa)
+    }
 }
