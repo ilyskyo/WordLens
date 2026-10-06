@@ -34,7 +34,10 @@
 
     <string name="day_today">Today</string>
     <string name="day_yesterday">Yesterday</string>
-    <string name="lookback_today_count">%1$d moments today</string>
+    <plurals name="lookback_today_count">
+        <item quantity="one">%1$d moment today</item>
+        <item quantity="other">%1$d moments today</item>
+    </plurals>
     <string name="lookback_empty_title">Nothing recorded yet</string>
     <string name="lookback_empty_body">Point the camera at anything. When the words appear, save the frame.</string>
 
@@ -45,7 +48,10 @@
     <string name="review_flip_hint">Tap to reveal, long-press for more</string>
     <string name="review_event_prompt">What happened that day?</string>
     <string name="review_done_title">That is the whole batch</string>
-    <string name="review_done_body">%1$d days in a row. See you tomorrow.</string>
+    <plurals name="review_done_body">
+        <item quantity="one">%1$d day in a row. See you tomorrow.</item>
+        <item quantity="other">%1$d days in a row. See you tomorrow.</item>
+    </plurals>
     <string name="review_empty_title">Nothing is due right now</string>
     <string name="review_empty_body">Go take a few shots. The queue will call you back when it is time.</string>
 
@@ -87,7 +93,10 @@
     <string name="detail_declined">It also saw</string>
     <string name="detail_event_hint">Add what happened that day</string>
     <string name="detail_event_save">Write it down</string>
-    <string name="detail_event_count">%1$d line written for this entry</string>
+    <plurals name="detail_event_count">
+        <item quantity="one">%1$d line written for this entry</item>
+        <item quantity="other">%1$d lines written for this entry</item>
+    </plurals>
     <string name="search_hint">Search words, meanings, or a word from that day</string>
     <string name="search_collect">Collect</string>
     <string name="search_collected_badge">Collected</string>
@@ -121,7 +130,10 @@
     <string name="selection_select_all">Select all</string>
     <string name="selection_cancel">Cancel</string>
     <string name="selection_delete">Delete</string>
-    <string name="selection_delete_title">Delete these %1$d moments?</string>
+    <plurals name="selection_delete_title">
+        <item quantity="one">Delete this moment?</item>
+        <item quantity="other">Delete this moment?</item>
+    </plurals>
     <string name="selection_delete_body">The photos and stickers go away for good. Word cards made from them stay — you have already spent review time on them.</string>
     <string name="detail_copy_text">Copy this text</string>
     <string name="detail_delete">Delete this moment</string>
@@ -180,7 +192,10 @@
     <!-- 通知 -->
     <string name="notification_channel_reminder">Review reminders</string>
     <string name="notification_channel_reminder_desc">Once a day: how many cards are still waiting</string>
-    <string name="notification_due_title">%1$d cards are due today</string>
+    <plurals name="notification_due_title">
+        <item quantity="one">%1$d card is due today</item>
+        <item quantity="other">%1$d cards are due today</item>
+    </plurals>
     <string name="notification_due_body">Open WordLens and file them into long-term memory</string>
     <!-- 发音失败的可行动提示 -->
     <string name="notice_tts_silent">Nothing was heard. The speech engine on this device cannot voice that word.</string>
@@ -258,8 +273,14 @@
     <string name="settings_meaning_label">Meaning (your native language)</string>
     <string name="settings_word_add">Add it</string>
     <string name="settings_word_remove_desc">Delete this entry</string>
-    <string name="lookback_load_older">%1$d earlier records · Load</string>
-    <string name="settings_lexicon_warnings">%1$d dictionary file(s) could not be read: %2$s. If you edited one by hand, check the commas and quotes - an unreadable file is skipped whole</string>
+    <plurals name="lookback_load_older">
+        <item quantity="one">%1$d earlier record · Load</item>
+        <item quantity="other">%1$d earlier records · Load</item>
+    </plurals>
+    <plurals name="settings_lexicon_warnings">
+        <item quantity="one">%1$d dictionary file could not be read: %2$s. If you edited one by hand, check the commas and quotes - an unreadable file is skipped whole</item>
+        <item quantity="other">%1$d dictionary files could not be read: %2$s. If you edited one by hand, check the commas and quotes - an unreadable file is skipped whole</item>
+    </plurals>
     <string name="search_blank_title">Type a word to look up</string>
     <string name="search_blank_body">This searches your deck, the dictionary and this diary at once. Anything in the dictionary can be added to your deck with one tap, and it then joins the review queue.</string>
     <string name="search_more_suggest">The dictionary has more matches · type a more specific word</string>

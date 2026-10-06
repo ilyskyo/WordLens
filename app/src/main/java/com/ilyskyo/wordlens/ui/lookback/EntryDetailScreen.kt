@@ -69,6 +69,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -191,7 +192,7 @@ fun EntryDetailScreen(
                 }
                 if (state.eventCount > 0) {
                     Text(
-                        text = stringResource(R.string.detail_event_count, state.eventCount),
+                        text = pluralStringResource(R.plurals.detail_event_count, state.eventCount, state.eventCount),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(end = Space.md),

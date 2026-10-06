@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -294,7 +295,7 @@ fun LookbackScreen(
                 // LazyColumn 会把它的重组算到最后一张卡头上，滚到底那一下看起来像卡片自己闪了一下。
                 item(key = "older") {
                     OutlinedAction(
-                        text = stringResource(R.string.lookback_load_older, state.olderCount),
+                        text = pluralStringResource(R.plurals.lookback_load_older, state.olderCount, state.olderCount),
                         onClick = onLoadOlder,
                         modifier = Modifier
                             .padding(
@@ -521,7 +522,7 @@ private fun SelectionBar(
     if (confirm) {
         AlertDialog(
             onDismissRequest = { confirm = false },
-            title = { Text(stringResource(R.string.selection_delete_title, count)) },
+            title = { Text(pluralStringResource(R.plurals.selection_delete_title, count, count)) },
             text = { Text(stringResource(R.string.selection_delete_body)) },
             confirmButton = {
                 TextButton(
@@ -577,7 +578,7 @@ private fun Greeting(
             )
             if (todayCount > 0) {
                 Text(
-                    text = stringResource(R.string.lookback_today_count, todayCount),
+                    text = pluralStringResource(R.plurals.lookback_today_count, todayCount, todayCount),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

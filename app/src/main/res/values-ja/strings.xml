@@ -34,7 +34,9 @@
 
     <string name="day_today">今日</string>
     <string name="day_yesterday">昨日</string>
-    <string name="lookback_today_count">今日は %1$d 枚</string>
+    <plurals name="lookback_today_count">
+        <item quantity="other">今日は %1$d 枚</item>
+    </plurals>
     <string name="lookback_empty_title">まだ何も記録していません</string>
     <string name="lookback_empty_body">カメラを何に向けてもいい。言葉が浮かんだら、その一枚を保存します。</string>
 
@@ -45,7 +47,9 @@
     <string name="review_flip_hint">タップで意味・長押しで他の操作</string>
     <string name="review_event_prompt">あの日は何があった？</string>
     <string name="review_done_title">今日はこれで終わり</string>
-    <string name="review_done_body">%1$d 日連続。また明日。</string>
+    <plurals name="review_done_body">
+        <item quantity="other">%1$d 日連続。また明日。</item>
+    </plurals>
     <string name="review_empty_title">期限が来た単語はありません</string>
     <string name="review_empty_body">先に何枚か撮ろう。復習のタイミングが来たら呼びに戻ります。</string>
 
@@ -87,7 +91,9 @@
     <string name="detail_declined">そのとき見えたもの</string>
     <string name="detail_event_hint">あの日の一言を付け足す</string>
     <string name="detail_event_save">書き留める</string>
-    <string name="detail_event_count">この項目 %1$d 行を記録済み</string>
+    <plurals name="detail_event_count">
+        <item quantity="other">この項目 %1$d 行を記録済み</item>
+    </plurals>
     <string name="search_hint">単語・意味・あの日の言葉を探す</string>
     <string name="search_collect">収録</string>
     <string name="search_collected_badge">収録済み</string>
@@ -121,7 +127,9 @@
     <string name="selection_select_all">すべて選択</string>
     <string name="selection_cancel">キャンセル</string>
     <string name="selection_delete">削除</string>
-    <string name="selection_delete_title">%1$d 件の記録を削除しますか？</string>
+    <plurals name="selection_delete_title">
+        <item quantity="other">%1$d 件の記録を削除しますか？</item>
+    </plurals>
     <string name="selection_delete_body">写真とステッカーは完全に削除されます。そこから作った単語カードは残ります——復習にかけた時間は消えません。</string>
     <string name="detail_copy_text">この文字をコピー</string>
     <string name="detail_delete">この記録を削除</string>
@@ -176,7 +184,9 @@
     <!-- 通知 -->
     <string name="notification_channel_reminder">復習のリマインド</string>
     <string name="notification_channel_reminder_desc">1日1回、今日残っている復習の枚数をお知らせ</string>
-    <string name="notification_due_title">今日、復習が%1$d枚残っています</string>
+    <plurals name="notification_due_title">
+        <item quantity="other">今日、復習が%1$d枚残っています</item>
+    </plurals>
     <string name="notification_due_body">WordLens を開いて、長期記憶に留めましょう</string>
     <!-- 发音失败的可行动提示 -->
     <string name="notice_tts_silent">音がでませんでした。この端末の音声エンジンはこの語を発声できません。</string>
@@ -254,8 +264,12 @@
     <string name="settings_meaning_label">意味（母語）</string>
     <string name="settings_word_add">加える</string>
     <string name="settings_word_remove_desc">この項目を削除</string>
-    <string name="lookback_load_older">もっと前の記録が %1$d 件 · 読み込む</string>
-    <string name="settings_lexicon_warnings">辞書ファイル %1$d 個を読み取れませんでした：%2$s。手で編集したならカンマと引用符を確認してください。読み取れないファイルは丸ごとスキップされます</string>
+    <plurals name="lookback_load_older">
+        <item quantity="other">もっと前の記録が %1$d 件 · 読み込む</item>
+    </plurals>
+    <plurals name="settings_lexicon_warnings">
+        <item quantity="other">辞書ファイル %1$d 個を読み取れませんでした：%2$s。手で編集したならカンマと引用符を確認してください。読み取れないファイルは丸ごとスキップされます</item>
+    </plurals>
     <string name="search_blank_title">言葉を打って調べます</string>
     <string name="search_blank_body">マイカード・辞書・この日記をまとめて探します。辞書のどの項目もワンタップでマイカードに加えられ、加えると復習リストに入ります。</string>
     <string name="search_more_suggest">辞書にもっと項目が合っています · もっと具体的な言葉を打ってください</string>

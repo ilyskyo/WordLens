@@ -34,7 +34,9 @@
 
     <string name="day_today">오늘</string>
     <string name="day_yesterday">어제</string>
-    <string name="lookback_today_count">오늘 %1$d개의 순간</string>
+    <plurals name="lookback_today_count">
+        <item quantity="other">오늘 %1$d개의 순간</item>
+    </plurals>
     <string name="lookback_empty_title">아직 기록이 없어요</string>
     <string name="lookback_empty_body">카메라를 아무거나 향해 보세요. 단어가 떠오르면 그 장면을 저장합니다.</string>
 
@@ -45,7 +47,9 @@
     <string name="review_flip_hint">탭하면 뜻 · 길게 누르면 추가 동작</string>
     <string name="review_event_prompt">그날 무슨 일이 있었을까?</string>
     <string name="review_done_title">오늘 몫은 여기까지</string>
-    <string name="review_done_body">%1$d일 연속이에요. 내일 또 봐요.</string>
+    <plurals name="review_done_body">
+        <item quantity="other">%1$d일 연속이에요. 내일 또 봐요.</item>
+    </plurals>
     <string name="review_empty_title">지금 돌아올 단어는 없어요</string>
     <string name="review_empty_body">먼저 몇 장 찍어 보세요. 복습 시점이 되면 다시 부를게요.</string>
 
@@ -87,7 +91,9 @@
     <string name="detail_declined">그때 그것도 봤어요</string>
     <string name="detail_event_hint">그날 있었던 일을 한 줄 더</string>
     <string name="detail_event_save">적어 두기</string>
-    <string name="detail_event_count">이 항목에 %1$d줄 적었어요</string>
+    <plurals name="detail_event_count">
+        <item quantity="other">이 항목에 %1$d줄 적었어요</item>
+    </plurals>
     <string name="search_hint">단어·뜻, 또는 그날의 키워드 검색</string>
     <string name="search_collect">수집</string>
     <string name="search_collected_badge">수집됨</string>
@@ -121,7 +127,9 @@
     <string name="selection_select_all">모두 선택</string>
     <string name="selection_cancel">취소</string>
     <string name="selection_delete">삭제</string>
-    <string name="selection_delete_title">이 %1$d개를 삭제할까요?</string>
+    <plurals name="selection_delete_title">
+        <item quantity="other">이 %1$d개를 삭제할까요?</item>
+    </plurals>
     <string name="selection_delete_body">사진과 스티커는 완전히 사라져요. 거기서 만든 단어 카드는 남아요 — 이미 들인 복습 시간은 지워지지 않아요.</string>
     <string name="detail_copy_text">이 글 복사</string>
     <string name="detail_delete">이 기록 삭제</string>
@@ -176,7 +184,9 @@
     <!-- 通知 -->
     <string name="notification_channel_reminder">복습 알림</string>
     <string name="notification_channel_reminder_desc">하루에 한 번, 오늘 남은 복습 개수를 알려 드려요</string>
-    <string name="notification_due_title">오늘 복습할 카드 %1$d장</string>
+    <plurals name="notification_due_title">
+        <item quantity="other">오늘 복습할 카드 %1$d장</item>
+    </plurals>
     <string name="notification_due_body">WordLens를 열고 장기 기억으로 옮겨 보세요</string>
     <!-- 发音失败的可行动提示 -->
     <string name="notice_tts_silent">소리가 나지 않았어요. 이 기기의 음성 엔진이 그 단어를 발음할 수 없어요.</string>
@@ -254,8 +264,12 @@
     <string name="settings_meaning_label">뜻 (제 모국어)</string>
     <string name="settings_word_add">추가하기</string>
     <string name="settings_word_remove_desc">이 항목 삭제</string>
-    <string name="lookback_load_older">이전의 기록 %1$d개 · 불러오기</string>
-    <string name="settings_lexicon_warnings">사전 파일 %1$d개를 읽지 못했어요: %2$s. 직접 편집했다면 쉼표와 따옴표를 확인해 주세요. 읽지 못한 파일은 통째로 건너뛰어요</string>
+    <plurals name="lookback_load_older">
+        <item quantity="other">이전의 기록 %1$d개 · 불러오기</item>
+    </plurals>
+    <plurals name="settings_lexicon_warnings">
+        <item quantity="other">사전 파일 %1$d개를 읽지 못했어요: %2$s. 직접 편집했다면 쉼표와 따옴표를 확인해 주세요. 읽지 못한 파일은 통째로 건너뛰어요</item>
+    </plurals>
     <string name="search_blank_title">찾을 단어를 적어 보세요</string>
     <string name="search_blank_body">내 단어장·사전·이 일기를 함께 찾아요. 사전의 어떤 항목이든 탭 하나로 단어장에 넣을 수 있고, 넣으면 복습 목록에 들어가요.</string>
     <string name="search_more_suggest">사전에서 더 많이 닿아요 · 더 구체적인 단어를 적어 보세요</string>

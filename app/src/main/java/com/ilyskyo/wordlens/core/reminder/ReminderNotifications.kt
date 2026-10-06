@@ -76,7 +76,7 @@ object ReminderNotifications {
     private fun build(context: Context, dueCount: Int): Notification =
         NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.notification_due_title, dueCount))
+            .setContentTitle(context.resources.getQuantityString(R.plurals.notification_due_title, dueCount, dueCount))
             .setContentText(context.getString(R.string.notification_due_body))
             .setContentIntent(openRemember(context))
             .setAutoCancel(true)

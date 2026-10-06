@@ -1045,7 +1045,7 @@ private fun RememberFinished(
         }
         Staggered(index = 2) {
             Text(
-                text = stringResource(R.string.review_done_body, streakDays),
+                text = pluralStringResource(R.plurals.review_done_body, streakDays, streakDays),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

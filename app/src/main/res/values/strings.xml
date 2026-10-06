@@ -42,7 +42,9 @@
     <!-- 回看页 -->
     <string name="day_today">今天</string>
     <string name="day_yesterday">昨天</string>
-    <string name="lookback_today_count">今天记录了 %1$d 个瞬间</string>
+    <plurals name="lookback_today_count">
+        <item quantity="other">今天记录了 %1$d 个瞬间</item>
+    </plurals>
     <string name="lookback_empty_title">还没有任何记录</string>
     <string name="lookback_empty_body">举起相机对着任意东西，识别完成后可以直接存下这一帧。</string>
 
@@ -55,7 +57,9 @@
     <string name="review_flip_hint">轻点看释义 · 长按可归档</string>
     <string name="review_event_prompt">那天发生了什么？</string>
     <string name="review_done_title">今天这批过完了</string>
-    <string name="review_done_body">连续复习 %1$d 天，明天见。</string>
+    <plurals name="review_done_body">
+        <item quantity="other">连续复习 %1$d 天，明天见。</item>
+    </plurals>
     <string name="review_empty_title">现在没有到期的词</string>
     <string name="review_empty_body">先去拍几个，复习队列会在合适的时候把你叫回来。</string>
 
@@ -105,7 +109,9 @@
     <string name="detail_declined">当时它还看到</string>
     <string name="detail_event_hint">补一句当时发生了什么</string>
     <string name="detail_event_save">记下这句</string>
-    <string name="detail_event_count">这条已记下 %1$d 句</string>
+    <plurals name="detail_event_count">
+        <item quantity="other">这条已记下 %1$d 句</item>
+    </plurals>
     <!-- 搜索 / 添加 -->
     <string name="search_hint">搜单词、释义，或那一天的关键词</string>
     <string name="search_collect">收录</string>
@@ -140,7 +146,9 @@
     <string name="selection_select_all">全选</string>
     <string name="selection_cancel">取消</string>
     <string name="selection_delete">删除</string>
-    <string name="selection_delete_title">删除这 %1$d 条记录？</string>
+    <plurals name="selection_delete_title">
+        <item quantity="other">删除这 %1$d 条记录？</item>
+    </plurals>
     <string name="selection_delete_body">照片和贴纸会一起删除，无法恢复。由这些照片生成的词卡会保留——你已经为它们花过复习时间。</string>
     <string name="detail_copy_text">复制这段文字</string>
     <string name="detail_delete">删除这条记录</string>
@@ -195,7 +203,9 @@
     <!-- 通知 -->
     <string name="notification_channel_reminder">复习提醒</string>
     <string name="notification_channel_reminder_desc">每天一次，告诉你今天还剩几张要复习</string>
-    <string name="notification_due_title">今天还有 %1$d 张要复习</string>
+    <plurals name="notification_due_title">
+        <item quantity="other">今天还有 %1$d 张要复习</item>
+    </plurals>
     <string name="notification_due_body">打开见词，把它们收进长期记忆</string>
     <!-- 发音失败的可行动提示 -->
     <string name="notice_tts_silent">刚才没有出声。这台设备的语音引擎没能为这个词发声。</string>
@@ -275,8 +285,12 @@
     <string name="settings_meaning_label">意思（你的母语）</string>
     <string name="settings_word_add">加进去</string>
     <string name="settings_word_remove_desc">删掉这条</string>
-    <string name="lookback_load_older">更早的还有 %1$d 条 · 载入</string>
-    <string name="settings_lexicon_warnings">有 %1$d 份词典文件读不出来：%2$s。自己改过那个文件的话，检查逗号与引号——读不出来的那一份会整份被跳过</string>
+    <plurals name="lookback_load_older">
+        <item quantity="other">更早的还有 %1$d 条 · 载入</item>
+    </plurals>
+    <plurals name="settings_lexicon_warnings">
+        <item quantity="other">有 %1$d 份词典文件读不出来：%2$s。自己改过那个文件的话，检查逗号与引号——读不出来的那一份会整份被跳过</item>
+    </plurals>
     <string name="search_blank_title">想查什么，打进来</string>
     <string name="search_blank_body">这里同时找你的牌组、词典和这本日记。词典里的任何一条都能一键收进牌组，收下之后就进复习队列。</string>
     <string name="search_more_suggest">词典里还有更多条匹配 · 把词打得更具体一些</string>

@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -635,7 +636,12 @@ private fun MyWordsSection(
             // 不说的话，用户得到的体验是「我加的词 App 不认」，真正的原因却在十个屏幕之外。
             // 文件名不翻译：那是磁盘上的路径片段，翻了就找不到文件了。
             Text(
-                text = stringResource(R.string.settings_lexicon_warnings, warnings.size, warnings.joinToString(", ")),
+                text = pluralStringResource(
+                    R.plurals.settings_lexicon_warnings,
+                    warnings.size,
+                    warnings.size,
+                    warnings.joinToString(", "),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )

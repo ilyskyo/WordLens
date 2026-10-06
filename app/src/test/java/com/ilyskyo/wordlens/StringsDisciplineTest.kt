@@ -163,6 +163,55 @@ class StringsDisciplineTest {
     }
 
     /**
+     * `pluralStringResource` 走同一道检查，规则差两处。
+     *
+     * 把一条带参数的串换成 plurals，会让它从上面那条纪律里**溜走**：那条扫的是
+     * `R.string.<key>`，而 plurals 的引用写作 `R.plurals.<key>`——资源还在、调用还在，
+     * 断言却再也看不见它。所以这里补一条对称的。
+     *
+     * 差的第一处：第一个实参是 quantity，它通常同时被当作格式参数再传一遍
+     * （`pluralStringResource(id, n, n)`），所以比较基准要减掉这一个。
+     * 差的第二处：只对 `other` 那一档要求吻合。英文的 `one` 本来就该丢掉数字
+     * （"Delete this moment?" 而不是 "Delete this 1 moment?"），而 Android 对多余的
+     * positional 参数不报错；`other` 是所有语言都有、也是取不到匹配档位时兜底的那一档，
+     * 它必须对得上。
+     */
+    @Test
+    fun `a plural taken with arguments declares those placeholders in its other form`() {
+        val others = mutableMapOf<String, String>()
+        val nodes = load(stringsFile("values")).getElementsByTagName("plurals")
+        for (i in 0 until nodes.length) {
+            val block = nodes.item(i) as Element
+            var other = ""
+            val items = block.childNodes
+            for (j in 0 until items.length) {
+                val item = items.item(j)
+                if (item is Element && item.tagName == "item" && item.getAttribute("quantity") == "other") {
+                    other = item.textContent
+                }
+            }
+            others[block.getAttribute("name")] = other
+        }
+
+        val call = Regex("""R\.plurals\.(\w+)""")
+        val offenders = mutableListOf<String>()
+        sourceFiles().forEach { file ->
+            val text = file.readText()
+            call.findAll(text).forEach { match ->
+                val key = match.groupValues[1]
+                val arguments = countArgumentsAt(match.range.last + 1, text) - 1
+                val placeholders = ARG_TOKEN.findAll(others[key].orEmpty()).map { it.value }.toSet().size
+                if (arguments > 0 && placeholders == 0) {
+                    offenders += "${file.name} 用 $arguments 个参数取 plurals/$key，而 other 一档一个占位符都没有"
+                } else if (arguments != placeholders) {
+                    offenders += "${file.name} 取 plurals/$key：传了 $arguments 个参数，other 里有 $placeholders 个占位符"
+                }
+            }
+        }
+        assertTrue(offenders.joinToString("; "), offenders.isEmpty())
+    }
+
+    /**
      * 从 `R.string.<key>` 之后那位开始数**顶层**参数个数，直到这一次调用的右括号。
      *
      * 不能简单数逗号：`getString(R.string.x, dayKeyLabel(dayKey, ctx))` 是一个参数不是两个，
