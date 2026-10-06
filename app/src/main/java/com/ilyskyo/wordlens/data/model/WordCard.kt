@@ -223,21 +223,6 @@ data class WordCard(
         return now >= s.due
     }
 
-    /**
-     * The gloss to show on the front of a card, honouring the requested direction: in RECALL
-     * the front is the meaning, in RECOGNIZE it is the word.
-     */
-    fun frontText(direction: StudyDirection, target: Lang): String = when (direction) {
-        StudyDirection.RECOGNIZE -> headword
-        StudyDirection.RECALL -> gloss(target) ?: headword
-    }
-
-    /** The answer side of a card. */
-    fun backText(direction: StudyDirection, target: Lang): String = when (direction) {
-        StudyDirection.RECOGNIZE -> gloss(target) ?: "—"
-        StudyDirection.RECALL -> headword
-    }
-
     companion object {
         fun newId(): String = java.util.UUID.randomUUID().toString().replace("-", "").take(16)
     }
