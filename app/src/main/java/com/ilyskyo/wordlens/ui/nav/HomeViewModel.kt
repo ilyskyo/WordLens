@@ -856,15 +856,24 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val now = System.currentTimeMillis()
         val direction = settings.direction
 
+        // 两面同字的卡不是一张「难的卡」，而是一张**没有背面**的卡：翻面这个动作在它身上
+        // 不产生任何信息，评级也就无从谈起。它们来自一段已经被修好的设置——母语与目标语
+        // 曾被选成同一门，那时铸下的卡词头写的就是母语，所以修好方向也修不回卡上的字。
+        // 只能在这里挡住；但必须把数量说出来，不能让用户以为队列空了。
+        var skippedSameFace = 0
         val queue = buildList {
             if (current.material != StudyMaterial.EVENTS) {
-                deck.cards
-                    .filter { card ->
-                        // 已掌握的卡彻底不出现在队列里——它靠手动归档，不靠 EASY 的长间隔。
-                        val state = card.state(direction)
-                        !card.mastered && (state == null || now >= state.due)
-                    }
-                    .forEach { add(ReviewItem.Word(it)) }
+                val due = deck.cards.filter { card ->
+                    // 已掌握的卡彻底不出现在队列里——它靠手动归档，不靠 EASY 的长间隔。
+                    val state = card.state(direction)
+                    !card.mastered && (state == null || now >= state.due)
+                }
+                val native = settings.nativeLanguage
+                val (reviewable, collapsed) = due.partition {
+                    !facesCollapse(it.headword, it.gloss(native), direction)
+                }
+                skippedSameFace = collapsed.size
+                reviewable.forEach { add(ReviewItem.Word(it)) }
             }
             if (current.material != StudyMaterial.WORDS) {
                 diary.events
@@ -898,6 +907,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             speakEnabled = ttsReady,
             intervals = previewIntervals(head, direction),
             archived = archived,
+            skippedSameFace = skippedSameFace,
             // 卡堆只需要知道「后面还有几张」，不需要知道内容：
             // 提前把下一张的词露出来会直接毁掉自由回忆这件事，而复习的全部价值就在这里。
             upcoming = (queue.size - 1).coerceAtLeast(0),
@@ -923,19 +933,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private fun cardFor(item: ReviewItem, settings: AppSettings): RememberCard = when (item) {
         is ReviewItem.Word -> {
             val card = item.card
-            val prompt: String
-            val back: String?
-            when (settings.direction) {
-                StudyDirection.RECOGNIZE -> {
-                    prompt = card.headword
-                    back = card.gloss(settings.nativeLanguage)
-                }
-
-                StudyDirection.RECALL -> {
-                    prompt = card.gloss(settings.nativeLanguage) ?: card.headword
-                    back = card.headword
-                }
-            }
+            val (prompt, back) = facesOf(card.headword, card.gloss(settings.nativeLanguage), settings.direction)
             RememberCard(
                 item = item,
                 prompt = prompt,

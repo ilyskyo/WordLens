@@ -108,6 +108,13 @@ data class RememberUiState(
     val done: Int = 0,
     val total: Int = 0,
     val current: RememberCard? = null,
+    /**
+     * 因为「两面同字」而根本没进队列的卡数。
+     *
+     * 必须显示出来：把卡悄悄滤掉的另一种写法是队列空了而用户不知道为什么，那会被读成
+     * 「我今天没有要复习的」，而实际上是有几张卡他这辈子都复习不了。
+     */
+    val skippedSameFace: Int = 0,
     /** 这一张这轮翻过没有：评级的闸门，也是答题时长的起点。 */
     val revealed: Boolean = false,
     /** 此刻看着哪一面。可以翻回去，所以它跟 [revealed] 不是一回事。 */
@@ -229,6 +236,14 @@ fun RememberScreen(
             height = PILL_HEIGHT,
         )
         RememberProgress(done = state.done, total = state.total)
+
+        if (state.skippedSameFace > 0) {
+            Text(
+                text = stringResource(R.string.review_skipped_same_face, state.skippedSameFace),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         // 归档是唯一会永久改变队列的动作，所以它必须始终可撤销——入口常驻在进度条下面，
         // 而不是只在空状态里出现（否则刚归档完、队列还有下一张时就没有反悔的地方）。
@@ -371,6 +386,8 @@ private fun ReviewCardArea(
                 // 转的是「此刻看着哪一面」，不是「翻过没有」——后者一旦为真就再也不变，
                 // 接在它上面的话这张卡只能往背面翻一次（真机上就是这么点不动的）。
                 showingAnswer = state.showingAnswer,
+                // 正面那行提示要按「这一张翻过没有」换措辞，而不是按此刻看着哪一面。
+                revealed = state.revealed,
                 onClick = onCardTap,
                 onLongClick = { menuOpen = true },
                 offsetX = offsetX,
@@ -455,6 +472,7 @@ private fun ReviewCardArea(
 private fun FlipCard(
     card: RememberCard,
     showingAnswer: Boolean,
+    revealed: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     offsetX: Animatable<Float, AnimationVector1D>,
@@ -523,7 +541,7 @@ private fun FlipCard(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                CardFront(card = card, progress = progress)
+                CardFront(card = card, progress = progress, revealed = revealed)
             }
             Column(
                 modifier = Modifier
@@ -867,7 +885,7 @@ private fun ArchivedDialog(
 }
 
 @Composable
-private fun CardFront(card: RememberCard, progress: State<Float>, modifier: Modifier = Modifier) {
+private fun CardFront(card: RememberCard, progress: State<Float>, revealed: Boolean, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -905,7 +923,7 @@ private fun CardFront(card: RememberCard, progress: State<Float>, modifier: Modi
             )
         }
         SourceBadge(source = card.source, modifier = Modifier.padding(top = Space.xs))
-        BreathingHint(progress = progress)
+        BreathingHint(progress = progress, revealed = revealed)
     }
 }
 
@@ -925,7 +943,7 @@ private fun CardFront(card: RememberCard, progress: State<Float>, modifier: Modi
  * 所以它属于可以降的那一类。
  */
 @Composable
-private fun BreathingHint(progress: State<Float>, modifier: Modifier = Modifier) {
+private fun BreathingHint(progress: State<Float>, revealed: Boolean, modifier: Modifier = Modifier) {
     val reduceMotion = rememberReduceMotion()
     // 两条分支都返回 State<Float>，alpha 只在下面的 graphicsLayer 里被读：
     // 降级与否都不许引入逐帧重组，那是这一页写死的规矩（见文件注释第 4 条）。
@@ -946,7 +964,9 @@ private fun BreathingHint(progress: State<Float>, modifier: Modifier = Modifier)
         )
     }
     Text(
-        text = stringResource(R.string.review_flip_hint),
+        // 这张卡已经翻过一次，「轻点看释义」就在教一件他刚刚做过的事；换成说清「会在两面之间
+        // 来回」。留着旧句不只是啰嗦——它会让人在已经看到答案之后，以为再点一下是「评级」。
+        text = stringResource(if (revealed) R.string.review_flip_hint_returned else R.string.review_flip_hint),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.graphicsLayer {

@@ -55,6 +55,10 @@
 
     <!-- 复习 -->
     <string name="review_flip_hint">轻点看释义 · 长按可归档</string>
+    <!-- 这一张已经翻过一次之后，正面那行换成这句：「看释义」已经完成了，剩下的事实是
+         点一下会在两面之间来回。留着旧句是在教一件他已经会了的事。 -->
+    <string name="review_flip_hint_returned">轻点翻面 · 长按可归档</string>
+    <string name="review_skipped_same_face">%1$d 张卡两面是同一个词，本轮跳过</string>
     <string name="review_event_prompt">那天发生了什么？</string>
     <string name="review_done_title">今天这批过完了</string>
     <plurals name="review_done_body">
