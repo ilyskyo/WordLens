@@ -152,12 +152,12 @@ val SharedPhotoBounds: BoundsTransform = BoundsTransform { _, _ ->
  */
 @Composable
 @OptIn(ExperimentalSharedTransitionApi::class)
-fun Modifier.sharedEntryPhoto(entryId: String): Modifier {
+fun Modifier.sharedEntryPhoto(entryId: String, hoisted: Boolean = true): Modifier {
     val shared = LocalSharedTransitionScope.current ?: return this
     val visibility = LocalPageVisibilityScope.current ?: return this
     return with(shared) {
         with(visibility) {
-            this@sharedEntryPhoto
+            val withBounds = this@sharedEntryPhoto
                 .sharedBounds(
                     sharedContentState = rememberSharedContentState(key = entryPhotoKey(entryId)),
                     animatedVisibilityScope = this@with,
@@ -168,9 +168,16 @@ fun Modifier.sharedEntryPhoto(entryId: String): Modifier {
                     ),
                     boundsTransform = SharedPhotoBounds,
                 )
-                // 抬进 overlay：飞行途中不能从 Tab 胶囊或底部圆下面穿过去。
-                // 第一个参数是 overlay 内的 z 序（Compose 未导出参数名，故按位置传）。
-                .renderInSharedTransitionScopeOverlay(1f) { true }
+            // 抬进 overlay 的只有**全屏那一侧**：飞行途中画的就是目的侧，它必须在 Tab 胶囊
+            // 与底部圆之上。而时间轴那张是源，抬上去的代价是静止时也常驻 overlay——
+            // overlay 在 SharedTransitionLayout 的整个子树之上，于是列表卡片会盖住左下角的
+            // 拍照键（装机截图确认，`zIndex` 救不了：层级根本不在同一个比较域里）。
+            // 第一个参数是 overlay 内的 z 序（Compose 未导出参数名，故按位置传）。
+            if (hoisted) {
+                withBounds.renderInSharedTransitionScopeOverlay(1f) { true }
+            } else {
+                withBounds
+            }
         }
     }
 }
