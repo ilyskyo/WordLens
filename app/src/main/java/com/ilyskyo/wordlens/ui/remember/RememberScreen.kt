@@ -438,7 +438,17 @@ private fun ReviewCardArea(
 
             // 归档只放这里，不进评级按钮行：「别再给我看它」和「我记得很牢」必须在界面上分开，
             // 否则用户会把还没记住的词当成学完了。
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                // 默认的 `MenuDefaults.containerColor` 是 `surfaceContainerHigh`：在这套暖色板上
+                // 被 tonal elevation 推成一块发紫的灰，再配上 M3 菜单那 4dp 圆角，装机看到的是一
+                // 「渲染坏了的砖」，而不是「一个菜单」。改成页面自己的纸面 + 24dp 超椭圆，
+                // 与 Notice / 对话框同一套形状语言。
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp,
+                shape = MaterialTheme.shapes.large,
+            ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.review_mark_mastered)) },
                     onClick = {
