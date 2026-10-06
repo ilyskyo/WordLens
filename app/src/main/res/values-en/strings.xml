@@ -41,7 +41,9 @@
     <string name="lookback_empty_title">Nothing recorded yet</string>
     <string name="lookback_empty_body">Point the camera at anything. When the words appear, save the frame.</string>
 
-    <string name="study_both">Words and moments</string>
+    <!-- 分段胶囊把每一段等宽，标签超过十个字符就会被截成「Words and ...」——
+     控件上的截断不是省略号的问题，是用户看不见自己在选什么。故用 Both。 -->
+    <string name="study_both">Both</string>
     <string name="study_words">Words</string>
     <string name="study_events">Moments</string>
 
