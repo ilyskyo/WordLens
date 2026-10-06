@@ -255,8 +255,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
      */
     fun onRandomWalk(): String? {
         val today = LocalDate.now().toString()
-        val candidates = container.diary.document.value.entries
-            .filter { it.dayKey != today && it.dayKey !in walked }
+        val pool = container.diary.document.value.entries.filter { it.dayKey != today }
+        // 排除最近去过的那几天是为了「别连着重复」，而不是「那几天从此去不了」。
+        // 只有少数几天过去时，两种做法分得出来：一个用户只有 20 月 3 号那一个过去的日子，
+        // 第二次按随机漫步就会听到一句「日记还太空」——他的日记不空，他只是真的只有那一天。
+        // 一句在这种情形下为假的说明，比连着两次落在同一天糟得多：后者只是无趣，前者是撒谎。
+        val candidates = pool.filterNot { it.dayKey in walked }.ifEmpty { pool }
         val pick = candidates.randomOrNull() ?: run {
             emit(container.appContext.getString(R.string.walk_empty))
             return null
