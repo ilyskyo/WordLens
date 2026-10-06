@@ -789,8 +789,12 @@ private fun EntryTimelineCard(
                     ) {
                         Checkbox(
                             checked = true,
+                            // 它自己不接受点击（切换由整张卡承担），但**不能**用 enabled=false 来表达
+                            // 这件事：M3 的 Checkbox 一旦 disabled 就换用整套 disabled 配色，
+                            // 下面那两行 checkedColor/checkmarkColor 全部作废——截图上那颗勾因此
+                            // 是灰的，看着像「这张卡不能操作」，而它恰恰是选中态唯一的确认信号。
+                            // onCheckedChange = null 已经足够让它不响应切换，且不会碰配色。
                             onCheckedChange = null,
-                            enabled = false,
                             colors = CheckboxDefaults.colors(
                                 checkedColor = MaterialTheme.colorScheme.primary,
                                 checkmarkColor = MaterialTheme.colorScheme.onPrimary,
