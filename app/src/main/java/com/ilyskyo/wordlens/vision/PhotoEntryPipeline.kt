@@ -198,8 +198,17 @@ class PhotoEntryPipeline(
                 stickerPath = stickerName,
                 originalPhotoPath = request.photoFile.name,
                 sceneId = resolved.scene.kind?.id,
-                sceneLabel = resolved.scene.kind?.label?.get(request.nativeLanguage.tag)
-                    ?: resolved.scene.kind?.label?.values?.firstOrNull(),
+                // 只取当前语言那一个，取不到就留 null。
+                //
+                // 原来这里跟着一个 `?: label.values.firstOrNull()`——那是「借任意一个语言」，
+                // 而 `label` 是个 Map，顺序由词典里谁先出现决定。这个字段是**反规范化落进
+                // deck.json** 的（`WordCard.sceneLabel` 的注释自己写着「让牌组墙不必加载每个
+                // 场景」），所以借来的那一句会一直留在磁盘上：用户后来把系统语言或母语换掉，
+                // 卡片上还印着别的语言的场景名，改设置不会回头修它。
+                // 这和刚修掉的 `LexiconEntry.toCard`（把词头自己写成母语释义）是同一个形状——
+                // **为了显示不难看而写的兜底，一旦被拿去写盘，就从「一次妥协」变成「永久谎言」**。
+                // 留 null 才是可恢复的：界面随时可以按 `sceneId` 现查一次。
+                sceneLabel = resolved.scene.kind?.label?.get(request.nativeLanguage.tag),
                 sceneEmoji = resolved.scene.kind?.emoji,
             )
 
