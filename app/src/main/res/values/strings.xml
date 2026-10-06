@@ -5,6 +5,9 @@
 <resources>
     <string name="app_name">见词</string>
     <string name="widget_due_label">今日待复习</string>
+    <!-- 刚放上桌面、还没读到数的那一瞬显示的东西。不能是「0」：那是一条假数字，
+         而它出现的时机恰恰是用户第一次看这个小部件。省略号说的是「还没有数」。 -->
+    <string name="widget_count_placeholder">…</string>
     <string name="widget_description">显示今天还剩几个要复习的词，点它直接进入复习。</string>
 
     <!-- 底部两个常驻动作 -->

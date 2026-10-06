@@ -5,6 +5,7 @@
 <resources>
     <string name="app_name">WordLens</string>
     <string name="widget_due_label">Due today</string>
+    <string name="widget_count_placeholder">…</string>
     <string name="widget_description">Shows how many words are due today. Tap it to go straight to the review queue.</string>
 
     <string name="tab_capture">Capture</string>

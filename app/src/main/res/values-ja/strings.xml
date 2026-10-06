@@ -5,6 +5,7 @@
 <resources>
     <string name="app_name">WordLens</string>
     <string name="widget_due_label">今日の復習</string>
+    <string name="widget_count_placeholder">…</string>
     <string name="widget_description">今日復習する語の数を表示します。タップすると復習へ直接移動します。</string>
 
     <string name="tab_capture">撮影</string>

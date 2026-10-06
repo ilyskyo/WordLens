@@ -20,7 +20,7 @@
         android:id="@+id/widget_due_count"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="0"
+        android:text="@string/widget_count_placeholder"
         android:textColor="@color/widget_count"
         android:textSize="34sp"
         android:textStyle="bold" />

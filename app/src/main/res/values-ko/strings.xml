@@ -5,6 +5,7 @@
 <resources>
     <string name="app_name">WordLens</string>
     <string name="widget_due_label">오늘 복습</string>
+    <string name="widget_count_placeholder">…</string>
     <string name="widget_description">오늘 복습할 단어의 개수를 보여줘요. 탭하면 복습 목록으로 바로 이동해요.</string>
 
     <string name="tab_capture">촬영</string>

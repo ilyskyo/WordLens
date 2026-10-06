@@ -23,6 +23,10 @@ import kotlinx.coroutines.launch
  * 写者视角，而小组件本来就活在同一个进程里。[onUpdate] 不是 suspend，所以数字要晚几十毫秒
  * 才到——那几十毫秒里桌面上留着的是上一次的数（RemoteViews 在桌面有底），不是被清零的占位。
  * 诚实和复制一份仓库之间没有冲突，闪一下 0 才是问题。
+ *
+ * 「上一次的数」只对**刷新**成立；刚把小部件放上桌面时没有上一次，系统画的是
+ * `initialLayout`，所以那份布局里读数的初值是 `@string/widget_count_placeholder`（一个省略号）
+ * 而不是数字——别改回 `0`：那是一个谎，而它出现的时机恰恰是用户第一次看这个小部件。
  */
 class DueWidgetProvider : AppWidgetProvider() {
 
