@@ -4,6 +4,7 @@
 package com.ilyskyo.wordlens.ui.nav
 
 import android.graphics.Bitmap
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -86,20 +87,38 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val settingsFlow = container.settings.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
 
-    /** 素材筛选 + 是否翻面 + 本轮已完成数，合成一个流，让 combine 的入参控制在 5 个。 */
+    /** 素材筛选 + 是否翻面 + 本轮答过的张与第一次答错的张，合成一个流，让 combine 的入参控制在 5 个。 */
     private data class Session(
         val material: StudyMaterial = StudyMaterial.WORDS_AND_EVENTS,
         val revealed: Boolean = false,
-        val done: Int = 0,
         /**
-         * 本轮里评了「忘了」的张数。
+         * 本轮**答过的张**（按卡 id 去重）。
          *
-         * 完成页那个正确率读数必须说清它是**第一次就答对**的比例：一张卡先看背面再评「好」
-         * 也算对，那样这个数字会一路逼近 100% 而毫无意义。这里只统计 AGAIN，
-         * 因为 FSRS 的四档里只有 AGAIN 表示「没想起来」。
+         * 用集合而不是计数器，是因为队列不是一次性快照：`buildRemember` 每次输入变化都按
+         * `now >= due` 重算，而评为「忘了」的卡下一次到期是一分钟后——只要用户还在这一轮里，
+         * 它就会**重新排进来**。按次数计会得到两个错的读数：「已完成 6」把同一张卡数了两次，
+         * 而 `total = done + queue.size` 里它又在队列中出现一次，于是进度条会在答完一张之后
+         * 往回退一格。
          */
-        val missed: Int = 0,
-        /** 本轮第一张卡被评的时刻；0 表示还没开始，免得空轮显示「用时 0 秒」。 */
+        val attempted: Set<String> = emptySet(),
+        /**
+         * 本轮里**第一次**就评了「忘了」的张数。
+         *
+         * 完成页那个读数说的是「第一次就答对」的比例，所以分子分母都必须是张而不是次数：
+         * 一张卡先「忘了」再在同一个一分钟后答对，它对「一次答对率」的贡献是 0/1，
+         * 而不是 1/2。按次数算的话这个数字会一路逼近 100% 而毫无意义——
+         * 重复答错的那几张恰恰是最该被看到的。FSRS 四档里只有 AGAIN 表示「没想起来」。
+         */
+        val firstMissed: Int = 0,
+        /**
+         * 本轮第一次翻面的时刻，单位是 `SystemClock.elapsedRealtime()`；0 表示还没开始
+         * （空轮不该显示「用时 0 秒」）。
+         *
+         * 两件事都写在名字里：起算点是**翻面**而不是第一次评级——一轮真正开始于用户开始答题
+         * 那一刻，而第一张往往是想得最久的一张，从第一次评级起算会系统性地把最长那段剪掉；
+         * 用单调钟而不是墙钟，是因为一次中途的自动校时就能把用时推成负数，而那个数会被
+         * 当成本轮成绩读出来。
+         */
         val startedAt: Long = 0L,
     )
 
@@ -299,12 +318,20 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     fun onReveal() {
         if (session.value.revealed) return
-        revealedAt = System.currentTimeMillis()
+        // 单调钟：墙钟在这一轮中间被人调一下（自动校时开关、时区、NTP 步进），「这题想了多久」
+        // 就会变成负数或几十小时，而那个数是**写进复习日志**的——它不会当场报错，只在几个月后的
+        // 间隔里露出来。同一件事 `core/RetryGate.kt` 与语音那顆秒表都论证过一次。
+        revealedAt = SystemClock.elapsedRealtime()
         // 翻开一次就等于「这是用户要重新回答的一张卡」，重复评级的闸门随之放开：
         // 评级按钮只有翻面之后才可按（enabled = revealed），所以任何一次合法的第二评，
         // 中间必然经过一次新的 reveal。用它当释放点，不用往队列上挂额外的收集器。
         gradedKey = null
-        session.update { it.copy(revealed = true) }
+        session.update {
+            it.copy(
+                revealed = true,
+                startedAt = if (it.startedAt == 0L) revealedAt else it.startedAt,
+            )
+        }
     }
 
     /**
@@ -326,7 +353,13 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         if (key == gradedKey) return
         gradedKey = key
         val now = System.currentTimeMillis()
-        val elapsed = if (revealedAt > 0) now - revealedAt else 0L
+        // 时长取自单调钟与单调钟之差；`now` 仍然是墙钟，因为它是要落盘的那次复习**时刻**。
+        // 两者混用是这个文件里最容易写错的一格：把墙钟当时长用，一次校时就是一笔永久坏数据。
+        val elapsed = if (revealedAt > 0L) {
+            (SystemClock.elapsedRealtime() - revealedAt).coerceAtLeast(0L)
+        } else {
+            0L
+        }
         viewModelScope.launch {
             gradeLock.withLock {
                 when (item) {
@@ -340,11 +373,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             revealedAt = 0L
             // 仓库更新会推动流重算队列，这里只复位翻面与计数。
             session.update { current ->
+                val firstThisRound = key !in current.attempted
                 current.copy(
                     revealed = false,
-                    done = current.done + 1,
-                    missed = current.missed + if (rating == Fsrs.Rating.AGAIN) 1 else 0,
-                    startedAt = if (current.startedAt == 0L) now else current.startedAt,
+                    attempted = current.attempted + key,
+                    firstMissed = current.firstMissed +
+                        if (firstThisRound && rating == Fsrs.Rating.AGAIN) 1 else 0,
                 )
             }
             // 桌面上那个数得跟着变。系统刷新最快 30 分钟一次，对一个「还剩几个」的读数没意义。
@@ -815,11 +849,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
         return RememberUiState(
             material = current.material,
-            done = current.done,
-            total = current.done + queue.size,
+            done = current.attempted.size,
+            total = current.attempted.size + queue.size,
             current = head?.let { cardFor(it, settings) },
             revealed = current.revealed,
-            finished = head == null && current.done > 0,
+            finished = head == null && current.attempted.isNotEmpty(),
             streakDays = container.deck.streak(now),
             speakEnabled = ttsReady,
             intervals = previewIntervals(head, direction),
@@ -827,9 +861,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             // 卡堆只需要知道「后面还有几张」，不需要知道内容：
             // 提前把下一张的词露出来会直接毁掉自由回忆这件事，而复习的全部价值就在这里。
             upcoming = (queue.size - 1).coerceAtLeast(0),
-            sessionSeconds = if (current.startedAt == 0L) 0 else ((now - current.startedAt) / 1000L).toInt(),
-            firstTryAccuracy = if (current.done == 0) 1f else
-                (current.done - current.missed).toFloat() / current.done,
+            // `startedAt` 是 elapsedRealtime 刻度，所以这里不能跟上面那个墙钟 `now` 相减——
+            // 两个不同源的数相减，得到的数没有意义（而它显示成「用时 3 秒」时就完全看不出错了）。
+            sessionSeconds = if (current.startedAt == 0L) 0 else
+                ((SystemClock.elapsedRealtime() - current.startedAt) / 1000L).coerceAtLeast(0L).toInt(),
+            firstTryAccuracy = if (current.attempted.isEmpty()) 1f else
+                (current.attempted.size - current.firstMissed).toFloat() / current.attempted.size,
         )
     }
 
