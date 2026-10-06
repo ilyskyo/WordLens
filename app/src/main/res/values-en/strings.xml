@@ -49,7 +49,10 @@
 
     <string name="review_flip_hint">Tap to reveal, long-press for more</string>
     <string name="review_flip_hint_returned">Tap to flip, long-press for more</string>
-    <string name="review_skipped_same_face">%1$d cards say the same thing on both sides and were skipped</string>
+    <plurals name="review_skipped_same_face">
+        <item quantity="one">%1$d card says the same thing on both sides and was skipped</item>
+        <item quantity="other">%1$d cards say the same thing on both sides and were skipped</item>
+    </plurals>
     <string name="review_event_prompt">What happened that day?</string>
     <string name="review_done_title">That is the whole batch</string>
     <plurals name="review_done_body">

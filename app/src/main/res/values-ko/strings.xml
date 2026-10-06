@@ -46,7 +46,9 @@
 
     <string name="review_flip_hint">탭하면 뜻 · 길게 누르면 추가 동작</string>
     <string name="review_flip_hint_returned">탭하면 뒤집힘 · 길게 누르면 추가 동작</string>
-    <string name="review_skipped_same_face">%1$d장은 앞면과 뒷면이 같은 단어라 건너뛰었습니다</string>
+    <plurals name="review_skipped_same_face">
+        <item quantity="other">%1$d장은 앞면과 뒷면이 같은 단어라 건너뛰었습니다</item>
+    </plurals>
     <string name="review_event_prompt">그날 무슨 일이 있었을까?</string>
     <string name="review_done_title">오늘 몫은 여기까지</string>
     <plurals name="review_done_body">

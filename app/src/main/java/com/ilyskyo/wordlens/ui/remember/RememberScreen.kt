@@ -239,7 +239,11 @@ fun RememberScreen(
 
         if (state.skippedSameFace > 0) {
             Text(
-                text = stringResource(R.string.review_skipped_same_face, state.skippedSameFace),
+                text = pluralStringResource(
+                    R.plurals.review_skipped_same_face,
+                    state.skippedSameFace,
+                    state.skippedSameFace,
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
