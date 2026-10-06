@@ -59,6 +59,8 @@ data class AppSettings(
     fun backLanguage(): Lang = if (direction == StudyDirection.RECOGNIZE) nativeLanguage else targetLanguage
 
     companion object {
+
+
         /**
          * Default model id for the optional vision backend.
          *
@@ -103,6 +105,20 @@ class SettingsRepository(private val context: Context) {
     suspend fun setNativeLanguage(lang: Lang) = put(Keys.NATIVE_LANG, lang.tag)
 
     suspend fun setTargetLanguage(lang: Lang) = put(Keys.TARGET_LANG, lang.tag)
+
+    /**
+     * 一次编辑写定两个方向。
+     *
+     * 分两次 `put` 做不到这件事：无论先后，中间都会有一次落进「目标语 == 母语」那一格，
+     * 而那一格没有合法的卡可问——正面与背面是同一个词。`edit` 是一次原子写，
+     * 流里因此不会出现那一格。
+     */
+    suspend fun setLanguagePair(native: Lang, target: Lang) {
+        context.dataStore.edit {
+            it[Keys.NATIVE_LANG] = native.tag
+            it[Keys.TARGET_LANG] = target.tag
+        }
+    }
 
     suspend fun setDirection(direction: StudyDirection) = put(Keys.DIRECTION, direction.name)
 

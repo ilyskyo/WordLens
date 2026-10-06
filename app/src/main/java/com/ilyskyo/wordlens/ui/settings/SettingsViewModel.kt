@@ -51,9 +51,31 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         reprobeVoices()
     }
 
-    fun onTargetLanguage(lang: Lang) = write { setTargetLanguage(lang) }
+    /**
+     * 选目标语。选中了当前母语那一门时**两者互换**。
+     *
+     * 原来这里只是 `setTargetLanguage(lang)`，于是可以把两门语言选成同一门：复习卡正面「伞」、
+     * 背面释义也是「伞」，复习变成把答案给自己看两遍，而界面上没有任何一处说这不对劲
+     * （模拟器上真的存出了 zh/zh 这一对）。
+     *
+     * 互换是更贴近意图的那一步：把「中文」选成目标语的人，多半就是想把方向反过来——
+     * 这正是 §6.3「四语双向」要支持的事，而不是一个该被拒绝的输入。
+     */
+    fun onTargetLanguage(lang: Lang) = pickLanguage(choosingTarget = true, chosen = lang)
 
-    fun onNativeLanguage(lang: Lang) = write { setNativeLanguage(lang) }
+    /** 选母语。与 [onTargetLanguage] 对称：撞上目标语时同样互换。 */
+    fun onNativeLanguage(lang: Lang) = pickLanguage(choosingTarget = false, chosen = lang)
+
+    private fun pickLanguage(choosingTarget: Boolean, chosen: Lang) {
+        val current = state.value
+        val (native, target) = pairAfterPicking(
+            currentNative = current.nativeLanguage,
+            currentTarget = current.targetLanguage,
+            choosingTarget = choosingTarget,
+            chosen = chosen,
+        )
+        write { setLanguagePair(native, target) }
+    }
 
     fun onDirection(direction: StudyDirection) = write { setDirection(direction) }
 
@@ -205,6 +227,24 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     companion object {
+        /**
+         * 选完之后应该落成哪一对 `(母语, 目标语)`。
+         *
+         * 纯函数存在只为了一件事：这条规则是「任何时刻都不许出现同一对语言」这条不变式的
+         * 唯一执行点，而它得能在 JVM 里被钉住——DataStore 那层不在单测范围内。
+         */
+        internal fun pairAfterPicking(
+            currentNative: Lang,
+            currentTarget: Lang,
+            choosingTarget: Boolean,
+            chosen: Lang,
+        ): Pair<Lang, Lang> = when {
+            choosingTarget && chosen == currentNative -> currentTarget to chosen
+            !choosingTarget && chosen == currentTarget -> chosen to currentNative
+            choosingTarget -> currentNative to chosen
+            else -> chosen to currentTarget
+        }
+
         private const val STOP_TIMEOUT_MS = 5_000L
 
         fun factory(container: AppContainer): androidx.lifecycle.ViewModelProvider.Factory =
