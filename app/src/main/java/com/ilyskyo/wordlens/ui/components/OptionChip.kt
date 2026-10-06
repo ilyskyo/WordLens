@@ -68,11 +68,17 @@ fun OptionChip(
         colors = FilterChipDefaults.filterChipColors(
             containerColor = onSurface.copy(alpha = UnselectedAlpha),
             labelColor = onSurface,
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            // 选中用**实心主色 + 白字**，不用 `primaryContainer`。
+            //
+            // 上一版是 primaryContainer（淡桃）+ 深墨字，装机截图上看不出来哪颗是开的：
+            // 淡桃与中性灰只差色温不差明度，而文字那侧 `onPrimaryContainer` 与 `onSurface`
+            // 几乎是同一个深度。一整排六颗的时候，「哪一颗被选了」是这一控件唯一要说的事，
+            // 说不清就是没做完。iOS 的过滤胶囊选中时也正是实心强调色 + 白字。
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
             disabledContainerColor = onSurface.copy(alpha = UnselectedAlpha / 2f),
             disabledLabelColor = onSurface.copy(alpha = DisabledAlpha),
-            disabledSelectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
+            disabledSelectedContainerColor = MaterialTheme.colorScheme.primary.copy(
                 alpha = DisabledAlpha,
             ),
         ),
