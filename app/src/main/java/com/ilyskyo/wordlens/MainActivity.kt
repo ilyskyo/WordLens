@@ -261,7 +261,7 @@ private fun WordLensRoot(
                             },
                             onCapture = { stack = PageStack.push(stack, Page.Capture) },
                             onSearch = { stack = PageStack.push(stack, Page.Search) },
-                            onOpenEntry = { id -> openEntry(stack, home, id) },
+                            onOpenEntry = { id -> stack = openEntry(stack, home, id) },
                         )
 
                         is Page.Detail -> DetailScene(home = home, onBack = { stack = pop(stack, home) })
@@ -280,7 +280,7 @@ private fun WordLensRoot(
                             container = container,
                             shared = sharedText.value,
                             onClose = { stack = pop(stack, home) },
-                            onOpenEntry = { id -> openEntry(stack, home, id) },
+                            onOpenEntry = { id -> stack = openEntry(stack, home, id) },
                         )
 
                         Page.Settings -> SettingsHost(
