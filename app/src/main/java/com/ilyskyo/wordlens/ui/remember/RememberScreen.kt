@@ -606,7 +606,23 @@ private fun BackSheet(layers: Int, modifier: Modifier = Modifier) {
     }
 }
 
-/** 一侧的判决光晕。透明度读 State，所以滑动期间不重组。 */
+/**
+ * 一侧的判决提示：一层从被拖那侧漫进来的浅底 + 一枚斜着盖上的判决章。
+ *
+ * 透明度与章的角度都读 `State`，所以滑动期间不重组。
+ *
+ * ## 为什么不铺整张卡
+ *
+ * 上一版是「整张卡染成 14% 的那一档色，左边写一个『忘了』」。装机划了一下，得到的是一整块
+ * 粉底加一个孤零零的词——读起来像**卡片自己变了**（换了一张、坏了、被选中了），
+ * 而不是「往这一侧松手会判成什么」。大面积平涂把注意力从卡片内容上抢走了，
+ * 而那才是这一页真正要看的字。
+ *
+ * 现在只压一层很轻的底（章本身负责表意），并且把判决词做成一枚**斜盖的章**：
+ * 旋转 + 随滑动放大，是贴纸本自己的语法——这一侧要说的不是「背景变了」，
+ * 而是「这一张会被判成什么」。章用淡底加深墨字，不用饱和色配白字（见 `Color.kt` 那条硬规则：
+ * 饱和色上放白字最多 3.6:1，读不动）。
+ */
 @Composable
 private fun SwipeGlow(side: SwipeSide, progress: State<Float>, modifier: Modifier = Modifier) {
     val ratings = WordLensTheme.accents.ratings
@@ -615,6 +631,7 @@ private fun SwipeGlow(side: SwipeSide, progress: State<Float>, modifier: Modifie
         SwipeSide.Good -> ratings.good
     }
     val label = stringResource(if (side == SwipeSide.Again) R.string.review_again else R.string.review_good)
+    val shape = MaterialTheme.shapes.extraLarge
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -626,19 +643,41 @@ private fun SwipeGlow(side: SwipeSide, progress: State<Float>, modifier: Modifie
                 }
                 alpha = raw.coerceIn(0f, 1f) * GLOW_MAX_ALPHA
             }
-            .background(tone.hue.copy(alpha = 0.14f), MaterialTheme.shapes.extraLarge),
+            .background(tone.hue.copy(alpha = 0.08f), shape),
         contentAlignment = if (side == SwipeSide.Again) Alignment.CenterStart else Alignment.CenterEnd,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleMedium,
-            color = tone.ink,
-            modifier = Modifier.padding(horizontal = Space.lg),
-        )
+        val stampShape = CircleShape
+        Box(
+            modifier = Modifier
+                .padding(horizontal = Space.lg)
+                .graphicsLayer {
+                    val raw = when (side) {
+                        SwipeSide.Again -> -progress.value
+                        SwipeSide.Good -> progress.value
+                    }
+                    // 章是「盖下去」的：越接近阈值越大、越正。起点给到 0.72 而不是 0，
+                    // 因为从一颗点长出来会读成弹出提示，而从一枚斜章转正读成判决成形。
+                    val p = raw.coerceIn(0f, 1f)
+                    scaleX = 0.72f + 0.28f * p
+                    scaleY = 0.72f + 0.28f * p
+                    rotationZ = (if (side == SwipeSide.Again) -STAMP_TILT else STAMP_TILT) * (1f - p)
+                }
+                .background(tone.container, stampShape)
+                .padding(horizontal = Space.md, vertical = Space.sm),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = tone.ink,
+            )
+        }
     }
 }
 
 private enum class SwipeSide { Again, Good }
+
+/** 判决章的初始倾角（度）。滑到阈值时归正，所以它是「盖歪了 → 盖实了」这一段。 */
+private const val STAMP_TILT = 12f
 
 @Composable
 private fun RememberProgress(done: Int, total: Int, modifier: Modifier = Modifier) {

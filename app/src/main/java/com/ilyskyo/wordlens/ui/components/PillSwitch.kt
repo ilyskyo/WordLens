@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -199,7 +200,14 @@ private fun PillSegment(
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                // `fill = false` 是关键。上一版这里是 `fillMaxWidth()`：它把整段的宽度全部
+                // 吃掉，于是外层 Row 的 `Arrangement.Center` 无从生效，而 Text 自己默认左对齐
+                // ——三个标签就这样齐齐贴在每一段的左边，看着像没排版。
+                // weight(1f, fill = false) 给的是「最多可以用到这些」而不是「必须占满」：
+                // 短标签按自身宽度被居中，长标签（德语式的世界杯、四语里最长的那一条）仍然
+                // 被限制在段内并走 ellipsis，不会把相邻段顶开。
+                modifier = Modifier.weight(1f, fill = false),
             )
         }
     }

@@ -27,6 +27,7 @@ import com.ilyskyo.wordlens.ui.components.InsetField
 import com.ilyskyo.wordlens.ui.components.OptionChip
 import com.ilyskyo.wordlens.ui.components.PrimaryButton
 import com.ilyskyo.wordlens.ui.components.WordLensDialog
+import com.ilyskyo.wordlens.ui.components.WordLensFormSheet
 import java.io.File
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -379,13 +380,15 @@ private fun EditEntryDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    WordLensDialog(
+    // 编辑一条日记要摆两个输入框加一排心情，这个内容量已经超出 alert 的形状
+    // （alert 里最后一排胶囊会被动作行齐头切掉，键盘弹起更甚），所以用 form sheet：
+    // 顶栏左取消右完成、钉住不动，中间整页可滚。
+    WordLensFormSheet(
         title = stringResource(R.string.detail_edit_title),
-        onDismiss = onDismiss,
-        primaryText = stringResource(R.string.detail_edit_save),
-        onPrimary = onSave,
-        secondaryText = stringResource(R.string.selection_cancel),
-        onSecondary = onDismiss,
+        cancelText = stringResource(R.string.selection_cancel),
+        onCancel = onDismiss,
+        confirmText = stringResource(R.string.detail_edit_save),
+        onConfirm = onSave,
         content = {
             Column(
                 // 滚动在外层对话框里已经安排好，这里只负责排布：再套一层 verticalScroll
