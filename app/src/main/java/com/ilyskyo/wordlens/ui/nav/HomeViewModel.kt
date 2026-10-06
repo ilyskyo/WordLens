@@ -587,6 +587,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val text = eventDraft.value.trim()
         if (text.isEmpty()) return
         val entry = container.diary.document.value.entries.firstOrNull { it.id == id } ?: return
+        // 草稿在按下这一刻就交出去，而不是等 addEvent 回来。事件卡的 id 每次都是新造的，
+        // 所以仓库那头的按 id 判重**挡不住**连点两下：两次提交是两个不同的 id、同一句话，
+        // 复习队列里从此多出一句一模一样的话，各自按各自的间隔回来。
+        // 清掉之后输入框当场空了——那 also 是「记下了」该有的即时反馈。
+        eventDraft.value = ""
         viewModelScope.launch {
             container.diary.addEvent(
                 EventCard(
@@ -599,7 +604,6 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                     source = ReviewSource.USER,
                 ),
             )
-            eventDraft.value = ""
         }
     }
 

@@ -307,4 +307,27 @@ class DiaryRepositoryTest {
 
         assertFalse(orphan.exists())
     }
+
+    /**
+     * 同一条 `Entry` 提交两次只会进去一条。
+     *
+     * 判重查的是 **id** 而不是内容：`deck.add` 与 `addEvent` 一直按 id 判重，条目这一边过去是
+     * 无条件 append，于是三条写入口里有两条守住了唯一性、一条没守。这不是假想的输入——
+     * 取景页「保存」的提交是挂起的，那颗按钮在写盘回来之前还按得下去，而第二次提交带着
+     * **同一个 Output**（id 也是同一个）再来一遍。
+     *
+     * 后果不在多一条一样的记录上：时间轴拿条目 id 当 LazyColumn 的 key，重复 key 是
+     * `IllegalArgumentException`，用户看到的是一次闪退。
+     */
+    @Test
+    fun `the same entry id is only ever stored once`() = runBlocking {
+        val repo = diaryRepo()
+        val entry = Entry(id = "e15", photoPath = "e15.jpg", takenAt = now)
+
+        assertTrue("第一次该真的加进去", repo.addEntry(entry))
+        assertFalse("第二次是重复提交", repo.addEntry(entry))
+
+        assertEquals(1, repo.document.value.entries.size)
+        assertEquals(listOf("e15"), repo.document.value.entries.map { it.id })
+    }
 }

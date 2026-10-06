@@ -239,6 +239,8 @@
 
 原子写 + 损坏留证（损坏文件重命名保留，不静默丢弃）。
 
+**条目 id 在文档内唯一，写入口自己守住这条不变式**：`deck.add`、`diary.addEvent`、`diary.addEntry` 三处都按 id 判重，第二次提交是 no-op 而不是多一条。理由不在「多一条难看」——更新、删除、附件与详情页全都按 `firstOrNull { it.id == … }` 找条目，而时间轴拿条目 id 当 LazyColumn 的 key，一条重复 key 抛的是 `IllegalArgumentException`。一份能被手改、能被 git diff 的明文 JSON，不该把唯一性交给调用方自觉。
+
 Room 能扛更大规模、查询也更方便，但**明文 JSON 可以 git diff、可以手改、可以 grep、可以不依赖工具直接备份**。一个个人词汇 App 的牌组规模，低几千条，够用。
 
 ### 8.7 云备份只带文字，不带照片和 key

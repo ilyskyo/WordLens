@@ -117,8 +117,24 @@ class DiaryRepository(
 
     // ── entries ──────────────────────────────────────────────────────────────
 
-    suspend fun addEntry(entry: Entry) = doc.update { current ->
-        current.copy(entries = current.entries + entry)
+    /**
+     * 加一条日记；同一个 id 只认第一次。
+     *
+     * 这一条判重不是防御谁，而是这个文档的**唯一性约定本身**：`updateEntry`、`deleteEntry`、
+     * `attachAudio` 与详情页都按 `firstOrNull { it.id == ... }` 找条目，时间轴还直接把条目 id
+     * 当作 LazyColumn 的 key。而 `deck.add` 与 [addEvent] 两边本来就各自按 id 判重，只有这里
+     * 一直是无条件 append——于是一次被触发两遍的提交会留下两条同 id 的记录，界面拿到的是
+     * 重复 key 抛出的 IllegalArgumentException，用户看到的是一次闪退，而不是「多了一条一样的」。
+     *
+     * @return 真的加进去了一条吗。false 表示这份提交是重复的，调用方据此决定还要不要说话。
+     */
+    suspend fun addEntry(entry: Entry): Boolean {
+        var added = false
+        doc.update { current ->
+            added = current.entries.none { it.id == entry.id }
+            if (added) current.copy(entries = current.entries + entry) else current
+        }
+        return added
     }
 
     suspend fun updateEntry(entry: Entry) = doc.update { current ->

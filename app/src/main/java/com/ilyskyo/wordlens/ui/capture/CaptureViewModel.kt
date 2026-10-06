@@ -149,6 +149,19 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
      */
     private var staged: PhotoEntryPipeline.Output? = null
 
+    /**
+     * 正在收录中的词头（规范化过的）。
+     *
+     * 与搜索页 `SearchViewModel.collecting` 同一个理由：`LexiconEntry.toCard` 每次发一个**新 id**，
+     * 所以 `deck.add` 那头按 id 的判重只挡得住同一张卡的重放，挡不住连点两下——写一张卡要等一次
+     * 挂起才回来，第二下完全能在第一张落库之前通过判重，牌组里从此多出一张一模一样的卡，
+     * 而 FSRS 会非常认真地把它排进未来。
+     *
+     * 这里**不能**像「保存」那样当场把输入框清空：这一支有失败路径（没填意思、词典文件写不进去），
+     * 清空等于把用户刚打的那两个字一起赔进去。
+     */
+    private val collecting = mutableSetOf<String>()
+
     // ── 相机生命周期 ─────────────────────────────────────────────────────────
 
     /** 由 [CaptureCamera] 在 bindToLifecycle 成功后调用。 */
@@ -567,9 +580,13 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
     /** 结果页「保存」：卡片进 deck，Entry 进 diary，然后关闭取景页。 */
     fun onSave() {
         val s = staged ?: return
+        // 暂存在按下这一刻就放掉，而不是等 commit 写盘回来。commit 是挂起的（整段在 IO 上，
+        // 还要拿文档那把锁），而这一段里取景页还停在结果页、那颗按钮还是原来那颗、还按得下去：
+        // 第二次提交带着**同一个 Output** 再来一遍，条目的 id 也是同一个。
+        // 顺手换来的另一半是按下即关，不必等磁盘。
+        staged = null
         viewModelScope.launch {
             container.photoPipeline.commit(s)
-            staged = null
             _event.value = Event.Saved(s.entry.id, savedCard = s.card != null, dayKey = s.entry.dayKey)
         }
     }
@@ -601,23 +618,31 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
     fun onManualAdd() {
         val typed = _ui.value.manualWord.trim()
         if (typed.isEmpty()) return
+        // 当场占住这个词头，第二下就进不来。见 [collecting] 那段：这一支有失败路径，
+        // 所以不能用「清空输入框」来防连点。
+        val marker = LexiconIndex.normalize(typed)
+        if (!collecting.add(marker)) return
         viewModelScope.launch {
-            val settings = settingsFlow.value
-            val exact = container.lexicon.search(typed, settings.targetLanguage).firstOrNull {
-                it.headword.equals(typed, ignoreCase = true)
+            try {
+                val settings = settingsFlow.value
+                val exact = container.lexicon.search(typed, settings.targetLanguage).firstOrNull {
+                    it.headword.equals(typed, ignoreCase = true)
+                }
+                val card = exact?.let {
+                    container.cardFrom(it, settings.targetLanguage, settings.nativeLanguage, EntrySource.MANUAL)
+                }
+                if (card == null) {
+                    awaitManualEntry(typed, settings)
+                    return@launch
+                }
+                container.deck.add(card)
+                _ui.update { it.copy(manualWord = "") }
+                _event.value = Event.Notice(
+                    container.appContext.getString(R.string.manual_added, card.headword),
+                )
+            } finally {
+                collecting.remove(marker)
             }
-            val card = exact?.let {
-                container.cardFrom(it, settings.targetLanguage, settings.nativeLanguage, EntrySource.MANUAL)
-            }
-            if (card == null) {
-                awaitManualEntry(typed, settings)
-                return@launch
-            }
-            container.deck.add(card)
-            _ui.update { it.copy(manualWord = "") }
-            _event.value = Event.Notice(
-                container.appContext.getString(R.string.manual_added, card.headword),
-            )
         }
     }
 
