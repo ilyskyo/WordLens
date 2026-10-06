@@ -367,6 +367,16 @@ app/src/main/java/com/ilyskyo/wordlens/
 1. **纯逻辑不 import `android.graphics`。** `unitTests.isReturnDefaultValues = true` 会让 `android.graphics` 返回 0/空值，而 `RectF.equals` 不比内容——曾经因此 13/15 个测试失败，而且报错完全指不到真正的原因。`CameraFocusMath` 和 `OverlayGeometry` 因此各自定义 `NormBox` / `SensorCrop`。
 2. **依赖方向 model ← vision。** `OverlayLayer` 放在 `data.model` 而不是视觉包里，因为它是**要持久化进日记文件**的语义。
 3. **位图缓存淘汰绝不 `recycle()`。** 缓存里放的是 Compose **正在绘制**的位图：组合线程可能刚把它取出来交给 `Image` / `DrawBitmap`。此时 recycle 会让另一根线程在 native 层踩到已释放的像素，表现是随机 SIGSEGV 或「Canvas: trying to use a recycled bitmap」——比 OOM 难查一个量级。ARGB_8888 的像素在 native 堆上、由 GC 连着 `Bitmap` 的 finalizer 管理，丢掉引用就回收，这一层不需要也不允许任何显式释放。`ByteLruCache` 全类找不到一个 `recycle` 就是这条约束的可检查形式。
+
+   这条规则的边界要写清楚，因为它**不是**「本仓不许 recycle」——`recycle()` 全仓有五处，
+   每一处都合法，且都必须合法。**判据只有一个：这张位图从来没有交给过组合线程。**
+   其中四处是「存在两份」的情形（解码时 `raw` 与转正后的 `transformed`、抠图的中间图 `rgba`、
+   缩放出的工作副本 `work`、`small`），所以它们写成 `if (a !== b) b.recycle()`——
+   身份比较挡住的是「顺手把别人还在用的那张也放了」。第五处是取景器每两秒一次的检测副本
+   （`Bitmap.createBitmap(pixels, …)` 现造、只交给 `detector.detect()`，从未进过 Compose 状态），
+   它没有第二份可比，所以直接 recycle 是对的。
+   要改这五处中的任何一处，先确认它能过上面那个判据；把这套写法复制到 `ByteLruCache`
+   的淘汰路径上，得到的就是那条被随机 SIGSEGV 追着的 bug。
 4. **按压反馈只有 `pressable` / `pressFeedback` 一个入口，波纹全局为 `NoIndication`。** 波纹的问题不是难看而是**说谎**：匀速扩散的一圈在物理世界里不存在，按下去的东西是缩下去的。所以波纹在主题里一次性换成空实现（不是每个调用点传 `indication = null`——Material 组件内部默认读 `LocalIndication`，逐个传挡不住下一个新写的组件）。缩放 + 透明度 + 触觉全部出自 `Pressable`，力度档位是两头挤出来的：小于 0.98 大面积元素读不出来，大于 0.94 像被捏扁。键盘焦点框走的是 `LocalFocusIndicator`，与这是两条独立通道，关掉波纹不影响焦点可见性。
 
 

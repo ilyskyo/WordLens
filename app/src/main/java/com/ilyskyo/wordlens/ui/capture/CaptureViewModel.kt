@@ -255,6 +255,11 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
             val objects = detector.detect(bitmap).dedupeOverlapping()
             updateFromDetection(objects, pixels, frame)
         } finally {
+            // 这是全仓五处 `recycle` 里唯一没有身份比较的一处，因为它只有这一份：这张位图是
+            // 每两秒现造的检测副本，从未进过 Compose 状态，也从未交给缓存或另一个线程——
+            // 说明书 §11 那条「缓存淘汰绝不 recycle」管的是「可能正在被渲染线程画」，这里没有那个读者。
+            // `detect()` 是阻塞的（返回时像素已经读完），所以 finally 放得下来。
+            // 2Hz 的循环里每张 1.3MB 的 native 像素不该等 finalizer 才收。
             bitmap.recycle()
         }
     }
