@@ -160,6 +160,10 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // 设备测试要从 `captureToImage()` 得到的 ImageBitmap 上取像素，而 `asAndroidBitmap()` 住在
+    // ui-graphics 里——它不是经 ui-test 以 api 传过来的，所以必须显式声明，
+    // 否则编译期只会看到一句没头没尾的 `Unresolved reference: asAndroidBitmap`。
+    androidTestImplementation(libs.androidx.compose.ui.graphics)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
