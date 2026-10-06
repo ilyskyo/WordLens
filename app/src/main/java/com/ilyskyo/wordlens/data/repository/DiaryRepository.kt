@@ -82,6 +82,16 @@ class DiaryRepository(
     suspend fun load() = doc.load()
 
     /**
+     * 内存里这份文档是不是磁盘上那份的忠实反映。
+     *
+     * 任何「拿这份文档去判断磁盘上哪些文件没人引用」的逻辑（启动清扫，见 `MediaSweep`）都必须
+     * 先问它：读失败或架构更新时 `persisting` 为 false，损坏留证后从空文档起步时
+     * `recoveredBlank` 为 true——两种情况下「没有条目引用它」都对每一个文件成立，
+     * 而照着它删是不可恢复的。
+     */
+    val storageTrusted: Boolean get() = doc.persisting && !doc.recoveredBlank
+
+    /**
      * 冷启动那一次读，读完顺手把没人引用的声音扫掉。
      *
      * 清扫**必须**挂在读之后、且在同一个函数里：`JsonDocument` 的读是异步的，谁在条目读回来之前

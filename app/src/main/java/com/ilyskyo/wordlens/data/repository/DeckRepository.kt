@@ -77,6 +77,9 @@ class DeckRepository(
 
     suspend fun load() = doc.load()
 
+    /** 同 `DiaryRepository.storageTrusted`：卡片也会引用贴纸，所以清扫要看的是两份文档。 */
+    val storageTrusted: Boolean get() = doc.persisting && !doc.recoveredBlank
+
     fun loadAsync() = doc.loadAsync()
 
     // ── mutations ────────────────────────────────────────────────────────────

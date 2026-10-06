@@ -15,6 +15,7 @@ import com.ilyskyo.wordlens.data.repository.DeckRepository
 import com.ilyskyo.wordlens.data.repository.DiaryDocument
 import com.ilyskyo.wordlens.data.repository.DiaryRepository
 import com.ilyskyo.wordlens.data.repository.LexiconRepository
+import com.ilyskyo.wordlens.data.repository.MediaSweep
 import com.ilyskyo.wordlens.core.reminder.ReminderScheduler
 import com.ilyskyo.wordlens.data.repository.SettingsRepository
 import com.ilyskyo.wordlens.data.store.JsonDocument
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -211,6 +213,49 @@ class AppContainer(context: Context) {
         vision.loadTaxonomy()
         applyRetentionFromSettings()
         applyReminderFromSettings()
+        sweepUnreferencedMedia()
+    }
+
+    /**
+     * 冷启动一次：把磁盘上有、两份文档都不引用、而且已经老于一小时的媒体删掉。
+     *
+     * 补的是删除级联覆盖不到的那一格。`deleteEntry` 管的是「条目没了，它的文件跟着走」，
+     * 而快门那一刻照片就已经落盘、要等用户按「保存」才开始被引用——中间用关闭键离开取景页、
+     * 或者进程被系统回收，留下的是一张**没有任何条目引用、也没有任何代码会再来删它**的照片。
+     * 用户的心智是「我关掉了，没留下」，磁盘上的事实相反。这本日记的立场是照片永不外传、
+     * 只存你留下的，所以那个差值必须有人收。
+     *
+     * 三道前提缺一不可，理由都写在各自的位置：
+     * - 两份文档都要 `storageTrusted`（一份读成空文档的启动会把每个文件都判成孤儿）；
+     * - 保留集要同时看日记与词卡（卡片可能比引用它的日记活得久）；
+     * - 只删老于一小时的（分享到见词、相册导入都是先写文件后写引用）。
+     */
+    private fun sweepUnreferencedMedia() {
+        applicationScope.launch {
+            // 等两份都读回来再动手：`load()` 是幂等的，且 `loadAsync` 已经在跑同一把锁。
+            deck.load()
+            diary.load()
+            if (!deck.storageTrusted || !diary.storageTrusted) {
+                Log.w(TAG_MEDIA, "media sweep skipped: a document did not come back as itself")
+                return@launch
+            }
+            val referenced = MediaSweep.referenced(diary.document.value.entries, deck.snapshot())
+            val now = System.currentTimeMillis()
+            listOf(entryPhotoDir, stickerDir).forEach { dir ->
+                val stale = withContext(Dispatchers.IO) {
+                    val listing = dir.listFiles()
+                        ?.filter { it.isFile }
+                        ?.map { MediaSweep.Candidate(it.name, it.lastModified()) }
+                        .orEmpty()
+                    val names = MediaSweep.stale(listing, referenced, now)
+                    names.forEach { name -> runCatching { File(dir, name).delete() } }
+                    names
+                }
+                if (stale.isNotEmpty()) {
+                    Log.i(TAG_MEDIA, "Swept ${stale.size} unreferenced file(s) from ${dir.name}")
+                }
+            }
+        }
     }
 
     /**
@@ -273,5 +318,8 @@ class AppContainer(context: Context) {
          * 这一场拍摄再也看不见词片。
          */
         private const val DETECTOR_RETRY_COOLDOWN_MS = 30_000L
+
+        /** 启动清扫单独一个 tag：它删的是用户拍过却没留下的照片，出问题时这条日志是唯一线索。 */
+        private const val TAG_MEDIA = "MediaSweep"
     }
 }
