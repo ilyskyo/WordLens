@@ -103,14 +103,14 @@ fun NoticeHost(
         AnimatedVisibility(
             visible = notice != null,
             enter = if (reduceMotion) {
-                fadeIn(tween(120))
+                fadeIn(tween(Motion.FADE_IN_MS))
             } else {
-                scaleIn(Motion.bouncy, initialScale = 0.92f) + fadeIn(tween(120))
+                scaleIn(Motion.bouncy, initialScale = 0.92f) + fadeIn(Motion.enterFade())
             },
             exit = if (reduceMotion) {
-                fadeOut(tween(90))
+                fadeOut(tween(Motion.FADE_OUT_MS))
             } else {
-                scaleOut(Motion.press, targetScale = 0.96f) + fadeOut(tween(90))
+                scaleOut(Motion.press, targetScale = 0.96f) + fadeOut(Motion.exitFade())
             },
         ) {
             Surface(

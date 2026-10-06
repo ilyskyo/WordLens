@@ -129,8 +129,8 @@ fun HomeBottomActions(
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = scaleIn(Motion.bouncy, initialScale = 0.85f) + fadeIn(tween(120)),
-        exit = scaleOut(Motion.press, targetScale = 0.85f) + fadeOut(tween(90)),
+        enter = scaleIn(Motion.bouncy, initialScale = 0.85f) + fadeIn(Motion.enterFade()),
+        exit = scaleOut(Motion.press, targetScale = 0.85f) + fadeOut(Motion.exitFade()),
         modifier = modifier,
     ) {
         Box(

@@ -749,8 +749,8 @@ private fun RollingNumber(value: Int, modifier: Modifier = Modifier) {
         transitionSpec = {
             val goingUp = targetState > initialState
             val direction = if (goingUp) 1 else -1
-            (fadeIn(tween(120)) + slideInVertically(Motion.smoothOffset()) { it * direction })
-                .togetherWith(fadeOut(tween(90)) + slideOutVertically(Motion.smoothOffset()) { -it * direction })
+            (fadeIn(Motion.enterFade()) + slideInVertically(Motion.smoothOffset()) { it * direction })
+                .togetherWith(fadeOut(Motion.exitFade()) + slideOutVertically(Motion.smoothOffset()) { -it * direction })
         },
         label = "rollingNumber",
         modifier = modifier,
@@ -852,7 +852,7 @@ private fun RatingButton(
 private fun IntervalText(days: Int?, color: Color) {
     AnimatedContent(
         targetState = days,
-        transitionSpec = { fadeIn(tween(140)) togetherWith fadeOut(tween(90)) },
+        transitionSpec = { fadeIn(Motion.enterFade()) togetherWith fadeOut(Motion.exitFade()) },
         label = "intervalText",
     ) { value ->
         Text(
@@ -1193,7 +1193,7 @@ private fun Staggered(index: Int, content: @Composable () -> Unit) {
                     (slideInVertically(Motion.smoothOffset()) { it / 3 } + fadeIn(Motion.smooth))
                         .togetherWith(ExitTransition.None)
                 }
-                else -> EnterTransition.None togetherWith fadeOut(tween(80))
+                else -> EnterTransition.None togetherWith fadeOut(Motion.exitFade())
             }
         },
         label = "staggered",
