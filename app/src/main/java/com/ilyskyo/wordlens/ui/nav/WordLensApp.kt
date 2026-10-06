@@ -61,6 +61,16 @@ import com.ilyskyo.wordlens.ui.remember.RememberUiState
 fun WordLensApp(
     modifier: Modifier = Modifier,
     tabRequest: TabRequest = TabRequest(),
+    /**
+     * 当前页签。由宿主提出去持有，**不是**本组件的内部状态。
+     *
+     * 理由和 `lookbackListState` 外提是同一个：主页场景在搜索/取景/详情盖上来时会整个离开
+     * 组合（`AnimatedContent` 同一时刻只组合一页），留在里面的 `rememberSaveable` 保的是
+     * `onSaveInstanceState` 那条路，保不住「子树被拆掉再重建」这条——于是从搜索页加完词
+     * 返回，人会掉回「回看」，而他明明是从「记住」出去的。
+     */
+    tab: HomeTab = HomeTab.LOOKBACK,
+    onTabChange: (HomeTab) -> Unit = {},
     /** 时间轴的滚动状态由宿主外提：详情页是 AnimatedContent 的另一个场景，本场景会被拆掉。 */
     lookbackListState: LazyListState = rememberLazyListState(),
     lookbackState: LookbackUiState = LookbackUiState(),
@@ -86,12 +96,9 @@ fun WordLensApp(
     notice: Notice? = null,
     onDismissNotice: () -> Unit = {},
 ) {
-    // 转屏不该把人从「记住」甩回「回看」：页签是 UI 状态，活在该活的地方就够了，
-    // 而 enum 本身可序列化，不需要额外的 Saver。
-    var tab by rememberSaveable { mutableStateOf(HomeTab.LOOKBACK) }
-
     // 小组件/通知的请求：带序号，所以同样的请求连着来两次会真的执行两次。
-    LaunchedEffect(tabRequest) { tabRequest.tab?.let { tab = it } }
+    // 这里只转交给宿主——页签归谁持有见上面 `tab` 那段注释。
+    LaunchedEffect(tabRequest) { tabRequest.tab?.let(onTabChange) }
 
     /*
      * 往下滚就把底部动作收起来，往上滚就回来。
@@ -196,7 +203,7 @@ fun WordLensApp(
             // 悬浮层要浮着，得自己把顺序买回来。
             HomeTopTabs(
                 current = tab,
-                onSelect = { tab = it },
+                onSelect = { onTabChange(it) },
                 onLongPress = { if (it == HomeTab.LOOKBACK) onRandomWalk() },
                 modifier = Modifier
                     .align(Alignment.TopCenter)

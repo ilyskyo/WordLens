@@ -199,6 +199,12 @@ private fun WordLensRoot(
     // 状态留在 LookbackScreen 内部的话，返回时列表会跳回顶部——用户刚看的那条瞬间消失了。
     val lookbackListState = rememberLazyListState()
 
+    // 页签外提是**同一个理由**，之前漏了这一半：主页场景在搜索/取景/设置盖上来时整个离开
+    // 组合，`WordLensApp` 里自己的 `rememberSaveable` 在那条路上不会回来（它保的是
+    // onSaveInstanceState 那条路，不是「组合子树被拆掉再建」这条）。
+    // 于是从搜索页加完词返回，人会掉回「回看」——而他明明是从「记住」出去的。
+    var homeTab by rememberSaveable { mutableStateOf(HomeTab.LOOKBACK) }
+
     // 进程被杀再回来：savedState 里的 Detail 恢复了，而 ViewModel 是全新的，selectedEntryId 是空的。
     // 不补这一步，用户看到的是自己离开时那一页的壳子，里面什么都没有。
     LaunchedEffect(top) {
@@ -246,6 +252,8 @@ private fun WordLensRoot(
                             lookback = lookback,
                             rememberState = rememberState,
                             tabRequest = tabRequest.value,
+                            tab = homeTab,
+                            onTabChange = { homeTab = it },
                             lookbackListState = lookbackListState,
                             selectedIds = selectedIds,
                             onLongPressEntry = home::onLongPressEntry,
@@ -351,6 +359,8 @@ private fun HomeScene(
     lookback: LookbackUiState,
     rememberState: RememberUiState,
     tabRequest: TabRequest,
+    tab: HomeTab,
+    onTabChange: (HomeTab) -> Unit,
     lookbackListState: LazyListState,
     selectedIds: Set<String>,
     onLongPressEntry: (String) -> Unit,
@@ -367,6 +377,8 @@ private fun HomeScene(
     WordLensApp(
         modifier = Modifier.fillMaxSize(),
         tabRequest = tabRequest,
+        tab = tab,
+        onTabChange = onTabChange,
         lookbackListState = lookbackListState,
         notice = notice,
         onDismissNotice = onDismissNotice,
