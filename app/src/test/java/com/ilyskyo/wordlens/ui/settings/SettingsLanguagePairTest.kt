@@ -4,6 +4,7 @@
 package com.ilyskyo.wordlens.ui.settings
 
 import com.ilyskyo.wordlens.data.model.Lang
+import com.ilyskyo.wordlens.data.repository.SettingsRepository
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -55,4 +56,27 @@ class SettingsLanguagePairTest {
         assertEquals(Lang.CHINESE to Lang.ENGLISH, twice)
     }
 
+
+    /**
+     * 已经存坏成同一门语言的设备要能自愈。
+     *
+     * 互换规则管不到它们：那要等用户下次自己去选语言。
+     */
+    @Test
+    fun `a stored degenerate pair is repaired when read`() {
+        assertEquals(
+            Lang.ENGLISH,
+            SettingsRepository.repairedTarget(stored = Lang.CHINESE, native = Lang.CHINESE),
+        )
+        // 正常的一对不能被动。
+        assertEquals(
+            Lang.JAPANESE,
+            SettingsRepository.repairedTarget(stored = Lang.JAPANESE, native = Lang.CHINESE),
+        )
+        // 母语正好是默认目标语时，挪去的是别的语言，不是把它换回来。
+        assertEquals(
+            Lang.CHINESE,
+            SettingsRepository.repairedTarget(stored = Lang.ENGLISH, native = Lang.ENGLISH),
+        )
+    }
 }

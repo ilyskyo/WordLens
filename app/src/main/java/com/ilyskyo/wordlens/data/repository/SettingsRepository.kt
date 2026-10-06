@@ -86,7 +86,10 @@ class SettingsRepository(private val context: Context) {
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
         AppSettings(
             nativeLanguage = Lang.fromTag(prefs[Keys.NATIVE_LANG] ?: Lang.CHINESE.tag) ?: Lang.CHINESE,
-            targetLanguage = Lang.fromTag(prefs[Keys.TARGET_LANG] ?: Lang.ENGLISH.tag) ?: Lang.ENGLISH,
+            targetLanguage = repairedTarget(
+                stored = Lang.fromTag(prefs[Keys.TARGET_LANG] ?: Lang.ENGLISH.tag) ?: Lang.ENGLISH,
+                native = Lang.fromTag(prefs[Keys.NATIVE_LANG] ?: Lang.CHINESE.tag) ?: Lang.CHINESE,
+            ),
             direction = runCatching {
                 StudyDirection.valueOf(prefs[Keys.DIRECTION] ?: StudyDirection.RECOGNIZE.name)
             }.getOrDefault(StudyDirection.RECOGNIZE),
@@ -171,6 +174,21 @@ class SettingsRepository(private val context: Context) {
     }
 
     companion object {
+        /**
+         * 两个方向读出来是同一门语言时，把目标语挪到第一门不是它的语言上。
+         *
+         * 需要这一格的理由很具体：**已经有设备存成了 zh/zh**——「不许选成同一对」这条规则
+         * 是今天才在界面上立住的（`SettingsViewModel.pairAfterPicking`），在那之前两个选择器
+         * 互不知晓。而规则立住并不会让已经存坏的设备自己好起来：用户不去设置页动一下，
+         * 他就一直拿到一张没意义的卡——正面「伞」、背面释义也是「伞」，翻面什么也没回忆起来，
+         * FSRS 还认真记了一次「想起来了」，这个坏数据会一直影响它给这个词排的间隔。
+         *
+         * 只改读出来的值，不动存储里那两个键：他不该为一条界面再也不会允许他做出的选择负责；
+         * 下次真的选语言时 `setLanguagePair` 会把两个键一起写正。
+         */
+        internal fun repairedTarget(stored: Lang, native: Lang): Lang =
+            if (stored == native) Lang.entries.first { it != native } else stored
+
         val MINUTE_MS = 60_000L
     }
 }
