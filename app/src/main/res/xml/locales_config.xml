@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2026 ilyskyo
+     SPDX-License-Identifier: MIT -->
+
+<!--
+  Android 13+ 的「按应用设置语言」只列这里声明过的 locale。
+  不声明的后果很实际：一个学日语的人要先把**整台手机**改成日语，才能把这款学日语的 App
+  改成日语；而 App 的默认语言是中文（`res/values/strings.xml` 就是中文），
+  所以他还会先看到一屏中文。
+
+  列出的四种必须与 `res/values*` 里真正有翻译的那四种一致——多列一个没有资源的 locale，
+  系统会接受选择却回落到默认（中文），比不给选更糟。
+  这里只写语言不加地区后缀（`zh` 而不是 `zh-CN`），是因为资源目录本身就是 `values-zh`/`values-en`
+  这一级；带地区的写法会让 `zh-HK` 这类设备匹配不上而回落。
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="zh" />
+    <locale android:name="ja" />
+    <locale android:name="ko" />
+</locale-config>

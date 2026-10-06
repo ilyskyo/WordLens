@@ -33,6 +33,14 @@
         </intent>
     </queries>
 
+    <!--
+      Android 13+ 的「按应用设置语言」只列 `localeConfig` 声明过的 locale。
+      不声明的话，一个学日语的人要先把整台手机改成日语，才能把这款学日语的 App 改成日语。
+      低于 33 的系统会忽略这一条（语言仍只能跟系统走），所以它只有好处、没有行为变化。
+      列出的 locale 必须真的有翻译，见 res/xml/locales_config.xml 里那段。
+      （注释只能待在元素外面：写在下面这个起始标签的属性之间会让 manifest 合并失败——
+      XML 不允许注释插在属性中间，第一版就是这么红的。）
+    -->
     <application
         android:name=".WordLensApplication"
         android:allowBackup="true"
@@ -40,6 +48,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.WordLens">
