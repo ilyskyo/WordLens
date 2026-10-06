@@ -108,7 +108,10 @@ data class RememberUiState(
     val done: Int = 0,
     val total: Int = 0,
     val current: RememberCard? = null,
+    /** 这一张这轮翻过没有：评级的闸门，也是答题时长的起点。 */
     val revealed: Boolean = false,
+    /** 此刻看着哪一面。可以翻回去，所以它跟 [revealed] 不是一回事。 */
+    val showingAnswer: Boolean = false,
     val finished: Boolean = false,
     val streakDays: Int = 0,
     val speakEnabled: Boolean = true,
@@ -197,7 +200,7 @@ fun RememberScreen(
     bottomInset: PaddingValues,
     state: RememberUiState = RememberUiState(),
     onMaterialChange: (StudyMaterial) -> Unit = {},
-    onReveal: () -> Unit = {},
+    onCardTap: () -> Unit = {},
     onGrade: (Fsrs.Rating) -> Unit = {},
     onSpeak: () -> Unit = {},
     onMarkMastered: () -> Unit = {},
@@ -270,7 +273,7 @@ fun RememberScreen(
                     state = state,
                     armed = armed,
                     onArmChange = { armed = it },
-                    onReveal = onReveal,
+                    onCardTap = onCardTap,
                     onSpeak = onSpeak,
                     onGrade = onGrade,
                     onMarkMastered = onMarkMastered,
@@ -303,7 +306,7 @@ private fun ReviewCardArea(
     state: RememberUiState,
     armed: Arm,
     onArmChange: (Arm) -> Unit,
-    onReveal: () -> Unit,
+    onCardTap: () -> Unit,
     onSpeak: () -> Unit,
     onGrade: (Fsrs.Rating) -> Unit,
     onMarkMastered: () -> Unit,
@@ -365,8 +368,10 @@ private fun ReviewCardArea(
 
             FlipCard(
                 card = card,
-                revealed = state.revealed,
-                onClick = onReveal,
+                // 转的是「此刻看着哪一面」，不是「翻过没有」——后者一旦为真就再也不变，
+                // 接在它上面的话这张卡只能往背面翻一次（真机上就是这么点不动的）。
+                showingAnswer = state.showingAnswer,
+                onClick = onCardTap,
                 onLongClick = { menuOpen = true },
                 offsetX = offsetX,
                 progress = progress,
@@ -449,7 +454,7 @@ private fun ReviewCardArea(
 @Composable
 private fun FlipCard(
     card: RememberCard,
-    revealed: Boolean,
+    showingAnswer: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     offsetX: Animatable<Float, AnimationVector1D>,
@@ -458,7 +463,7 @@ private fun FlipCard(
 ) {
     val haptic = rememberHaptic()
     val rotationState = animateFloatAsState(
-        targetValue = if (revealed) 180f else 0f,
+        targetValue = if (showingAnswer) 180f else 0f,
         animationSpec = tween(durationMillis = FLIP_MS, easing = Motion.enterEase),
         label = "cardFlip",
     )
@@ -504,7 +509,7 @@ private fun FlipCard(
                 // 「卡片变形到认不出」之间唯一可用的那一段。
                 cameraDistance = 14f * density
             }
-            .semantics { contentDescription = if (revealed) backDesc else frontDesc },
+            .semantics { contentDescription = if (showingAnswer) backDesc else frontDesc },
     ) {
         // 两面同时存在于树里，用 alpha 承接 90°→140° 的渐显。
         // 用 AnimatedContent 换内容会得到它自己的进/出时序，与旋转角不同步，
@@ -1220,6 +1225,7 @@ private fun RememberRevealedPreview() {
                 done = 6,
                 total = 10,
                 revealed = true,
+                showingAnswer = true,
                 upcoming = 1,
                 current = RememberCard(
                     item = ReviewItem.Word(

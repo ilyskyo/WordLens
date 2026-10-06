@@ -382,7 +382,7 @@ private fun HomeScene(
         ),
         rememberState = rememberState,
         onMaterialChange = home::onMaterialChange,
-        onReveal = home::onReveal,
+        onCardTap = home::onCardTap,
         onGrade = home::onGrade,
         onReviewSpeak = home::onSpeak,
         onMarkMastered = home::onMarkMastered,

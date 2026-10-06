@@ -29,6 +29,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.ilyskyo.wordlens.data.model.StudyMaterial
 import com.ilyskyo.wordlens.srs.Fsrs
 import com.ilyskyo.wordlens.ui.components.Notice
@@ -71,7 +72,7 @@ fun WordLensApp(
     onOpenEntry: (String) -> Unit = {},
     onLookbackSpeak: (EntryCard) -> Unit = {},
     onMaterialChange: (StudyMaterial) -> Unit = {},
-    onReveal: () -> Unit = {},
+    onCardTap: () -> Unit = {},
     onGrade: (Fsrs.Rating) -> Unit = {},
     onReviewSpeak: () -> Unit = {},
     onMarkMastered: () -> Unit = {},
@@ -175,7 +176,7 @@ fun WordLensApp(
                         bottomInset = PaddingValues(bottom = BOTTOM_INSET),
                         state = rememberState,
                         onMaterialChange = onMaterialChange,
-                        onReveal = onReveal,
+                        onCardTap = onCardTap,
                         onGrade = onGrade,
                         onSpeak = onReviewSpeak,
                         onMarkMastered = onMarkMastered,
@@ -188,11 +189,19 @@ fun WordLensApp(
             NoticeHost(notice = notice, onDismiss = onDismissNotice)
 
             // 顶部页签浮在内容之上：照片从它下方穿过，而不是被一条横栏切开。
+            //
+            // `zIndex` 是这一句能成立的前提，而它不是多余的：同一个 Box 里，声明顺序确实决定
+            // 绘制顺序，但卡片带着三层 elevation 的阴影，照片滚上来时会盖在胶囊上面——
+            // 真机上看到的就是「回看」两个字被一张鼠标照片压住，读起来像页签消失了。
+            // 悬浮层要浮着，得自己把顺序买回来。
             HomeTopTabs(
                 current = tab,
                 onSelect = { tab = it },
                 onLongPress = { if (it == HomeTab.LOOKBACK) onRandomWalk() },
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = tabTop),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(1f)
+                    .padding(top = tabTop),
             )
         }
     }

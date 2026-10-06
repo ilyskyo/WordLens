@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -186,6 +188,11 @@ private fun FloatingAction(
     Box(
         modifier = modifier
             .size(ACTION_SIZE)
+            // 这一句是补一次「看不见的拍照键」。`container` 参数从写下来就没有被画过：
+            // 上面只有阴影层（`softCircleShadow` 只加 shadow，不填色），于是圆盘是透明的，
+            // 留在上面的只有 tint 成 onPrimary（近白）的图标——奶油白底上一个白色相机，
+            // 而这个产品最必须被找到的一颗按钮。类型检查、单测、lint 都拦不住「参数收了没用」。
+            .background(container, CircleShape)
             .softCircleShadow(intensity = shadowIntensity)
             .pressable(
                 onClick = onClick,

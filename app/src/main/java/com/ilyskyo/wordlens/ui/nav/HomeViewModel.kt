@@ -92,6 +92,14 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val material: StudyMaterial = StudyMaterial.WORDS_AND_EVENTS,
         val revealed: Boolean = false,
         /**
+         * 此刻看着哪一面。与 [revealed] 是两件事：`revealed` 说的是「这一张这轮翻过没有」
+         * （评级的闸门、答题时长的起算点），这一个说的是「现在给用户看的是正面还是背面」。
+         *
+         * 合成一个布尔用过的地方是这么想的：翻面是单向的，看完答案就该评级。真机上不是——
+         * 读完释义想再核对一眼那个词怎么拼，是复习里最常见的一个动作，而单向布尔让它点不动。
+         */
+        val showingAnswer: Boolean = false,
+        /**
          * 本轮**答过的张**（按卡 id 去重）。
          *
          * 用集合而不是计数器，是因为队列不是一次性快照：`buildRemember` 每次输入变化都按
@@ -326,7 +334,22 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         session.update { Session(material = material) }
     }
 
-    fun onReveal() {
+    /**
+     * 点卡片。**没翻过就翻开，已经翻过就在两面之间来回。**
+     *
+     * 原来这里直接接的是 [onReveal]，而它第一行是 `if (revealed) return`：翻到背面之后
+     * 这张卡就再也点不动了，想回头看一眼正面只能先把答案评掉。来回翻不重置任何读数——
+     * 见 [onReveal] 里那段关于计时起点的说明。
+     */
+    fun onCardTap() {
+        if (!session.value.revealed) {
+            onReveal()
+            return
+        }
+        session.update { it.copy(showingAnswer = !it.showingAnswer) }
+    }
+
+    private fun onReveal() {
         if (session.value.revealed) return
         // 单调钟：墙钟在这一轮中间被人调一下（自动校时开关、时区、NTP 步进），「这题想了多久」
         // 就会变成负数或几十小时，而那个数是**写进复习日志**的——它不会当场报错，只在几个月后的
@@ -339,6 +362,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         session.update {
             it.copy(
                 revealed = true,
+                showingAnswer = true,
                 startedAt = if (it.startedAt == 0L) revealedAt else it.startedAt,
             )
         }
@@ -386,6 +410,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 val firstThisRound = key !in current.attempted
                 current.copy(
                     revealed = false,
+                    showingAnswer = false,
                     attempted = current.attempted + key,
                     firstMissed = current.firstMissed +
                         if (firstThisRound && rating == Fsrs.Rating.AGAIN) 1 else 0,
@@ -867,6 +892,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             total = current.attempted.size + queue.size,
             current = head?.let { cardFor(it, settings) },
             revealed = current.revealed,
+            showingAnswer = current.showingAnswer,
             finished = head == null && current.attempted.isNotEmpty(),
             streakDays = container.deck.streak(now),
             speakEnabled = ttsReady,

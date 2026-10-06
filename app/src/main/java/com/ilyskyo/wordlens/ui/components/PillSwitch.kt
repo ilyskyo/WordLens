@@ -9,10 +9,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -88,6 +90,12 @@ fun PillSwitch(
             // 是**下限**而不是定值：系统字号放大时轨道要自己长高，否则段的文字会被裁掉半行。
             // 写成 height() 的话调用方给的 48dp 就成了硬上限，放大字号恰好是最需要它看得清的时候。
             .heightIn(min = height)
+            // 这一行是修一次整屏事故加的：只有下限的 Box 会把父级给的最大高度原样传下去，
+            // 而里面的 Row 是 fillMaxSize()、段是 fillMaxHeight()——「填满」在没有上限的
+            // 约束里等于填到屏幕底。于是两颗页签长成了两块盖住全部内容的大胶囊。
+            // IntrinsicSize.Min 让轨道的高度由**内容**定（文字行高 + 内边距），
+            // 上面那条下限仍然兜住 48dp，两件事同时成立。
+            .height(IntrinsicSize.Min)
             .softShadow(CircleShape, intensity = 0.35f)
             .background(MaterialTheme.colorScheme.surface, CircleShape)
             .padding(TRACK_INSET),
