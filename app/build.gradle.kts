@@ -66,6 +66,13 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            // debug 额外带一份 x86_64，好让模拟器跑原生码而不是 ARM 转译。
+            // 上面那条 arm64-only 是为 release 的体积与商店要求写的，而真机清单要在模拟器上
+            // 过一遍：转译层上 MediaPipe 一次安装能卡十分钟，界面还没渲染出来就先输在速度上。
+            // release 不受这一行影响——它仍走 defaultConfig 的 arm64-only。
+            ndk {
+                abiFilters += "x86_64"
+            }
         }
         release {
             isMinifyEnabled = true

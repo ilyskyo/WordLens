@@ -93,7 +93,14 @@ object WordLensIcons {
         }.build()
     }
 
-    /** 卡片叠放：后面两张偏移的圆角矩形 + 前面一张。表示「一组卡片」。 */
+    /**
+     * 卡片叠放：后面两张只露上沿，前面一张描边卡片中间带一道分隔线。
+     *
+     * 全部实色，这一条是重点。`Icon` 会把整枚图形 tint 成一个颜色，**连 alpha 一起换掉**——
+     * 原来这里用 0x66 / 0x99 / 0x33 三档半透明去制造层次，tint 之后三档变成同一块实心，
+     * 叠在一起就是一团灰（真机截图里「记住」那颗就是它）。图标的层次只能靠几何拿：
+     * 错位、留缝、粗细。
+     */
     val StackedCards: ImageVector by lazy {
         ImageVector.Builder(
             name = "StackedCards",
@@ -102,36 +109,24 @@ object WordLensIcons {
             viewportWidth = 24f,
             viewportHeight = 24f,
         ).apply {
-            // 后两张用半透明，制造层次而不增加颜色
-            path(fill = SolidColor(Color(0x66000000))) {
-                moveTo(7f, 3f); horizontalLineTo(19f); verticalLineTo(9f)
-                horizontalLineTo(7f); close()
-            }
-            path(fill = SolidColor(Color(0x99000000))) {
-                moveTo(5f, 7f); horizontalLineTo(17f); verticalLineTo(13f)
-                horizontalLineTo(5f); close()
-            }
-            // 主卡片，带中间分隔线（呼应「翻卡复习」）
+            // 最后面一张：只露一条顶边，越往后露得越短
             path(fill = SolidColor(Color.Black)) {
-                moveTo(3f, 11f)
-                horizontalLineTo(15f)
-                verticalLineTo(13f)
-                horizontalLineTo(3f)
-                close()
+                moveTo(8f, 3f); horizontalLineTo(20f); verticalLineTo(5f)
+                horizontalLineTo(8f); close()
             }
-            path(fill = SolidColor(Color(0x33000000))) {
-                moveTo(3f, 15f)
-                horizontalLineTo(15f)
-                verticalLineTo(17f)
-                horizontalLineTo(3f)
-                close()
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(6f, 7f); horizontalLineTo(18f); verticalLineTo(9f)
+                horizontalLineTo(6f); close()
             }
-            path(fill = SolidColor(Color(0x55000000))) {
-                moveTo(3f, 19f)
-                horizontalLineTo(15f)
-                verticalLineTo(21f)
-                horizontalLineTo(3f)
-                close()
+            // 前面一张走描边而不是实心：与上面那两条之间留出缝，四块才读成「叠着」而不是「一整块」
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 1.8f) {
+                moveTo(4f, 11.5f); horizontalLineTo(16f); verticalLineTo(21.5f)
+                horizontalLineTo(4f); close()
+            }
+            // 卡中间那道线：正面与背面的分界，也就是这张卡要被翻开的方向
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(6.5f, 16f); horizontalLineTo(13.5f); verticalLineTo(17.4f)
+                horizontalLineTo(6.5f); close()
             }
         }.build()
     }

@@ -201,6 +201,11 @@ fun WordLensApp(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .zIndex(1f)
+                    // 左右各留一条：这颗胶囊的设计说明里就写了「不做通栏」，而通栏恰恰是
+                    // 真机上看到的樣子——轨道一直顶到屏幕两边，阴影没有可落的地方，
+                    // 读起来是一条压在内容上方的横栏，而不是一颗浮着的胶囊。
+                    // 20dp 与底部那颗拍照键的左右内缩同一个数，两侧的节奏要对得上。
+                    .padding(horizontal = TAB_SIDE_INSET)
                     .padding(top = tabTop),
             )
         }
@@ -211,6 +216,9 @@ private const val TAB_MS = 200
 
 /** 页签胶囊距状态栏下沿的间隙。 */
 private val TAB_TOP_GAP = 8.dp
+
+/** 胶囊左右各让出这一条，两侧与底部拍照键的内缩同源。 */
+private val TAB_SIDE_INSET = 20.dp
 
 /** 页签胶囊自身高度，用于推算内容起始线。 */
 private val TAB_PILL_HEIGHT = 52.dp

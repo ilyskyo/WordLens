@@ -28,9 +28,26 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 ```bash
 ./gradlew assembleDebug          # debug APK，applicationId 带 .debug 后缀
 ./gradlew installDebug           # 装到已连接的设备
-./gradlew testDebugUnitTest      # 86 个 JVM 单测，毫秒级
+./gradlew testDebugUnitTest      # 280 个 JVM 单测，毫秒级
 ./gradlew assembleRelease        # R8 + shrinkResources + lintVitalRelease
 ```
+
+### 模拟器能看什么、不能看什么
+
+本机 AVD 叫 `wl`（`system-images;android-34;google_apis;x86_64`，WHPX 加速）。
+debug 变体额外打一份 `x86_64` 原生库（`app/build.gradle.kts` 的 `debug.ndk`），release 仍然
+arm64-only——不这么做就得让 MediaPipe 跑在 ARM→x86 转译上，实测一次安装能卡十分钟。
+
+它**值得**用来做的：静态布局与配色——页签胶囊盖住内容、拍照键没有底盘、图标被 tint 抹成一团，
+这三处都是在这里第一次被看见的，而类型检查、单测与 lint 对它们全都没有意见。
+`adb -s emulator-5554 shell input tap x y` 在这里也能用（真机上要 MIUI 的
+「USB 调试（安全设置）」才允许注入）。
+
+它**不能**代替真机的：相机预览（软件渲染下是黑的，于是整条检测/抠图链路无从判断）、
+触摸振动的有无与强弱、厂商 ROM 的首帧与后台策略、TTS 引擎差异、真实镜头的 EXIF 与
+`rotationDegrees`。另外它的 CPU 压力常年偏高，`/proc/pressure/cpu some` 到 35 时会把
+设置页这类长组合甩成一次 ANR——**看到 ANR 先怀疑模拟器，别急着当成 App 的缺陷**，
+本次抓到的两处主线程栈都停在正常的组合代码上，没有 IO、没有循环。
 
 release 产物默认**不签名**：签名四项（`release.storeFile` / `storePassword` / `keyAlias` /
 `keyPassword`）写在 git-ignored 的 `local.properties` 里，缺任一项就跳过签名而不是退回 debug key。
