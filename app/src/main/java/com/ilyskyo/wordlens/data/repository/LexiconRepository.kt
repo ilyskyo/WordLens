@@ -7,6 +7,7 @@ import android.content.Context
 import android.util.Log
 import com.ilyskyo.wordlens.data.model.Lang
 import com.ilyskyo.wordlens.data.model.LexiconEntry
+import com.ilyskyo.wordlens.data.model.GlossOverlayFile
 import com.ilyskyo.wordlens.data.model.LexiconFile
 import com.ilyskyo.wordlens.data.model.LexiconIndex
 import com.ilyskyo.wordlens.data.store.RealDiskOps
@@ -77,11 +78,32 @@ class LexiconRepository(
     suspend fun reload(): Int = withContext(Dispatchers.IO) {
         val warnings = mutableListOf<String>()
         val merged = LinkedHashMap<String, LexiconEntry>()
+        val overlays = mutableListOf<GlossOverlayFile>()
 
         for ((source, text) in readAssets()) {
+            // `gloss-<lang>.json` 不是词典而是**补丁**（结构不同），丢给词典解析器只会换来
+            // 一句 "could not be parsed" 的假警报，所以先按文件名分流。
+            if (source.startsWith(GLOSS_PREFIX)) {
+                readGlossOverlay(source, text)?.let { overlays += it }
+                    ?: warnings.add("$source could not be parsed")
+                continue
+            }
             readLexiconFile(source, text)?.forEach { entry ->
                 merged[entry.id] = entry
             } ?: warnings.add("$source could not be parsed")
+        }
+
+        // 补丁打在内置之后、用户层之前：这个人自己写的同 id 词条仍然说了算。
+        // 找不到那个 id 就单独报一条——静默跳过等于让「注音层没生效」变成又一次没人看见的事。
+        for (overlay in overlays) {
+            for (item in overlay.entries) {
+                val existing = merged[item.id]
+                if (existing == null) {
+                    warnings.add("gloss-${overlay.language}: no such entry ${item.id}")
+                } else {
+                    merged[item.id] = existing.withGloss(overlay.language, item.word)
+                }
+            }
         }
 
         val userFound = mutableListOf<LexiconEntry>()
@@ -233,8 +255,21 @@ class LexiconRepository(
         }
     }
 
+    private fun readGlossOverlay(source: String, text: String?): GlossOverlayFile? {
+        if (text.isNullOrBlank()) return null
+        return try {
+            WordLensJson.instance.decodeFromString(GlossOverlayFile.serializer(), text)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse gloss overlay $source: ${e.message}")
+            null
+        }
+    }
+
     private companion object {
         const val TAG = "LexiconRepo"
+
+        /** `assets/lexicon` 下这一类文件是注音层补丁，不是词典：见 [GlossOverlayFile]。 */
+        const val GLOSS_PREFIX = "gloss-"
 
         /** A missing file is not an error worth crashing over; an unreadable one is. */
         fun File.readTextOrNullCompat(): String? = try {

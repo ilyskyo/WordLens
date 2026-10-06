@@ -82,6 +82,18 @@ data class LexiconEntry(
 
     fun word(language: Lang): String? = words[language.tag] ?: words.values.firstOrNull()
 
+    /**
+     * 给这个概念补一种语言的写法，**只在那一格是空的时候**补。
+     *
+     * 内置那一层说了算：注音层是补丁不是覆盖，将来 ECDICT 那侧真补上 ja/ko，
+     * 这里不会把更好的数据换成手工的那一条。
+     * 词头与释义一起写：同一个概念在 ja 既是学习者的母语释义（`glosses`），
+     * 也可能是他正在学的那门语言（`words`），两份是同一句话。
+     */
+    fun withGloss(tag: String, word: String): LexiconEntry =
+        if (words[tag]?.isNotBlank() == true || glosses[tag]?.isNotBlank() == true) this
+        else copy(words = words + (tag to word), glosses = glosses + (tag to word))
+
     fun word(tag: String): String? = words[tag] ?: words.values.firstOrNull()
 
     /**
@@ -173,6 +185,35 @@ data class LexiconFile(
     /** What this file is mostly made of, e.g. "en" or "builtin". Purely informational. */
     val language: String,
     val entries: List<LexiconEntry> = emptyList(),
+)
+
+/**
+ * 一种语言的**注音层补丁**：不给新概念，只给已有概念补上那个语言的写法。
+ *
+ * 内置词典（`en.json`，12006 条）是 ECDICT 生成的，只有 en 与 zh 两种。四种界面语言里
+ * 日语与韩语因此一个释义都没有：铸卡时 `glosses[native]` 取不到，背面只剩例句与照片，
+ * 回忆方向下正面背面同字而被队列跳过。**「界面翻成了四种，内容只做了两种」**——
+ * 而这正是这款产品唯一要交付的东西。
+ *
+ * 补的是**相机能给出的那一层**：14 个场景的词表加上检测器可能产出的类别名，共 155 个概念。
+ * 没有全量补，是因为剩下的 11800 条只能靠机器翻译，而一个错的释义会直接教错——
+ * 学习类应用里「没有」比「错」负责。缺的那些词走用户词典，由人自己写。
+ *
+ * 按条目 id 而不是英文词头索引：id 唯一且已经在用，英文词头则要过一遍规范化，
+ * 还会撞上同形异义（`glasses` 的别名指向 `en.glass`「玻璃」——按词头匹配会把眼镜译成玻璃）。
+ */
+@Serializable
+data class GlossOverlayFile(
+    val schemaVersion: Int = 1,
+    /** 这一份补的是哪一种语言，即 [GlossOverlayEntry.word] 写进去的那个 key。 */
+    val language: String,
+    val entries: List<GlossOverlayEntry> = emptyList(),
+)
+
+@Serializable
+data class GlossOverlayEntry(
+    val id: String,
+    val word: String,
 )
 
 /** One candidate produced by matching model labels against the lexicon. */
