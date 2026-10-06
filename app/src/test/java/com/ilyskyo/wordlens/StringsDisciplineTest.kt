@@ -33,10 +33,20 @@ class StringsDisciplineTest {
 
     private val res: File by lazy { findResDir() }
 
-    /** 默认包是简体中文，其余三个目录名就是语言。 */
+    /**
+     * 默认包是**英文**，中文在 `values-zh`。
+     *
+     * 之前默认包是中文：任何没有翻译的设备语言（法语、西班牙语、阿拉伯语…）
+     * 都会回落到一屏中文，而回落是静默的——看上去像有意这么写的。
+     * 一款学外语的 App 把「看不懂的语言」当成兜底，方向就反了：
+     * 英文是这几个语种里最多人能凑合读的，所以它当默认，中文降级为一个正常的 override。
+     *
+     * 这条改动同时让下面 `each locale's text belongs to that locale` 里的 "en" 断言
+     * 开始守到**兜底语言**那一层：默认包里冒出一个中日韩字符，就是又有人往 values 里写了中文。
+     */
     private val locales = listOf(
-        "values" to "zh",
-        "values-en" to "en",
+        "values" to "en",
+        "values-zh" to "zh",
         "values-ja" to "ja",
         "values-ko" to "ko",
     )
@@ -44,7 +54,7 @@ class StringsDisciplineTest {
     @Test
     fun `every locale has exactly the same string keys`() {
         val tables = locales.associate { (dir, tag) -> tag to entriesOf(stringsFile(dir)) }
-        val reference = tables.getValue("zh").keys
+        val reference = tables.getValue("en").keys
         assertTrue("默认包一个字符串都没有：资源目录找错了？$res", reference.isNotEmpty())
         tables.forEach { (tag, entries) ->
             // 少一个 key 不会崩，只会静默掉回默认语言；多一个 key 则是永远不会被用到的死串。
@@ -91,7 +101,7 @@ class StringsDisciplineTest {
                 PLACEHOLDER.findAll(value).map { it.value }.toSet()
             }
         }
-        val reference = perKey.getValue("zh")
+        val reference = perKey.getValue("en")
         perKey.forEach { (tag, table) ->
             table.forEach { (key, placeholders) ->
                 assertEquals("$tag/$key 的占位符与默认包不一致", reference.getValue(key), placeholders)
@@ -115,7 +125,7 @@ class StringsDisciplineTest {
     @Test
     fun `plurals are declared in every locale and always carry other`() {
         val counts = locales.associate { (dir, tag) -> tag to pluralsOf(stringsFile(dir)) }
-        val reference = counts.getValue("zh").keys
+        val reference = counts.getValue("en").keys
         counts.forEach { (tag, table) ->
             assertEquals("$tag 的 plurals 与默认包不一致", reference, table.keys)
         }
@@ -123,6 +133,34 @@ class StringsDisciplineTest {
         counts.forEach { (tag, table) ->
             table.forEach { (key, quantities) ->
                 assertTrue("$tag/plurals/$key 缺少 other 一档", quantities.contains("other"))
+            }
+        }
+    }
+
+    /**
+     * 同时声明了 `one` 与 `other` 时，两档不许是同一句话。
+     *
+     * 同一句话意味着「复数那一档从来没翻译过」——它不会崩、不会掉回默认语言、lint 也不报，
+     * 只有把 7 条一起删的那一次会在屏幕上看见：英文问的是「Delete this moment?」。
+     * 那是「把默认包从中文换成英文」时抓到的（zh/ja/ko 的 `other` 都带着 `%1$d`，
+     * 而「只要求 other 吻合」的那条纪律当时看的是中文那一格）。
+     *
+     * 允许只写 `other`（中日韩按 CLDR 本来就只有这一档），所以这里只比**两档都在**的情况。
+     */
+    @Test
+    fun `a plurals with both one and other never repeats the same sentence`() {
+        locales.forEach { (dir, tag) ->
+            val nodes = load(stringsFile(dir)).getElementsByTagName("plurals")
+            for (i in 0 until nodes.length) {
+                val block = nodes.item(i) as Element
+                val byQuantity = childrenOf(block, "item")
+                    .associate { it.second.getAttribute("quantity") to it.second.getTextContent().trim() }
+                val one = byQuantity["one"] ?: continue
+                val other = byQuantity["other"] ?: continue
+                assertTrue(
+                    "$tag/plurals/${block.getAttribute("name")} 的 one 与 other 一模一样：$one",
+                    one != other,
+                )
             }
         }
     }

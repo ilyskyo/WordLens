@@ -3,306 +3,303 @@
   SPDX-License-Identifier: MIT
 -->
 <resources>
-    <string name="app_name">见词</string>
-    <string name="widget_due_label">今日待复习</string>
-    <!-- 刚放上桌面、还没读到数的那一瞬显示的东西。不能是「0」：那是一条假数字，
-         而它出现的时机恰恰是用户第一次看这个小部件。省略号说的是「还没有数」。 -->
+    <string name="app_name">WordLens</string>
+    <string name="widget_due_label">Due today</string>
     <string name="widget_count_placeholder">…</string>
-    <string name="widget_description">显示今天还剩几个要复习的词，点它直接进入复习。</string>
+    <string name="widget_description">Shows how many words are due today. Tap it to go straight to the review queue.</string>
 
-    <!-- 底部两个常驻动作 -->
-    <string name="tab_capture">拍照</string>
-    <string name="home_search">搜索与筛选</string>
+    <string name="tab_capture">Capture</string>
+    <string name="home_search">Search and filter</string>
 
-    <!-- 主页顶部：回看 / 记住 -->
-    <string name="home_tab_lookback">回看</string>
-    <string name="home_tab_remember">记住</string>
+    <string name="home_tab_lookback">Moments</string>
+    <string name="home_tab_remember">Words</string>
 
-    <!-- 时段问候：选哪个是逻辑，怎么念是资源 -->
-    <string name="greeting_morning">早上好</string>
-    <string name="greeting_noon">中午好</string>
-    <string name="greeting_afternoon">下午好</string>
-    <string name="greeting_evening">晚上好</string>
-    <string name="greeting_late_night">夜深了</string>
+    <string name="greeting_morning">Good morning</string>
+    <string name="greeting_noon">Good afternoon</string>
+    <string name="greeting_afternoon">Good afternoon</string>
+    <string name="greeting_evening">Good evening</string>
+    <string name="greeting_late_night">Still up?</string>
 
-    <!-- 日期。%1$s 是 CLDR 的月份短名，%2$d 是日，%3$d 是年；语序由本资源决定 -->
-    <string name="date_in_year">%1$s%2$d日</string>
-    <string name="date_with_year">%3$d年%1$s%2$d日</string>
+    <string name="date_in_year">%1$s %2$d</string>
+    <string name="date_with_year">%1$s %2$d, %3$d</string>
 
-    <!-- 氛围标记 -->
-    <string name="mood_quiet">安静</string>
-    <string name="mood_warm">温暖</string>
-    <string name="mood_crowded">拥挤</string>
-    <string name="mood_messy">潦草</string>
-    <string name="mood_bright">明亮</string>
-    <string name="mood_grey">阴天</string>
-    <string name="mood_busy">忙乱</string>
-    <string name="mood_ordinary">平常</string>
+    <string name="mood_quiet">Quiet</string>
+    <string name="mood_warm">Warm</string>
+    <string name="mood_crowded">Crowded</string>
+    <string name="mood_messy">Messy</string>
+    <string name="mood_bright">Bright</string>
+    <string name="mood_grey">Overcast</string>
+    <string name="mood_busy">Rushed</string>
+    <string name="mood_ordinary">Ordinary</string>
 
-    <!-- 回看页 -->
-    <string name="day_today">今天</string>
-    <string name="day_yesterday">昨天</string>
+    <string name="day_today">Today</string>
+    <string name="day_yesterday">Yesterday</string>
     <plurals name="lookback_today_count">
-        <item quantity="other">今天记录了 %1$d 个瞬间</item>
+        <item quantity="one">%1$d moment today</item>
+        <item quantity="other">%1$d moments today</item>
     </plurals>
-    <string name="lookback_empty_title">还没有任何记录</string>
-    <string name="lookback_empty_body">举起相机对着任意东西，识别完成后可以直接存下这一帧。</string>
+    <string name="lookback_empty_title">Nothing recorded yet</string>
+    <string name="lookback_empty_body">Point the camera at anything. When the words appear, save the frame.</string>
 
-    <!-- 记住页：记什么 -->
-    <string name="study_both">词汇与事件</string>
-    <string name="study_words">词汇</string>
-    <string name="study_events">事件</string>
+    <!-- 分段胶囊把每一段等宽，标签超过十个字符就会被截成「Words and ...」——
+     控件上的截断不是省略号的问题，是用户看不见自己在选什么。故用 Both。 -->
+    <string name="study_both">Both</string>
+    <string name="study_words">Words</string>
+    <string name="study_events">Moments</string>
 
-    <!-- 复习 -->
-    <string name="review_flip_hint">轻点看释义 · 长按可归档</string>
-    <!-- 这一张已经翻过一次之后，正面那行换成这句：「看释义」已经完成了，剩下的事实是
-         点一下会在两面之间来回。留着旧句是在教一件他已经会了的事。 -->
-    <string name="review_flip_hint_returned">轻点翻面 · 长按可归档</string>
+    <string name="review_flip_hint">Tap to reveal, long-press for more</string>
+    <string name="review_flip_hint_returned">Tap to flip, long-press for more</string>
     <plurals name="review_skipped_same_face">
-        <item quantity="other">%1$d 张卡两面是同一个词，本轮跳过</item>
+        <item quantity="one">%1$d card says the same thing on both sides and was skipped</item>
+        <item quantity="other">%1$d cards say the same thing on both sides and were skipped</item>
     </plurals>
-    <string name="review_event_prompt">那天发生了什么？</string>
-    <string name="review_done_title">今天这批过完了</string>
+    <string name="review_event_prompt">What happened that day?</string>
+    <string name="review_done_title">That is the whole batch</string>
     <plurals name="review_done_body">
-        <item quantity="other">连续复习 %1$d 天，明天见。</item>
+        <item quantity="one">%1$d day in a row. See you tomorrow.</item>
+        <item quantity="other">%1$d days in a row. See you tomorrow.</item>
     </plurals>
-    <string name="review_empty_title">现在没有到期的词</string>
-    <string name="review_empty_body">先去拍几个，复习队列会在合适的时候把你叫回来。</string>
+    <string name="review_empty_title">Nothing is due right now</string>
+    <string name="review_empty_body">Go take a few shots. The queue will call you back when it is time.</string>
 
-    <!--
-      归档与评级是两件事：EASY 只是间隔变长，标记已掌握是永久移出队列。
-      所以它单独占一个长按菜单项，并且必须能被撤销。
-    -->
-    <string name="review_mark_mastered">标记已掌握</string>
-    <string name="review_unmaster">取消标记</string>
-    <string name="review_archived_count">已归档 %1$d 张</string>
-    <string name="review_archived_title">已归档的卡</string>
-    <string name="review_archived_close">关闭</string>
+    <string name="review_mark_mastered">Mark as learned</string>
+    <string name="review_unmaster">Put it back</string>
+    <string name="review_archived_count">%1$d put away</string>
+    <string name="review_archived_title">Put away</string>
+    <string name="review_archived_close">Close</string>
 
-    <!-- AI 生成的内容必须标来源：复习会把它巩固成长期记忆，错了就麻烦了 -->
-    <string name="review_verify_source">这条由 AI 整理，请对照原文确认</string>
+    <string name="review_verify_source">AI-written — check it against what you shot</string>
 
-    <!-- 拍照页 -->
-    <string name="capture_settings">设置</string>
-    <string name="capture_retake">重新拍摄</string>
-    <string name="capture_save">保存贴纸</string>
-    <string name="detail_edit_save">保存</string>
-    <string name="capture_permission_needed">需要相机权限才能识别物体</string>
-    <string name="capture_grant">去授权</string>
-    <string name="capture_tap_subject">点一下画面里的主体，把它抠出来</string>
-    <string name="capture_selected_hint">已选「%1$s」· 快门将保存物品贴纸到「记住」</string>
-    <string name="capture_scene_hint">未选物品 · 快门将保存整张照片到「回看」</string>
-    <string name="capture_speak">播放发音</string>
-    <string name="capture_shot_object">单物体</string>
-    <string name="capture_shot_scene">场景</string>
+    <string name="capture_settings">Settings</string>
+    <string name="capture_retake">Retake</string>
+    <string name="capture_save">Save sticker</string>
+    <string name="detail_edit_save">Save</string>
+    <string name="capture_permission_needed">Camera access is needed to find objects</string>
+    <string name="capture_grant">Grant</string>
+    <string name="capture_tap_subject">Tap the object in frame to cut it out</string>
+    <string name="capture_selected_hint">Selected “%1$s” · the shutter saves a sticker to Words</string>
+    <string name="capture_scene_hint">Nothing selected · the shutter saves the whole photo to Moments</string>
+    <string name="capture_speak">Play pronunciation</string>
+    <string name="capture_shot_object">Object</string>
+    <string name="capture_shot_scene">Scene</string>
 
-    <!-- 相册导入：走的是拍照那一条流水线，所以提示只讲「这一次少了什么」 -->
-    <string name="capture_import">从相册导入</string>
-    <string name="capture_importing">正在读这张照片 · 检测与抠图照常跑完整条流水线</string>
-    <string name="import_unreadable">这张照片读不出来，没有存进日记</string>
-    <string name="import_no_detection">这台设备现在给不出检测：照片已整张存进「回看」，只是没长出词</string>
-    <string name="import_no_objects">这张照片里没认出任何东西，整张存进「回看」了</string>
+    <!-- 相册导入：与拍照同一条流水线，所以提示只讲这次少了什么 -->
+    <string name="capture_import">Import from gallery</string>
+    <string name="capture_importing">Reading that photo · detection and cut-out run the same way as a shot</string>
+    <string name="import_unreadable">That photo could not be read, so nothing was saved</string>
+    <string name="import_no_detection">This device cannot run detection right now — the photo went into Moments whole, with no words on it</string>
+    <string name="import_no_objects">Nothing was recognized in that photo — it went into Moments as a whole picture</string>
 
-    <!-- 识别为空时的诚实提示 -->
-    <string name="nomatch_title">这个词我还认不出来</string>
-    <string name="nomatch_body">模型只看到了上面这些。把词写下来、再补一句它的意思，它就会进你的词典，也立刻进复习队列。</string>
-    <string name="nomatch_meaning_label">它的意思（你的母语）</string>
-    <string name="manual_added_stored">「%1$s」收下了，也已经记进你的词典</string>
-    <string name="nomatch_labels_seen">模型看到的</string>
-    <!-- 条目详情 -->
-    <string name="detail_close">关闭</string>
-    <string name="detail_untitled">没有标题的一刻</string>
-    <string name="detail_photo_missing">这张照片不在这台设备上</string>
-    <string name="detail_declined">当时它还看到</string>
-    <string name="detail_event_hint">补一句当时发生了什么</string>
-    <string name="detail_event_save">记下这句</string>
+    <string name="nomatch_title">I can not name this one</string>
+    <string name="nomatch_body">The model only saw the labels above. Write the word and what it means, and it goes into your dictionary - and straight into the review queue.</string>
+    <string name="nomatch_meaning_label">What it means (your native language)</string>
+    <string name="manual_added_stored">“%1$s” added, and saved to your dictionary</string>
+    <string name="nomatch_labels_seen">What the model saw</string>
+    <string name="detail_close">Close</string>
+    <string name="detail_untitled">An unnamed moment</string>
+    <string name="detail_photo_missing">This photo is not on this device</string>
+    <string name="detail_declined">It also saw</string>
+    <string name="detail_event_hint">Add what happened that day</string>
+    <string name="detail_event_save">Write it down</string>
     <plurals name="detail_event_count">
-        <item quantity="other">这条已记下 %1$d 句</item>
+        <item quantity="one">%1$d line written for this entry</item>
+        <item quantity="other">%1$d lines written for this entry</item>
     </plurals>
-    <!-- 搜索 / 添加 -->
-    <string name="search_hint">搜单词、释义，或那一天的关键词</string>
-    <string name="search_collect">收录</string>
-    <string name="search_collected_badge">已收</string>
-    <string name="search_section_suggest">词典里还可以收进来</string>
-    <string name="search_section_collected">牌组里命中</string>
-    <string name="search_section_recent">最近收录</string>
-    <string name="search_section_diary">日记里出现过</string>
-    <string name="search_empty_title">没有匹配的东西</string>
-    <string name="search_empty_body">换个词试试，或者去拍一张——词是从画面里长出来的。</string>
-    <string name="capture_sticker_failed">这次没能抠出贴纸，词卡照常保存</string>
-    <string name="capture_close">关闭取景</string>
+    <string name="search_hint">Search words, meanings, or a word from that day</string>
+    <string name="search_collect">Collect</string>
+    <string name="search_collected_badge">Collected</string>
+    <string name="search_section_suggest">In the dictionary, not collected yet</string>
+    <string name="search_section_collected">In your deck</string>
+    <string name="search_section_recent">Recently collected</string>
+    <string name="search_section_diary">Seen in the diary</string>
+    <string name="search_empty_title">Nothing matches</string>
+    <string name="search_empty_body">Try another word, or go take a shot — words grow out of the picture.</string>
+    <string name="capture_sticker_failed">The sticker could not be cut out this time — the card was still saved</string>
+    <string name="capture_close">Close viewfinder</string>
     <!-- 设置页 -->
-    <string name="settings_title">设置</string>
-    <string name="settings_learn_language">在学的外语</string>
-    <string name="settings_native_language">母语</string>
-    <string name="settings_direction_section">复习方向</string>
-    <string name="settings_direction_recognize">看词想义</string>
-    <string name="settings_direction_recall">看义想词</string>
-    <string name="settings_direction_recognize_hint">卡片正面是外语词，背面是你的母语释义。</string>
-    <string name="settings_direction_recall_hint">卡片正面是母语释义，背面要想起那个外语词——这比认出来难。</string>
-    <string name="settings_vision_section">识别后端</string>
-    <string name="settings_cloud_switch">用自选密钥的云端识别</string>
-    <string name="settings_cloud_model">模型名</string>
-    <string name="settings_cloud_key">API Key</string>
-    <string name="settings_cloud_state_ready">已启用：这一帧会被发送到上面填的服务。</string>
-    <string name="settings_cloud_state_no_key">还没有填 API Key，云端识别不会启用。</string>
-    <string name="settings_cloud_key_clear">清除密钥</string>
-    <string name="settings_cloud_note">密钥以明文存在这台机器的设置文件里，不加密、不上传、也不进云备份；关掉开关即刻失效。</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_learn_language">Language you are learning</string>
+    <string name="settings_native_language">Your language</string>
+    <string name="settings_direction_section">Review direction</string>
+    <string name="settings_direction_recognize">Word to meaning</string>
+    <string name="settings_direction_recall">Meaning to word</string>
+    <string name="settings_direction_recognize_hint">Front shows the foreign word, back shows the meaning in your language.</string>
+    <string name="settings_direction_recall_hint">Front shows the meaning, and you have to recall the word — harder than recognising it.</string>
+    <string name="settings_vision_section">Recognition backend</string>
+    <string name="settings_cloud_switch">Cloud recognition with your own key</string>
+    <string name="settings_cloud_model">Model name</string>
+    <string name="settings_cloud_key">API key</string>
+    <string name="settings_cloud_state_ready">On: each frame is sent to the service above.</string>
+    <string name="settings_cloud_state_no_key">No API key yet, so cloud recognition stays off.</string>
+    <string name="settings_cloud_key_clear">Clear key</string>
+    <string name="settings_cloud_note">The key is stored in plain text in this device’s settings file — not encrypted, not uploaded, and excluded from cloud backup. Switching off stops it immediately.</string>
     <!-- 时间轴多选 -->
-    <string name="selection_count">已选择 %1$d 项</string>
-    <string name="selection_select_all">全选</string>
-    <string name="selection_cancel">取消</string>
-    <string name="selection_delete">删除</string>
+    <string name="selection_count">%1$d selected</string>
+    <string name="selection_select_all">Select all</string>
+    <string name="selection_cancel">Cancel</string>
+    <string name="selection_delete">Delete</string>
     <plurals name="selection_delete_title">
-        <item quantity="other">删除这 %1$d 条记录？</item>
+        <item quantity="one">Delete this moment?</item>
+        <!--
+          原来这一档与 `one` 一模一样（"Delete this moment?"），于是多选 7 条时英文问的是
+          「删除这条记录？」——单复数错、数量也没了，而 zh/ja/ko 三语都带着 %1$d。
+          这条是「把默认包从中文换成英文」时被抓出来的：中文的 other 有占位符，
+          纪律测试的「只要求 other 对得上」因此一直没看见英文这一格。
+        -->
+        <item quantity="other">Delete these %1$d moments?</item>
     </plurals>
-    <string name="selection_delete_body">照片和贴纸会一起删除，无法恢复。由这些照片生成的词卡会保留——你已经为它们花过复习时间。</string>
-    <string name="detail_copy_text">复制这段文字</string>
-    <string name="detail_delete">删除这条记录</string>
-    <string name="detail_delete_confirm_title">删除这条记录？</string>
-    <string name="detail_delete_confirm_body">照片和贴纸会一起删除，无法恢复。由它生成的词卡会保留。</string>
-    <string name="walk_empty">还没有可以回去的过去</string>
+    <string name="selection_delete_body">The photos and stickers go away for good. Word cards made from them stay — you have already spent review time on them.</string>
+    <string name="detail_copy_text">Copy this text</string>
+    <string name="detail_delete">Delete this moment</string>
+    <string name="detail_delete_confirm_title">Delete this moment?</string>
+    <string name="detail_delete_confirm_body">The photo and its sticker go away for good. Word cards made from it stay.</string>
+    <string name="walk_empty">Nothing to wander back to yet</string>
     <!-- 设置：复习节奏与配色 -->
-    <string name="settings_review_section">复习节奏</string>
-    <string name="settings_retention">目标保持率</string>
-    <string name="settings_retention_looser">间隔更长</string>
-    <string name="settings_retention_tighter">复习更勤</string>
-    <string name="settings_retention_hint">保持率越高，每张卡复习得越早、间隔越短；0.90 是推荐值。</string>
-    <string name="settings_rating_colors">评级配色</string>
-    <string name="settings_rating_colors_hint">换色系只换颜色。四档的顺序与按钮上的文字都不变，颜色永远不是唯一的线索。</string>
-    <string name="settings_palette_warm">暖调</string>
-    <string name="settings_palette_cool">冷调</string>
-    <string name="settings_palette_muted">柔和</string>
+    <string name="settings_review_section">Review pacing</string>
+    <string name="settings_retention">Target retention</string>
+    <string name="settings_retention_looser">Longer gaps</string>
+    <string name="settings_retention_tighter">More reviews</string>
+    <string name="settings_retention_hint">A higher target brings each card back sooner and shortens every interval. 0.90 is the recommended default.</string>
+    <string name="settings_rating_colors">Rating colours</string>
+    <string name="settings_rating_colors_hint">A palette changes only the colours. The four grades keep their order and their words — colour is never the only cue.</string>
+    <string name="settings_palette_warm">Warm</string>
+    <string name="settings_palette_cool">Cool</string>
+    <string name="settings_palette_muted">Muted</string>
     <!-- 设置：隐私 -->
-    <string name="settings_privacy_section">隐私</string>
-    <string name="settings_privacy_reencode">照片只会以重新编码的形式交给云端识别：EXIF 与拍摄位置在编码那一步就没了，这是代码结构保证的，不是开关。</string>
-    <string name="settings_privacy_backup">照片不进云备份（上云的只有词卡与日记文本），也没有导出或分享入口；面对面换机时会整本带走。</string>
+    <string name="settings_privacy_section">Privacy</string>
+    <string name="settings_privacy_reencode">A photo reaches a cloud vision API only as a re-encoded image: EXIF and the capture location are gone in that step, which the code guarantees rather than a switch.</string>
+    <string name="settings_privacy_backup">Photos are not part of the cloud backup (only word cards and diary text go up) and there is no export or share entry point. A device-to-device transfer takes the whole diary with them.</string>
     <!-- 复习：四档评级与间隔读数 -->
-    <string name="review_again">忘了</string>
-    <string name="review_hard">困难</string>
-    <string name="review_good">好</string>
-    <string name="review_easy">简单</string>
-    <string name="review_progress_label">今日复习</string>
-    <string name="review_card_front_desc">看到「%1$s」，轻点看释义，长按可归档</string>
-    <string name="review_card_back_desc">释义：%1$s，现在可以给这一张评级</string>
-    <string name="review_interval_now">现在</string>
-    <string name="review_interval_year">1 年</string>
-    <string name="review_done_time">用时</string>
-    <string name="review_done_accuracy">一次想起</string>
+    <string name="review_again">Forgot</string>
+    <string name="review_hard">Hard</string>
+    <string name="review_good">Good</string>
+    <string name="review_easy">Easy</string>
+    <string name="review_progress_label">Today</string>
+    <string name="review_card_front_desc">%1$s — tap to reveal the meaning, hold for more actions</string>
+    <string name="review_card_back_desc">Meaning: %1$s — now rate this card</string>
+    <string name="review_interval_now">Now</string>
+    <string name="review_interval_year">1 year</string>
+    <string name="review_done_time">Time</string>
+    <string name="review_done_accuracy">First recall</string>
     <plurals name="review_interval_days">
-        <item quantity="other">%1$d 天</item>
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
     </plurals>
     <plurals name="review_interval_weeks">
-        <item quantity="other">%1$d 周</item>
+        <item quantity="one">%1$d week</item>
+        <item quantity="other">%1$d weeks</item>
     </plurals>
     <plurals name="review_interval_months">
-        <item quantity="other">%1$d 个月</item>
+        <item quantity="one">%1$d month</item>
+        <item quantity="other">%1$d months</item>
     </plurals>
     <plurals name="review_interval_years">
-        <item quantity="other">%1$d 年</item>
+        <item quantity="one">%1$d year</item>
+        <item quantity="other">%1$d years</item>
     </plurals>
     <!-- 设置：每日提醒 -->
-    <string name="settings_reminder_section">每日提醒</string>
-    <string name="settings_reminder_switch">提醒我复习</string>
-    <string name="settings_reminder_time">提醒时间</string>
-    <string name="settings_reminder_hint">系统会在指定时间附近送达，可能早或晚十几分钟。为了不打断你，我们不会为「准点」去申请闹钟权限。</string>
-    <string name="settings_reminder_blocked">这台设备上的通知还没打开，提醒不会出现。</string>
+    <string name="settings_reminder_section">Daily reminder</string>
+    <string name="settings_reminder_switch">Remind me to review</string>
+    <string name="settings_reminder_time">Reminder time</string>
+    <string name="settings_reminder_hint">It arrives near this time, sometimes tens of minutes early or late. We do not ask for alarm permissions to force an exact moment.</string>
+    <string name="settings_reminder_blocked">Notifications are off for this app, so reminders will not appear.</string>
     <!-- 通知 -->
-    <string name="notification_channel_reminder">复习提醒</string>
-    <string name="notification_channel_reminder_desc">每天一次，告诉你今天还剩几张要复习</string>
+    <string name="notification_channel_reminder">Review reminders</string>
+    <string name="notification_channel_reminder_desc">Once a day: how many cards are still waiting</string>
     <plurals name="notification_due_title">
-        <item quantity="other">今天还有 %1$d 张要复习</item>
+        <item quantity="one">%1$d card is due today</item>
+        <item quantity="other">%1$d cards are due today</item>
     </plurals>
-    <string name="notification_due_body">打开见词，把它们收进长期记忆</string>
+    <string name="notification_due_body">Open WordLens and file them into long-term memory</string>
     <!-- 发音失败的可行动提示 -->
-    <string name="notice_tts_silent">刚才没有出声。这台设备的语音引擎没能为这个词发声。</string>
-    <string name="notice_tts_unsupported">这台设备的语音引擎没有%1$s语音，装一个带%1$s发音的引擎就能读。</string>
+    <string name="notice_tts_silent">Nothing was heard. The speech engine on this device cannot voice that word.</string>
+    <string name="notice_tts_unsupported">This device’s speech engine has no %1$s voice. Install an engine with %1$s support to hear it.</string>
     <!-- 认不出来时手写 -->
-    <string name="manual_field_label">写下这个词</string>
-    <string name="manual_add">收进词典</string>
-    <string name="manual_added">「%1$s」已进你的词典</string>
-    <string name="manual_not_found">词典里还没有「%1$s」，暂时不能进复习队列。可以在设置 → 我的词条 里补上它的意思</string>
+    <string name="manual_field_label">Write the word</string>
+    <string name="manual_add">Add to dictionary</string>
+    <string name="manual_added">“%1$s” is now in your dictionary</string>
+    <string name="manual_not_found">“%1$s” is not in the dictionary yet, so it cannot join the review queue. Write what it means under Settings → My words</string>
     <!-- 相机权限被永久拒绝 -->
-    <string name="capture_open_settings">去设置里打开</string>
-    <string name="capture_permission_permanently_denied">系统已经不再弹出授权框。请在系统设置里允许相机权限，然后回到这里。</string>
-    <string name="lookback_photo_desc">%1$s拍的照片</string>
+    <string name="capture_open_settings">Open system settings</string>
+    <string name="capture_permission_permanently_denied">The system no longer shows the permission dialog. Allow the camera in system settings, then come back.</string>
+    <string name="lookback_photo_desc">Photo taken on %1$s</string>
     <!-- 设置：语音与数据 -->
-    <string name="settings_voice_section">发音</string>
-    <string name="settings_voice_engines">这台设备上的语音引擎：%1$s</string>
-    <string name="settings_voice_engines_none">这台设备没有可用的语音引擎，点喇叭不会有任何声音。</string>
-    <string name="settings_voice_missing">暂时念不出：%1$s</string>
-    <string name="settings_voice_hint">语音由系统引擎提供，不是这个 App 自带的。装一个含该语言的引擎（例如 Google 语音服务并下载对应语言包）之后，回到这里重新检查一次。</string>
-    <string name="settings_voice_recheck">重新检查</string>
-    <string name="settings_data_section">数据</string>
-    <string name="settings_import">导入词卡（deck.json）</string>
-    <string name="settings_import_hint">只合并词卡与复习进度。照片从来不在 deck.json 里，它只存文件名，所以带贴纸的卡导入后可能显示不出图。</string>
-    <string name="settings_import_done">新增 %1$d 张，更新 %2$d 张</string>
-    <string name="settings_import_bad">这个文件读不出来：太大（上限 8 MB），或者不是本 App 导出的 deck.json。</string>
+    <string name="settings_voice_section">Speech</string>
+    <string name="settings_voice_engines">Speech engines on this device: %1$s</string>
+    <string name="settings_voice_engines_none">This device has no speech engine, so the speaker button stays silent.</string>
+    <string name="settings_voice_missing">Cannot voice yet: %1$s</string>
+    <string name="settings_voice_hint">Voices come from system engines, not from this app. Install an engine that covers the language (for example Google Text-to-Speech plus its language pack), then re-check here.</string>
+    <string name="settings_voice_recheck">Re-check</string>
+    <string name="settings_data_section">Data</string>
+    <string name="settings_import">Import cards (deck.json)</string>
+    <string name="settings_import_hint">Merges cards and review progress only. Photos are never inside deck.json — it stores filenames — so a card with a sticker may arrive without its image.</string>
+    <string name="settings_import_done">%1$d added, %2$d updated</string>
+    <string name="settings_import_bad">That file could not be read - it is too large (the limit is 8 MB) or not a deck.json exported from this app.</string>
     <!-- 详情页：编辑这一条 -->
-    <string name="detail_edit">编辑标题与感受</string>
-    <string name="detail_edit_title">编辑这一条</string>
-    <string name="detail_edit_field_title">标题</string>
-    <string name="detail_edit_field_summary">那一天发生了什么</string>
-    <string name="detail_edit_field_mood">当时的感受（再点一次取消）</string>
+    <string name="detail_edit">Edit title and mood</string>
+    <string name="detail_edit_title">Edit this entry</string>
+    <string name="detail_edit_field_title">Title</string>
+    <string name="detail_edit_field_summary">What happened that day</string>
+    <string name="detail_edit_field_mood">How it felt (tap again to clear)</string>
     <!-- 日历筛选 -->
-    <string name="calendar_title">选择日期</string>
-    <string name="calendar_clear">显示全部</string>
-    <string name="notice_filter_cleared">已取消日期筛选，刚存的这条在 %1$s</string>
-    <string name="calendar_prev">上一月</string>
-    <string name="calendar_next">下一月</string>
-    <string name="calendar_filtered">只显示 %1$s</string>
-    <string name="calendar_empty_filtered">%1$s 的记录已经空了</string>
+    <string name="calendar_title">Pick a date</string>
+    <string name="calendar_clear">Show all</string>
+    <string name="notice_filter_cleared">Date filter cleared — this entry belongs to %1$s</string>
+    <string name="calendar_prev">Previous month</string>
+    <string name="calendar_next">Next month</string>
+    <string name="calendar_filtered">Showing only %1$s</string>
+    <string name="calendar_empty_filtered">Nothing left from %1$s</string>
 
-    <!-- 语音日记附件。四语都要齐，且每种说法都回答「接下来能做什么」，不停在「失败了」。 -->
-    <string name="audio_row_title">一句当时的声音</string>
-    <string name="audio_record">录一段</string>
-    <string name="audio_recording_label">正在录 %1$s</string>
-    <string name="audio_stop">停下</string>
-    <string name="audio_discard">丢弃</string>
-    <string name="audio_take_sealing">正在收尾…</string>
-    <string name="audio_staged_label">录好了 %1$s，还没收下</string>
-    <string name="audio_commit">收下</string>
-    <string name="audio_re_record">重录</string>
-    <string name="audio_delete">删除录音</string>
-    <string name="audio_file_missing">这段声音不在这台设备上</string>
-    <string name="audio_play_desc">播放，%1$s</string>
-    <string name="audio_pause_desc">暂停</string>
-    <string name="audio_seek_desc">播放进度，拖到想听的位置</string>
-    <string name="audio_permission_rationale">要用麦克风，只为录下你说的这一句</string>
-    <string name="audio_permission_permanently_denied">麦克风权限已经被永久拒绝，要到设置里打开才能录</string>
-    <string name="audio_open_settings">去设置</string>
-    <string name="audio_delete_confirm_title">删掉这段声音？</string>
-    <string name="audio_delete_confirm_body">只删声音，照片和词都留着。删掉之后录不回来。</string>
-    <string name="audio_replace_confirm_title">会换掉原来那段</string>
-    <string name="audio_replace_confirm_body">新的那段会写在同一个位置上，旧的先没掉。</string>
-    <string name="notice_audio_limit">录到 90 秒，自己停了</string>
-    <string name="notice_audio_handed_off">那段声音停在原地，等你回来决定收还是丢</string>
-    <string name="notice_audio_too_short">太短了，没有录下内容</string>
-    <string name="notice_audio_discarded">那段声音已经丢掉</string>
-    <string name="notice_audio_superseded">另一条上还没收下的那段已经丢掉</string>
-    <string name="notice_mic_busy">麦克风正被通话或别的应用占着，等它空下来再录</string>
-    <string name="notice_audio_failed">这次没录上，写了一半的文件已经清掉</string>
-    <string name="notice_audio_take_pending">还有一段没处理完的声音，先收下或丢弃它</string>
-    <string name="notice_audio_playback_failed">这段声音放不出来，可能是文件坏了</string>
+    <string name="audio_row_title">A voice from that moment</string>
+    <string name="audio_record">Record a clip</string>
+    <string name="audio_recording_label">Recording %1$s</string>
+    <string name="audio_stop">Stop</string>
+    <string name="audio_discard">Discard</string>
+    <string name="audio_take_sealing">Writing the file…</string>
+    <string name="audio_staged_label">Recorded %1$s, not kept yet</string>
+    <string name="audio_commit">Keep</string>
+    <string name="audio_re_record">Re-record</string>
+    <string name="audio_delete">Delete recording</string>
+    <string name="audio_file_missing">This recording is not on this device</string>
+    <string name="audio_play_desc">Play, %1$s</string>
+    <string name="audio_pause_desc">Pause</string>
+    <string name="audio_seek_desc">Playback position, drag to the part you want</string>
+    <string name="audio_permission_rationale">The microphone is used only to record this one line</string>
+    <string name="audio_permission_permanently_denied">Microphone access was denied for good. Turn it on in Settings to record.</string>
+    <string name="audio_open_settings">Open Settings</string>
+    <string name="audio_delete_confirm_title">Delete this recording?</string>
+    <string name="audio_delete_confirm_body">Only the voice goes. The photo and the words stay, and this cannot be undone.</string>
+    <string name="audio_replace_confirm_title">This replaces the old clip</string>
+    <string name="audio_replace_confirm_body">The new clip is written at the same place, so the old one is removed first.</string>
+    <string name="notice_audio_limit">It stopped on its own at the 90-second limit</string>
+    <string name="notice_audio_handed_off">The clip is waiting where it was — keep it or discard it</string>
+    <string name="notice_audio_too_short">Too short to hold anything</string>
+    <string name="notice_audio_discarded">That clip was discarded</string>
+    <string name="notice_audio_superseded">The clip you had not kept on another entry was discarded</string>
+    <string name="notice_mic_busy">A call or another app holds the microphone. Try again once it is free.</string>
+    <string name="notice_audio_failed">Nothing was recorded this time; the half-written file was removed</string>
+    <string name="notice_audio_take_pending">One clip is still undecided — keep it or discard it first</string>
+    <string name="notice_audio_playback_failed">This recording cannot be played; the file may be damaged</string>
 
-    <!-- 用户词典层：让「我不认识这个词」变成一次录入，而不是一句尽头。 -->
-    <string name="settings_my_words_section">我的词条</string>
-    <string name="settings_my_words_empty">还没有你补的词条。App 认不出某个东西时，把它的意思写在这里，下次同一个词就能进复习队列。</string>
-    <string name="settings_word_label">词（要学的那门语言）</string>
-    <string name="settings_meaning_label">意思（你的母语）</string>
-    <string name="settings_word_add">加进去</string>
-    <string name="settings_word_remove_desc">删掉这条</string>
+    <string name="settings_my_words_section">My words</string>
+    <string name="settings_my_words_empty">Nothing added yet. When the app fails to recognise something, write what it means here and the same word will join the review queue next time.</string>
+    <string name="settings_word_label">Word (the language you are learning)</string>
+    <string name="settings_meaning_label">Meaning (your native language)</string>
+    <string name="settings_word_add">Add it</string>
+    <string name="settings_word_remove_desc">Delete this entry</string>
     <plurals name="lookback_load_older">
-        <item quantity="other">更早的还有 %1$d 条 · 载入</item>
+        <item quantity="one">%1$d earlier record · Load</item>
+        <item quantity="other">%1$d earlier records · Load</item>
     </plurals>
     <plurals name="settings_lexicon_warnings">
-        <item quantity="other">有 %1$d 份词典文件读不出来：%2$s。自己改过那个文件的话，检查逗号与引号——读不出来的那一份会整份被跳过</item>
+        <item quantity="one">%1$d dictionary file could not be read: %2$s. If you edited one by hand, check the commas and quotes - an unreadable file is skipped whole</item>
+        <item quantity="other">%1$d dictionary files could not be read: %2$s. If you edited one by hand, check the commas and quotes - an unreadable file is skipped whole</item>
     </plurals>
-    <string name="search_blank_title">想查什么，打进来</string>
-    <string name="search_blank_body">这里同时找你的牌组、词典和这本日记。词典里的任何一条都能一键收进牌组，收下之后就进复习队列。</string>
-    <string name="search_more_suggest">词典里还有更多条匹配 · 把词打得更具体一些</string>
-    <string name="search_more_diary">日记里还有 %1$d 条相关的没显示</string>
-    <string name="notice_word_added">「%1$s」已经加进词典</string>
-    <string name="notice_word_removed">已经删掉</string>
-    <string name="notice_word_failed">这条没写进去，词典文件可能正读不出来</string>
+    <string name="search_blank_title">Type a word to look up</string>
+    <string name="search_blank_body">This searches your deck, the dictionary and this diary at once. Anything in the dictionary can be added to your deck with one tap, and it then joins the review queue.</string>
+    <string name="search_more_suggest">The dictionary has more matches · type a more specific word</string>
+    <string name="search_more_diary">%1$d more related entries in the diary are not shown</string>
+    <string name="notice_word_added">“%1$s” is in your dictionary now</string>
+    <string name="notice_word_removed">That entry was deleted</string>
+    <string name="notice_word_failed">That was not written; the dictionary file may be unreadable</string>
 </resources>
