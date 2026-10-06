@@ -12,7 +12,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,17 +19,24 @@ import org.junit.runner.RunWith
 /**
  * 每一个能点的东西都必须**自己报出名字**。
  *
- * ## 现在还不能信它（@Ignore 的理由写在这里，不是「测试不稳」）
+ * ## 它是怎么被证明「能红」的（第一次的结论是错的，错在目标不在匹配器）
  *
- * 2026-10-06 用 falsify 试过：把 `LookbackScreen` 日历键的
- * `contentDescription = stringResource(R.string.calendar_title)` 抹成空串再跑，
- * 三条**全绿**（XML 里 tests=3 failures=0，时间戳核对过是当场跑的）。
- * 也就是说这个匹配器抓不到它要防的那一颗，此时「绿」是零信息。
- * 在它变成能红之前，不许把它当无障碍覆盖率的证据。
+ * 第一次 falsify 挑的是 `LookbackScreen:604` 日历键的 `contentDescription`，抹空之后三条仍全绿，
+ * 于是我判定匹配器没在看东西。**那个判定不对**：那颗键的 click 动作所在的合并节点
+ * 还带着别的文字，抹掉 desc 之后它仍然「有名字」——测试答的是「这控件报不报名字」，
+ * 而我要抹的那一颗本来就还有别的路报名字。**目标选错了，不是尺子坏了。**
  *
- * 下一步要分辨的两种解释：那颗按钮的 click 动作在**祖先**节点上而祖先带着别的文字，
- * 或者合并树里根本没有独立的 clickable 节点（`hasClickAction()` 因此不命中）。
- * 判据现成：抹掉一个已知的标签，看它红不红——不红就是没在看。
+ * 换一个纯图标、名字只有 desc 一条来源的控件：`HomeTabBar` 的 `FloatingAction`
+ * （`.clearAndSetSemantics { contentDescription = … }`，里面只有 Icon，没有 Text）。
+ * 抹掉 `tab_capture` 那一条之后：回看页与记住页各红一次，各自精确指出**一颗** mute 节点
+ * （节点#86 / 节点#130，`被吞掉的子节点文字=[]`——正是「除了 desc 之外没有别的名字来源」的形状）。
+ * 已还原。
+ *
+ * ## 一条顺带纠正过来的事
+ *
+ * `uiautomator dump` 里那 7 颗「text 与 content-desc 全空」的可点节点**不能当作 TalkBack 听到的内容**：
+ * 它把合并节点的子 Text 也照样列出来，而父节点那格是空的——量的是 dump 的表示法，不是语义本身。
+ * 用它下结论会把一条好好的尺子判成瞎的。要量平台那一棵，得走 `AccessibilityNodeInfo` 的正路。
  *
  * ## 为什么盯合并树
  *
@@ -43,7 +49,6 @@ import org.junit.runner.RunWith
  * 图标按钮在截图上完全正常：有形状、有配色、点得动，`lintVitalRelease` 也过。
  * 只有把语义树翻出来才看得见它没名字。而这类遗漏的形状永远是「后来加的那一颗」。
  */
-@Ignore("falsify 没过：抹掉一个已知的 contentDescription 之后三条仍全绿，匹配器还没在看东西")
 @RunWith(AndroidJUnit4::class)
 class ScreenAccessibilitySweepTest {
 
