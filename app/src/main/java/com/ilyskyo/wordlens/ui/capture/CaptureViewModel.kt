@@ -321,7 +321,10 @@ class CaptureViewModel(private val container: AppContainer) : ViewModel() {
 
         val luma = YuvFrames.luma(pixels)
         val ranked = AmbienceScorer.rank(taxonomy.ambience, luma.brightness, luma.warmth, objects.size)
-        lastAmbience = ranked.mapNotNull { it.word[settings.nativeLanguage.tag] ?: it.word["en"] }
+        // 与 `PhotoEntryPipeline.analysePhoto` 同一条规则：只取母语那一个，取不到就少一个词。
+        // 两边不一致的话，取景框里看到的氛围词和存进日记的不是一份——「你看到的就是你记下的」
+        // 是这条流水线对用户的承诺，而英文顶上恰好让这句话在日韩语言包下天天不成立。
+        lastAmbience = ranked.mapNotNull { it.word[settings.nativeLanguage.tag] }
 
         publishFrame()
         _ui.update { state ->

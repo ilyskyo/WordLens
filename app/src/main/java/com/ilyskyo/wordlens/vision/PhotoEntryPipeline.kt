@@ -310,7 +310,15 @@ class PhotoEntryPipeline(
         // 所以导入的照片不会退化成「什么都没有」。
         val ambience = AmbienceScorer
             .rank(taxonomy.ambience, luma.brightness, luma.warmth, detected.size)
-            .mapNotNull { it.word[request.nativeLanguage.tag] ?: it.word["en"] }
+            // 只取母语那一个，取不到就**不要这一个词**——不写英文顶上。
+            //
+            // `?: it.word["en"]` 看着无害，但 `Entry.ambience` 是落进 diary.json 的：
+            // 而当时 ambience.json 里 14 个词**全都**没有 ja 与 ko，所以日韩母语的用户
+            // 每一条记录里的每一个氛围词都是英文——不是边角情况，是这两个语言包的默认结果。
+            // 资产补齐之后这条兜底本就不该再被触发；留着它，下一次资产漏一种语言时
+            // 又会安静地把别的语言写进用户的日记，而且这次连测试都不会红。
+            // 少一个氛围词的代价是装饰少一点，写错语言的代价是这条记录从此说不清自己在说什么。
+            .mapNotNull { it.word[request.nativeLanguage.tag] }
 
         val index = lexicon.index.value
         val subjects = detected.map { subjectOf(it, index, request) }
