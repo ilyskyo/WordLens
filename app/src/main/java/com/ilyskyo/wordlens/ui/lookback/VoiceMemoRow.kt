@@ -26,7 +26,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
+import com.ilyskyo.wordlens.ui.components.WordLensDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -251,28 +251,18 @@ fun VoiceMemoSection(
     }
 
     if (confirmDetach) {
-        AlertDialog(
-            onDismissRequest = { confirmDetach = false },
-            title = { Text(stringResource(R.string.audio_delete_confirm_title)) },
-            text = { Text(stringResource(R.string.audio_delete_confirm_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmDetach = false
-                        actions.onDetachAudio(entryId)
-                    },
-                ) {
-                    Text(
-                        text = stringResource(R.string.selection_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+        WordLensDialog(
+            title = stringResource(R.string.audio_delete_confirm_title),
+            message = stringResource(R.string.audio_delete_confirm_body),
+            onDismiss = { confirmDetach = false },
+            primaryText = stringResource(R.string.selection_delete),
+            onPrimary = {
+                confirmDetach = false
+                actions.onDetachAudio(entryId)
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDetach = false }) {
-                    Text(stringResource(R.string.selection_cancel))
-                }
-            },
+            secondaryText = stringResource(R.string.selection_cancel),
+            onSecondary = { confirmDetach = false },
+            destructive = true,
         )
     }
 
@@ -289,25 +279,17 @@ fun VoiceMemoSection(
      * 旧的那段没了、新的没录上。
      */
     if (confirmReplace) {
-        AlertDialog(
-            onDismissRequest = { confirmReplace = false },
-            title = { Text(stringResource(R.string.audio_replace_confirm_title)) },
-            text = { Text(stringResource(R.string.audio_replace_confirm_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmReplace = false
-                        askPermission = true
-                    },
-                ) {
-                    Text(stringResource(R.string.audio_re_record))
-                }
+        WordLensDialog(
+            title = stringResource(R.string.audio_replace_confirm_title),
+            message = stringResource(R.string.audio_replace_confirm_body),
+            onDismiss = { confirmReplace = false },
+            primaryText = stringResource(R.string.audio_re_record),
+            onPrimary = {
+                confirmReplace = false
+                askPermission = true
             },
-            dismissButton = {
-                TextButton(onClick = { confirmReplace = false }) {
-                    Text(stringResource(R.string.selection_cancel))
-                }
-            },
+            secondaryText = stringResource(R.string.selection_cancel),
+            onSecondary = { confirmReplace = false },
         )
     }
 }

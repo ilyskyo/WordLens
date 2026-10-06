@@ -4,11 +4,13 @@
 package com.ilyskyo.wordlens.ui.components
 
 import android.graphics.Bitmap
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,13 +30,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
@@ -48,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
+import com.ilyskyo.wordlens.ui.theme.Motion
 import com.ilyskyo.wordlens.ui.theme.Scale
 import com.ilyskyo.wordlens.ui.theme.Space
 import com.ilyskyo.wordlens.ui.theme.WordLensTheme
@@ -145,6 +152,111 @@ fun OutlinedAction(
         Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
+
+/**
+ * iOS 的**填充式**输入框。
+ *
+ * ## 为什么不是 OutlinedTextField
+ *
+ * 描边加浮动标签是 Material 最有辨识度的一件事，也是这个 App 里最「安卓」的一块。iOS 的输入框
+ * 是一个没有边框的浅灰填充块：标签老实待在框外上方，框内只有光标和一句占位。浮动标签还带来一个
+ * 更实际的问题——标签在「有字/无字」之间会缩小并飘到上沿，那一格的高度因此变两次，而一个会
+ * 自己变高的控件在任何列表里都不稳。
+ *
+ * ## 底色用 onSurface 的透明度而不是一个固定灰
+ *
+ * 这个控件要活在卡面（#FFFDFB）、窗口底（#FDF8F3）和深色夜纸（#241E1A）上。写死一个浅灰在其中
+ * 两个上面会看不见或发脏；叠一层半透明墨色则在任何底色上都得到「比所在面暗一点」的同一读数，
+ * 深色主题里自动反向变亮——这正是 iOS 自己那套 systemGray6 的做法。
+ *
+ * ## 为什么保留一圈焦点描边
+ *
+ * iOS 靠键盘弹起来说明「这里正在输入」，而 Android 上有外接键盘、手柄和读屏用户，他们看不见
+ * 键盘。波纹已经被主题全局关掉，控件的可用状态必须由控件自己说出口，所以焦点态给一圈主色：
+ * 它只在键盘焦点时出现，触屏用户点完就开始打字，基本不会看见它。
+ */
+@Composable
+fun InsetField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    placeholder: String? = null,
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+) {
+    val shape = MaterialTheme.shapes.small
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val ringAlpha by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = Motion.press,
+        label = "insetFieldRing",
+    )
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+        if (label != null) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = singleLine,
+            minLines = minLines,
+            interactionSource = interaction,
+            shape = shape,
+            placeholder = placeholder?.let {
+                { Text(it, color = onSurface.copy(alpha = PlaceholderAlpha)) }
+            },
+            leadingIcon = leadingIcon?.let { vector ->
+                {
+                    Icon(
+                        imageVector = vector,
+                        // 图标只是重复了占位文字已经说过的「这里搜什么」，读屏不该念两遍。
+                        contentDescription = null,
+                        tint = onSurface.copy(alpha = PlaceholderAlpha),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            },
+            // 不写 contentPadding：这个 String 重载没有这一参数，而 M3 会按「有没有标签」
+            // 自己选填充——标签在框外，所以它选的就是不带标签那一档，正好是我们要的高度。
+            colors = TextFieldDefaults.colors(
+                // 焦点不改变底色：iOS 的框按下去不会换色，而 M3 默认的加深会在
+                // 「聚焦/失焦」之间做出一次可见的跳动，读起来像控件坏了。
+                focusedContainerColor = onSurface.copy(alpha = FieldFillAlpha),
+                unfocusedContainerColor = onSurface.copy(alpha = FieldFillAlpha),
+                disabledContainerColor = onSurface.copy(alpha = FieldFillAlpha / 2f),
+                errorContainerColor = onSurface.copy(alpha = FieldFillAlpha),
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                errorIndicatorColor = Color.Transparent,
+                cursorColor = MaterialTheme.colorScheme.primary,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = ringAlpha)), shape),
+        )
+    }
+}
+
+/**
+ * 输入框底色：叠在任何一个表面上都只暗一档的墨量。
+ *
+ * 0.055 在模拟器上被证伪过一次——落在纯白对话框上时几乎看不出这是一格可以打字的地方，
+ * 用户会往框外点。0.075 是「不描边也认得出是控件」的下限。
+ */
+private const val FieldFillAlpha = 0.075f
+
+/** 占位文字要能被读作「这里可以写什么」，又不能和真正的内容抢对比度。 */
+private const val PlaceholderAlpha = 0.38f
 
 /**
  * 贴纸卡片。

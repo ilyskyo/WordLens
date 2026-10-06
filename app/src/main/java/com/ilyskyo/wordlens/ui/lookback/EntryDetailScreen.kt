@@ -23,7 +23,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.ilyskyo.wordlens.data.model.EntryMood
 import com.ilyskyo.wordlens.core.voice.PendingTake
+import com.ilyskyo.wordlens.ui.components.InsetField
 import com.ilyskyo.wordlens.ui.components.OptionChip
+import com.ilyskyo.wordlens.ui.components.PrimaryButton
+import com.ilyskyo.wordlens.ui.components.WordLensDialog
 import java.io.File
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,15 +44,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -339,28 +339,18 @@ fun EntryDetailScreen(
             }
 
             if (confirmDelete) {
-                AlertDialog(
-                    onDismissRequest = { confirmDelete = false },
-                    title = { Text(stringResource(R.string.detail_delete_confirm_title)) },
-                    text = { Text(stringResource(R.string.detail_delete_confirm_body)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                confirmDelete = false
-                                onDelete()
-                            },
-                        ) {
-                            Text(
-                                text = stringResource(R.string.selection_delete),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
+                WordLensDialog(
+                    title = stringResource(R.string.detail_delete_confirm_title),
+                    message = stringResource(R.string.detail_delete_confirm_body),
+                    onDismiss = { confirmDelete = false },
+                    primaryText = stringResource(R.string.selection_delete),
+                    onPrimary = {
+                        confirmDelete = false
+                        onDelete()
                     },
-                    dismissButton = {
-                        TextButton(onClick = { confirmDelete = false }) {
-                            Text(stringResource(R.string.selection_cancel))
-                        }
-                    },
+                    secondaryText = stringResource(R.string.selection_cancel),
+                    onSecondary = { confirmDelete = false },
+                    destructive = true,
                 )
             }
         }
@@ -389,52 +379,51 @@ private fun EditEntryDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.detail_edit_title)) },
-        text = {
+    WordLensDialog(
+        title = stringResource(R.string.detail_edit_title),
+        onDismiss = onDismiss,
+        primaryText = stringResource(R.string.detail_edit_save),
+        onPrimary = onSave,
+        secondaryText = stringResource(R.string.selection_cancel),
+        onSecondary = onDismiss,
+        content = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                // 滚动在外层对话框里已经安排好，这里只负责排布：再套一层 verticalScroll
+                // 会在内容里再造一个可滚动容器，两个容器抢同一件事的表现为「滑起来一顿一顿」。
                 verticalArrangement = Arrangement.spacedBy(Space.md),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                OutlinedTextField(
+                InsetField(
                     value = title,
                     onValueChange = onTitleChange,
-                    label = { Text(stringResource(R.string.detail_edit_field_title)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.detail_edit_field_title),
                 )
-                OutlinedTextField(
+                InsetField(
                     value = summary,
                     onValueChange = onSummaryChange,
-                    label = { Text(stringResource(R.string.detail_edit_field_summary)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.detail_edit_field_summary),
+                    singleLine = false,
+                    minLines = 2,
                 )
-                Text(
-                    text = stringResource(R.string.detail_edit_field_mood),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                // 再点一次已选中的那颗就是取消：心情这一项是「可选且轻量」的，
-                // 只能选不能撤会把它变成一个新的枷锁。
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
-                    EntryMood.entries.forEach { option ->
-                        OptionChip(
-                            label = "${option.emoji} ${stringResource(option.labelRes)}",
-                            selected = mood == option,
-                            onClick = { onMoodChange(if (mood == option) null else option) },
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
+                    Text(
+                        text = stringResource(R.string.detail_edit_field_mood),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    // 再点一次已选中的那颗就是取消：心情这一项是「可选且轻量」的，
+                    // 只能选不能撤会把它变成一个新的枷锁。
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
+                        EntryMood.entries.forEach { option ->
+                            OptionChip(
+                                label = "${option.emoji} ${stringResource(option.labelRes)}",
+                                selected = mood == option,
+                                onClick = { onMoodChange(if (mood == option) null else option) },
+                            )
+                        }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onSave) {
-                Text(stringResource(R.string.capture_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.selection_cancel)) }
         },
     )
 }
@@ -655,13 +644,12 @@ private fun EventComposer(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
-        OutlinedTextField(
+        InsetField(
             value = draft,
             onValueChange = onDraftChange,
-            placeholder = { Text(stringResource(R.string.detail_event_hint)) },
+            placeholder = stringResource(R.string.detail_event_hint),
+            singleLine = false,
             minLines = 2,
-            shape = MaterialTheme.shapes.small,
-            modifier = Modifier.fillMaxWidth(),
         )
         PrimaryButton(
             text = stringResource(R.string.detail_event_save),

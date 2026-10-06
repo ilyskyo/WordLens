@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -30,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.WordCard
 import com.ilyskyo.wordlens.ui.components.EmptyState
+import com.ilyskyo.wordlens.ui.components.InsetField
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.theme.Scale
 import com.ilyskyo.wordlens.ui.theme.Space
@@ -68,13 +68,11 @@ fun SearchScreen(
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
-                OutlinedTextField(
+                InsetField(
                     value = state.query,
                     onValueChange = onQueryChange,
-                    placeholder = { Text(stringResource(R.string.search_hint)) },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = stringResource(R.string.search_hint),
+                    leadingIcon = WordLensIcons.Search,
                 )
             }
 

@@ -68,6 +68,7 @@
     <string name="capture_settings">Settings</string>
     <string name="capture_retake">Retake</string>
     <string name="capture_save">Save sticker</string>
+    <string name="detail_edit_save">Save</string>
     <string name="capture_permission_needed">Camera access is needed to find objects</string>
     <string name="capture_grant">Grant</string>
     <string name="capture_tap_subject">Tap the object in frame to cut it out</string>

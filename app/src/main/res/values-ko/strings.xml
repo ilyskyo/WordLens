@@ -64,6 +64,7 @@
     <string name="capture_settings">설정</string>
     <string name="capture_retake">다시 찍기</string>
     <string name="capture_save">스티커 저장</string>
+    <string name="detail_edit_save">저장</string>
     <string name="capture_permission_needed">물체를 인식하려면 카메라 권한이 필요해요</string>
     <string name="capture_grant">권한 주기</string>
     <string name="capture_tap_subject">화면의 물체를 탭해서 오려내요</string>

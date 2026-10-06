@@ -25,7 +25,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -56,6 +55,7 @@ import com.ilyskyo.wordlens.data.model.StudyDirection
 import com.ilyskyo.wordlens.core.reminder.ReminderPlan
 import com.ilyskyo.wordlens.data.repository.AppSettings
 import com.ilyskyo.wordlens.srs.Fsrs
+import com.ilyskyo.wordlens.ui.components.InsetField
 import com.ilyskyo.wordlens.ui.components.OptionChip
 import com.ilyskyo.wordlens.ui.components.OutlinedAction
 import com.ilyskyo.wordlens.ui.components.PrimaryButton
@@ -606,19 +606,15 @@ private fun MyWordsSection(
                 }
             }
         }
-        OutlinedTextField(
+        InsetField(
             value = word,
             onValueChange = { word = it },
-            label = { Text(stringResource(R.string.settings_word_label)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.settings_word_label),
         )
-        OutlinedTextField(
+        InsetField(
             value = meaning,
             onValueChange = { meaning = it },
-            label = { Text(stringResource(R.string.settings_meaning_label)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.settings_meaning_label),
         )
         PrimaryButton(
             text = stringResource(R.string.settings_word_add),
@@ -708,19 +704,15 @@ private fun CloudSection(
         }
 
         if (state.cloudEnabled) {
-            OutlinedTextField(
+            InsetField(
                 value = state.cloudModel,
                 onValueChange = onCloudModel,
-                label = { Text(stringResource(R.string.settings_cloud_model)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(R.string.settings_cloud_model),
             )
-            OutlinedTextField(
+            InsetField(
                 value = state.cloudApiKey,
                 onValueChange = onCloudApiKey,
-                label = { Text(stringResource(R.string.settings_cloud_key)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(R.string.settings_cloud_key),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -64,6 +64,7 @@
     <string name="capture_settings">設定</string>
     <string name="capture_retake">撮り直す</string>
     <string name="capture_save">ステッカー保存</string>
+    <string name="detail_edit_save">保存</string>
     <string name="capture_permission_needed">物体を認識するにはカメラの許可が必要です</string>
     <string name="capture_grant">許可する</string>
     <string name="capture_tap_subject">画面の主体をタップして切り抜きます</string>

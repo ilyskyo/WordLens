@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
@@ -64,6 +63,7 @@ import com.ilyskyo.wordlens.data.model.Entry
 import com.ilyskyo.wordlens.data.model.EntryMood
 import com.ilyskyo.wordlens.ui.components.EmptyState
 import com.ilyskyo.wordlens.ui.components.OutlinedAction
+import com.ilyskyo.wordlens.ui.components.WordLensDialog
 import com.ilyskyo.wordlens.ui.icons.WordLensIcons
 import com.ilyskyo.wordlens.ui.nav.sharedEntryPhoto
 import com.ilyskyo.wordlens.ui.theme.IpaTextStyle
@@ -520,28 +520,18 @@ private fun SelectionBar(
     }
 
     if (confirm) {
-        AlertDialog(
-            onDismissRequest = { confirm = false },
-            title = { Text(pluralStringResource(R.plurals.selection_delete_title, count, count)) },
-            text = { Text(stringResource(R.string.selection_delete_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirm = false
-                        onDelete()
-                    },
-                ) {
-                    Text(
-                        text = stringResource(R.string.selection_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+        WordLensDialog(
+            title = pluralStringResource(R.plurals.selection_delete_title, count, count),
+            message = stringResource(R.string.selection_delete_body),
+            onDismiss = { confirm = false },
+            primaryText = stringResource(R.string.selection_delete),
+            onPrimary = {
+                confirm = false
+                onDelete()
             },
-            dismissButton = {
-                TextButton(onClick = { confirm = false }) {
-                    Text(stringResource(R.string.selection_cancel))
-                }
-            },
+            secondaryText = stringResource(R.string.selection_cancel),
+            onSecondary = { confirm = false },
+            destructive = true,
         )
     }
 }

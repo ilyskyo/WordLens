@@ -80,6 +80,7 @@
     <string name="capture_settings">设置</string>
     <string name="capture_retake">重新拍摄</string>
     <string name="capture_save">保存贴纸</string>
+    <string name="detail_edit_save">保存</string>
     <string name="capture_permission_needed">需要相机权限才能识别物体</string>
     <string name="capture_grant">去授权</string>
     <string name="capture_tap_subject">点一下画面里的主体，把它抠出来</string>

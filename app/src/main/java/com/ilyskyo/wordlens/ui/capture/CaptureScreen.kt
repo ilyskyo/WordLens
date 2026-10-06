@@ -37,7 +37,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -66,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.ilyskyo.wordlens.R
 import com.ilyskyo.wordlens.data.model.ShotKind
+import com.ilyskyo.wordlens.ui.components.InsetField
 import com.ilyskyo.wordlens.ui.components.OutlinedAction
 import com.ilyskyo.wordlens.ui.components.SpeakButton
 import com.ilyskyo.wordlens.ui.components.TonalButton
@@ -712,19 +712,15 @@ private fun NoMatchPanel(
         )
         // 那句话承诺过的东西，这里就是它的入口。释义这一格是入口的另一半：
         // 只有词没有意思，存进去的就是一张空释义的卡，而 FSRS 会非常认真地把噪音排到未来。
-        OutlinedTextField(
+        InsetField(
             value = state.manualWord,
             onValueChange = onManualWordChange,
-            label = { Text(stringResource(R.string.manual_field_label)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.manual_field_label),
         )
-        OutlinedTextField(
+        InsetField(
             value = state.manualMeaning,
             onValueChange = onManualMeaningChange,
-            label = { Text(stringResource(R.string.nomatch_meaning_label)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.nomatch_meaning_label),
         )
         TonalButton(
             text = stringResource(R.string.manual_add),
