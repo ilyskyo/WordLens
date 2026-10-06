@@ -4,6 +4,7 @@
 package com.ilyskyo.wordlens.ui.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -138,4 +139,26 @@ object Motion {
 
     /** 呼吸类循环动画的周期：2.4s 慢到不抢注意力，又快到「还在等答案」时能被看见一次。 */
     const val BREATHING_PERIOD_MS = 2400
+
+    // ── 淡入淡出的两档时长 ─────────────────────────────────────────
+    //
+    // 弹簧管的是**有体积的东西怎么动**（位移、缩放、旋转）；纯 alpha 过渡没有惯性可言，
+    // 它需要的只是一个时长。所以这两档不是「第六个弹簧」，而是同一件事的另一半：
+    // 屏幕上只允许存在这两个淡入时长和这两个淡出时长。
+    //
+    // 为什么不对称、而且差得这么多：离场的东西不该占用注意力，进场则要让人跟得上。
+    // 为什么是 120/90 而不是一个数：装机对比过，进出同速会得到一个「闪一下」而不是
+    // 「来了一下、走掉了」的观感。
+
+    /** 淡入时长。所有 `fadeIn` 都用它。 */
+    const val FADE_IN_MS = 120
+
+    /** 淡出时长。所有 `fadeOut` 都用它，比淡入快一档。 */
+    const val FADE_OUT_MS = 90
+
+    /** 淡入。带 [enterEase]：起步快、尾巴长，末速度为 0。 */
+    fun enterFade(): FiniteAnimationSpec<Float> = tween(FADE_IN_MS, easing = enterEase)
+
+    /** 淡出。带 [exitEase]：一开始就最快。 */
+    fun exitFade(): FiniteAnimationSpec<Float> = tween(FADE_OUT_MS, easing = exitEase)
 }

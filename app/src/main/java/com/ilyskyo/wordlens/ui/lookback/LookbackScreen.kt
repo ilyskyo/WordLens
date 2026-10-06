@@ -728,11 +728,10 @@ private fun EntryTimelineCard(
                     // 共享节点是**这一整块**，不是里面那张位图：与详情页那边对齐（那边框住的是
                     // 照片加词片）。挂在位图上时，位图飞到共享层里，压在日期标签之上——
                     // 真机截图上「日期不见了」就是这么来的，而它其实是自己的照片盖住了自己。
-                    // `hoisted = false`：时间轴这张是转场的**源**。抬进 overlay 的是目的侧
-                // （全屏那一页），源侧跟着抬的代价是静止时也常驻在 overlay 里，
-                // 于是卡片会盖住左下角的拍照键——overlay 在整个 SharedTransitionLayout 之上，
-                // 底部按钮救不回来。见 `Modifier.sharedEntryPhoto` 的注释。
-                .sharedEntryPhoto(entry.id, hoisted = false)
+                    // 与详情页是同一个键、同一张照片：飞过去的不是「另一张相似的照片」。
+                // 静止时它不该在 overlay 里——那件事由 `sharedEntryPhoto` 里的默认
+                // `renderInOverlay = { isTransitionActive }` 保证，见那里的注释。
+                .sharedEntryPhoto(entry.id)
                     // 圆角必须自己裁，而且要放在共享修饰符**内侧**：共享层画的是这个节点
                     // 的内容，外面的 clip 它不认。放在外侧时截图上仍然是四个直角。
                     .clip(MaterialTheme.shapes.large),

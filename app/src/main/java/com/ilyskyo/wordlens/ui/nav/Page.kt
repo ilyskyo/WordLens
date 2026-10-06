@@ -152,12 +152,12 @@ val SharedPhotoBounds: BoundsTransform = BoundsTransform { _, _ ->
  */
 @Composable
 @OptIn(ExperimentalSharedTransitionApi::class)
-fun Modifier.sharedEntryPhoto(entryId: String, hoisted: Boolean = true): Modifier {
+fun Modifier.sharedEntryPhoto(entryId: String): Modifier {
     val shared = LocalSharedTransitionScope.current ?: return this
     val visibility = LocalPageVisibilityScope.current ?: return this
     return with(shared) {
         with(visibility) {
-            val withBounds = this@sharedEntryPhoto
+            this@sharedEntryPhoto
                 .sharedBounds(
                     sharedContentState = rememberSharedContentState(key = entryPhotoKey(entryId)),
                     animatedVisibilityScope = this@with,
@@ -168,16 +168,13 @@ fun Modifier.sharedEntryPhoto(entryId: String, hoisted: Boolean = true): Modifie
                     ),
                     boundsTransform = SharedPhotoBounds,
                 )
-            // 抬进 overlay 的只有**全屏那一侧**：飞行途中画的就是目的侧，它必须在 Tab 胶囊
-            // 与底部圆之上。而时间轴那张是源，抬上去的代价是静止时也常驻 overlay——
-            // overlay 在 SharedTransitionLayout 的整个子树之上，于是列表卡片会盖住左下角的
-            // 拍照键（装机截图确认，`zIndex` 救不了：层级根本不在同一个比较域里）。
-            // 第一个参数是 overlay 内的 z 序（Compose 未导出参数名，故按位置传）。
-            if (hoisted) {
-                withBounds.renderInSharedTransitionScopeOverlay(1f) { true }
-            } else {
-                withBounds
-            }
+                // **只给 z 序，别给第二个参数。** 那个参数是 `renderInOverlay: () -> Boolean`，
+                // 库给的默认值是 `{ isTransitionActive }`——「飞行途中才抬进 overlay」本来就是
+                // 默认行为。这里原来写的是 `{ true }`，等于把默认覆盖掉：照片从「飞行途中」
+                // 常驻成了「一直」，而 overlay 在整个 SharedTransitionLayout 之上，
+                // 于是列表卡片静止时也压着左下角的拍照键（`zIndex` 救不了，两者不在同一个
+                // 比较域）。要「穿过悬浮控件」的只有那半秒，而默认值给的正是那半秒。
+                .renderInSharedTransitionScopeOverlay(zIndexInOverlay = 1f)
         }
     }
 }
