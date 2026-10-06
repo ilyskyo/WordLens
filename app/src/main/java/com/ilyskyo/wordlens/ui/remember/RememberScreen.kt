@@ -377,7 +377,7 @@ private fun ReviewCardArea(
                 progress = progress,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(FLIP_CARD_ASPECT)
+                    .aspectRatio(FLIP_CARD_ASPECT, matchHeightConstraintsFirst = true)
                     .then(
                         // 已经飞走的那一张，在下一张到位之前不给它任何回到中间的机会。
                         if (dismissed) Modifier.graphicsLayer { alpha = 0f } else Modifier
@@ -561,7 +561,7 @@ private fun BackSheet(layers: Int, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(FLIP_CARD_ASPECT),
+            .aspectRatio(FLIP_CARD_ASPECT, matchHeightConstraintsFirst = true),
         contentAlignment = Alignment.Center,
     ) {
         // 从最远的一张画起，近的盖住远的。
@@ -570,7 +570,7 @@ private fun BackSheet(layers: Int, modifier: Modifier = Modifier) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(FLIP_CARD_ASPECT)
+                    .aspectRatio(FLIP_CARD_ASPECT, matchHeightConstraintsFirst = true)
                     .graphicsLayer {
                         scaleX = 1f - d * BACK_SCALE_STEP
                         scaleY = 1f - d * BACK_SCALE_STEP
@@ -596,7 +596,7 @@ private fun SwipeGlow(side: SwipeSide, progress: State<Float>, modifier: Modifie
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(FLIP_CARD_ASPECT)
+            .aspectRatio(FLIP_CARD_ASPECT, matchHeightConstraintsFirst = true)
             .graphicsLayer {
                 val raw = when (side) {
                     SwipeSide.Again -> -progress.value
@@ -1141,8 +1141,15 @@ private const val BACK_FULL_ANGLE = 140f
 private const val PAPER_LIFT = 0.03f
 
 /** 320×420 的比例，取自设计规范。 */
+/**
+ * 卡片的长宽比。
+ *
+ * 用它的所有地方都必须 `matchHeightConstraintsFirst = true`：卡片住在 `weight(1f)` 的盒子里，
+ * 而那个盒子的高度由剩余空间决定。只按宽度算高度的话，在矮一点的屏幕上卡片会比盒子**高**，
+ * 于是从中间往两头溢出——真机截图上「Today 0 /0」那行读数被卡片的顶边盖掉一半就是这么来的，
+ * 而它是这一轮唯一的进度反馈。
+ */
 private const val FLIP_CARD_ASPECT = 320f / 420f
-
 /** 越过屏宽 30% 就判定成功：再小会让「顺手一推」误判，再大要滑出屏幕才生效。 */
 private const val SWIPE_THRESHOLD = 0.30f
 
