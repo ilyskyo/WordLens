@@ -241,6 +241,16 @@ class LexiconIndex(entries: List<LexiconEntry>) {
     /** Normalised alias -> entries. */
     private val byAlias: Map<String, List<LexiconEntry>>
 
+    /**
+     * 把词头里的空格去掉之后的索引，只收**多词**词头。
+     *
+     * 存在的理由：模型标签带空格而词典词头不带（"cell phone" 对 `cellphone`），
+     * 这一层让两者能见面。旧实现里这件事是**碰巧成的**——`normalize` 把一切都拆成字母，
+     * 于是两边都被拆成同一串；把 normalize 修对之后这条路就断了，所以在这里显式补上，
+     * 而不是留着一个字母拆分的 bug 当功能。
+     */
+    private val byDespacedHeadword: Map<String, List<LexiconEntry>>
+
     /** Singular -> plural, so "cups" finds "cup". */
     private val singularToPlural: Map<String, String>
 
@@ -249,10 +259,16 @@ class LexiconIndex(entries: List<LexiconEntry>) {
     init {
         val head = HashMap<String, MutableList<LexiconEntry>>()
         val alias = HashMap<String, MutableList<LexiconEntry>>()
+        val despaced = HashMap<String, MutableList<LexiconEntry>>()
         val plural = HashMap<String, String>()
         for (e in entries) {
             val key = normalize(e.headword)
             if (key.isNotEmpty()) head.getOrPut(key) { mutableListOf() } += e
+            // 只收多词词头：单词的去空格形式就是它自己，收进来只会与 `head` 重复。
+            if (key.contains(' ')) {
+                val flat = key.replace(" ", "")
+                if (flat.isNotEmpty()) despaced.getOrPut(flat) { mutableListOf() } += e
+            }
             for (a in e.labelAliases) {
                 val n = normalize(a)
                 if (n.isNotEmpty()) alias.getOrPut(n) { mutableListOf() } += e
@@ -263,6 +279,7 @@ class LexiconIndex(entries: List<LexiconEntry>) {
         }
         byHeadword = head
         byAlias = alias
+        byDespacedHeadword = despaced
         singularToPlural = plural
     }
 
@@ -289,6 +306,15 @@ class LexiconIndex(entries: List<LexiconEntry>) {
             // 1. The whole label is the entry ("coffee cup" -> entry "coffee cup").
             consider(results, byHeadword[label], rawLabel, modelScore, exact = 1.0f)
             consider(results, byAlias[label], rawLabel, modelScore, exact = 0.97f)
+
+            // 1b. 空格差异：模型标签 "cell phone" 对词典词头 "cellphone"（反之亦然）。
+            // 这一条以前靠 normalize 把两边都拆成字母而**意外成立**；修好之后就断了，
+            // 所以显式补上——放在整词命中之下、n-gram 之上，因为它仍然是整词级的证据。
+            val flat = label.replace(" ", "")
+            if (flat != label && flat.isNotEmpty()) {
+                consider(results, byHeadword[flat], rawLabel, modelScore, exact = 0.95f)
+                consider(results, byDespacedHeadword[flat], rawLabel, modelScore, exact = 0.95f)
+            }
 
             // 2. Plural / singular folding, which is what rescues "Trees" -> "tree".
             val singular = singularize(label)
@@ -370,11 +396,38 @@ class LexiconIndex(entries: List<LexiconEntry>) {
     companion object {
         private val ARTICLES = setOf("a", "an", "the", "some")
 
-        /** Lowercase, strip punctuation, collapse whitespace, drop articles. */
+        /**
+         * 「不是字母也不是数字」的一段。用 Unicode 类而不是 `[^a-z0-9]`：
+         * 用户自己补的词条可能是任何文字（café、カップ、수건），按 ASCII 过滤会把它们
+         * 削成另一个词——旧实现里的 `isLetterOrDigit()` 恰好保留了这些字符，不能修得更窄。
+         */
+        private val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
+
+        /**
+         * Lowercase, strip punctuation, collapse whitespace, drop articles.
+         *
+         * 「按词处理」必须一路按词处理到底。这一条以前写成
+         * `raw.map { if (it.isLetterOrDigit()) it else ' ' }.joinToString(" ")`，
+         * 而 `joinToString(" ")` 作用在 `List<Char>` 上是**在每个字符之间插空格**，
+         * 不是只在标点处插——于是整串被拆成字母，紧接着的
+         * `.filter { it !in ARTICLES }` 拿到的 `it` 是单字符，
+         * 集合里那条「冠词 a」就把**所有的字母 a 整列删掉**了：
+         * `normalize("tar")` = `"t r"`、`normalize("hat")` = `"h t"`、
+         * `normalize("traffic light")` = `"t r f f i c l i g h t"`。
+         *
+         * 后果有两层，都不在编译期也不在日志里：
+         * 1. 后面的 n-gram 那一步是在**字母序列上滑窗**，所以检测器说 "traffic light"
+         *    能命中 `en.tar`「焦油」与 `en.hat`「帽子」，分数还是 0.78 那一档（双词命中），
+         *    看着完全像正常匹配；
+         * 2. 任何含 a 的词都被削成另一个词（`cat`→`ct`），两边同削所以整词命中侥幸还对，
+         *    但 `search` 与别名匹配都在悄悄错。
+         *
+         * 现在先把非字母数字一次性换成空格并压缩，再**按词**过滤冠词：
+         * 冠词只作为整词被剔除，字母 a 留在词里。
+         */
         fun normalize(raw: String): String = raw
             .lowercase()
-            .map { if (it.isLetterOrDigit()) it else ' ' }
-            .joinToString(" ")
+            .replace(NON_WORD, " ")
             .split(' ')
             .filter { it.isNotEmpty() && it !in ARTICLES }
             .joinToString(" ")
